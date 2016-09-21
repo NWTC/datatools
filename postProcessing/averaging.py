@@ -41,6 +41,7 @@ class averagingData(object):
         for opt in args:
             if not os.path.isdir(opt): continue
             listing = os.listdir(opt)
+            print 'Checking directory with',listing
             if 'hLevelsCell' in listing:
                 # directly specified an output (time) directory
                 self.simTimeDirs.append( opt )
@@ -51,17 +52,20 @@ class averagingData(object):
             else:
                 # specified a directory containing output (time) subdirectories
                 for dirname in listing:
-                    if not os.path.isdir(dirname): continue
+                    if not os.path.isdir(opt+os.sep+dirname): continue
+                    print '  checking subdirectory',dirname
                     try:
                         startTime = float(dirname)
-                        if 'hLevelsCell' in os.listdir(dirname):
-                            self.simTimeDirs.append( dirname )
+                        if 'hLevelsCell' in os.listdir(opt+os.sep+dirname):
+                            self.simTimeDirs.append( opt+os.sep+dirname )
                             self.simStartTimes.append( startTime )
                     except ValueError: pass # dirname is not a number
 
         # sort results
         self.simTimeDirs = [ x[1] for x in sorted(zip(self.simStartTimes,self.simTimeDirs)) ]
         self.simStartTimes.sort()
+
+        print 'Simulation (re)start times:',self.simStartTimes
 
         # process all output dirs
         for idir,tdir in enumerate( self.simTimeDirs ):
@@ -141,13 +145,13 @@ class averagingData(object):
             self.dt = np.array( newdata[:,1] )
     # }}}
 
-    def TI(self,heights=[],avg_time=None,avg_width=300,SFS=False):
+    def calcTI(self,heights=[],avg_time=None,avg_width=300,SFS=True):
         """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined fluctuations (resolved and sub-filter scale, SFS)
         Based on ABLTools/variances_avg_cell.m
 
         INPUTS
             avg_time        time at which to calculate TI [s]
-            avg_width       number of samples over which to perform the statistics
+            avg_width       half of the number of samples over which to perform the statistics
             heights         vertical locations at which to calculate TI [m]
             SFS             set to True to include SFS terms
 
@@ -159,6 +163,10 @@ class averagingData(object):
             TIxyz           variance assuming homogeneous turbulence, calculated from TKE
             TKE             turbulent kinetic energy (TKE)
         """# {{{
+        if not self.processed:
+            print 'No time directories were processed'
+            return
+
         Nout  = len(heights)
         if Nout==0:
             print 'Need to specify output heights'
@@ -169,9 +177,6 @@ class averagingData(object):
         TIdir = np.zeros(Nout)
         TIxyz = np.zeros(Nout)
         TKE   = np.zeros(Nout)
-        if not self.processed:
-            print 'No time directories were processed'
-            return TIx,TIy,TIz,TIdir,TIxyz,TKE
 
         if avg_time is None:
             avg_time = self.t[-1]
@@ -180,7 +185,7 @@ class averagingData(object):
         dtmin = np.min(self.dt)
         dtmax = np.max(self.dt)
         if dtmin==dtmax:
-            print 'Constant dt, averaging window :',avg_width*dtmin,'s'
+            print 'Constant dt, averaging window :',2*avg_width*dtmin,'s'
         else:
             dtmean = np.mean(self.dt)
             print 'Variable dt, approximate averaging window :',avg_width*dtmean,'s'
@@ -229,10 +234,10 @@ class averagingData(object):
         windDir = np.abs( np.arctan2(Uy,Ux) )
 
         # calculate TKE and TI
-        TKE = 0.5*( uuMeanAvg + vvMeanAvg + wwMeanAvg )
         TIx = sqrt_uuMeanAvg / Umag #np.sqrt( uuMeanAvg ) / Umag
         TIy = sqrt_vvMeanAvg / Umag #np.sqrt( vvMeanAvg ) / Umag
         TIz = sqrt_wwMeanAvg / Umag #np.sqrt( wwMeanAvg ) / Umag
+        TKE = 0.5*( uuMeanAvg + vvMeanAvg + wwMeanAvg )
         TIxyz = np.sqrt( 2./3.*TKE ) / Umag
 
         TIdir = uuMeanAvg *   np.cos(windDir)**2 \
@@ -240,8 +245,147 @@ class averagingData(object):
               + vvMeanAvg *   np.sin(windDir)**2
         TIdir = np.sqrt(TIdir) / Umag
 
+        # save attributes
+        self.TIx    = TIx
+        self.TIy    = TIy
+        self.TIz    = TIz
+        self.TIdir  = TIdir
+        self.TIxyz  = TIxyz
+        self.TKE    = TKE
+
         # }}}
         return TIx,TIy,TIz,TIdir,TIxyz,TKE
+
+    def calcTI_hist(self,heights=[],tavg_window=600,dt=1.0,SFS=True):
+        """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined fluctuations (resolved and sub-filter scale, SFS)
+
+        INPUTS
+            tavg_window     size of window for moving average [s]
+            heights         vertical locations at which to calculate TI [m]
+            dt              uniform time interval to which to interpolate [s]
+            SFS             set to True to include SFS terms
+
+        OUTPUTS
+            tavg            uniformly spaced times at which a moving average was calculated
+            TIx_hist        variance in x-dir, TI*.shape = ( len(tavg), len(heights) )
+            TIy_hist        variance in y-dir
+            TIz_hist        variance in z-dir
+            TIdir_hist      variance resolved to flow direction
+            TIxyz_hist      variance assuming homogeneous turbulence, calculated from TKE
+            TKE_hist        turbulent kinetic energy (TKE)
+        """# {{{
+        try:
+            from scipy.ndimage import uniform_filter
+        except ImportError:
+            print 'Moving average calculation uses scipy.ndimage'
+            return
+
+        if not self.processed:
+            print 'No time directories were processed'
+            return
+
+        Nout  = len(heights)
+        if Nout==0:
+            print 'Need to specify output heights'
+            return
+
+        Nt = int(np.ceil(self.t[-1]/dt))
+        tuniform = np.arange(1,Nt+1)*dt
+        Navg    = int(tavg_window/dt)
+        tavg    = tuniform[Navg/2:-Navg/2+1]
+        Ntavg   = len(tavg)
+        print 'Interpolating to',Nt,'uniformly-spaced data points'
+        print 'Moving average window:',tavg_window,'s'
+
+        TIx   = np.zeros((Ntavg,Nout))
+        TIy   = np.zeros((Ntavg,Nout))
+        TIz   = np.zeros((Ntavg,Nout))
+        TIdir = np.zeros((Ntavg,Nout))
+        TIxyz = np.zeros((Ntavg,Nout))
+        TKE   = np.zeros((Ntavg,Nout))
+
+        for ih,z in enumerate(heights):
+
+            # setup interpolation
+            idx = np.nonzero(self.hLevelsCell > heights[ih])[0]
+            if len(idx)==0: # requested height too high
+                k = len(self.hLevelsCell) # extrapolate from two highest points
+            elif idx[0]==0: # request height too low
+                k = 1 # extrapolate from two lowest points
+            else:
+                k = idx[0] # interpolate between k-1, k
+            frac = (heights[ih] - self.hLevelsCell[k-1]) / (self.hLevelsCell[k] - self.hLevelsCell[k-1])
+
+            # calculate time-averaged velocity profiles
+            # 1. interpolate to requested height for all times
+            # 2. interpolate from all times to a time history with uniformly-spaced samples
+            # 3. apply uniform_filter to perform moving average over the uniformly-spaced samples
+            U_mean_interp = self.U_mean[:,k-1] + frac*(self.U_mean[:,k] - self.U_mean[:,k-1]) # length=len(self.t)
+            V_mean_interp = self.V_mean[:,k-1] + frac*(self.V_mean[:,k] - self.V_mean[:,k-1])
+            W_mean_interp = self.W_mean[:,k-1] + frac*(self.W_mean[:,k] - self.W_mean[:,k-1])
+            U_mean_uniform = np.interp( tuniform, self.t, U_mean_interp ) # length=Nt
+            V_mean_uniform = np.interp( tuniform, self.t, V_mean_interp )
+            W_mean_uniform = np.interp( tuniform, self.t, W_mean_interp )
+            UMeanAvg = uniform_filter( U_mean_uniform, Navg )[Navg/2:-Navg/2+1] # length=Ntavg
+            VMeanAvg = uniform_filter( V_mean_uniform, Navg )[Navg/2:-Navg/2+1]
+            WMeanAvg = uniform_filter( W_mean_uniform, Navg )[Navg/2:-Navg/2+1]
+
+            # calculate time-averaged variances
+            uu_mean_interp = self.uu_mean[:,k-1] + frac*(self.uu_mean[:,k] - self.uu_mean[:,k-1]) # length=len(self.t)
+            vv_mean_interp = self.vv_mean[:,k-1] + frac*(self.vv_mean[:,k] - self.vv_mean[:,k-1])
+            uv_mean_interp = self.uv_mean[:,k-1] + frac*(self.uv_mean[:,k] - self.uv_mean[:,k-1])
+            ww_mean_interp = self.ww_mean[:,k-1] + frac*(self.ww_mean[:,k] - self.ww_mean[:,k-1])
+            uu_mean_uniform = np.interp( tuniform, self.t, uu_mean_interp ) # length=Nt
+            vv_mean_uniform = np.interp( tuniform, self.t, vv_mean_interp )
+            uv_mean_uniform = np.interp( tuniform, self.t, uv_mean_interp )
+            ww_mean_uniform = np.interp( tuniform, self.t, ww_mean_interp )
+            uuMeanAvg = uniform_filter( uu_mean_uniform, Navg )[Navg/2:-Navg/2+1] # length=Ntavg
+            vvMeanAvg = uniform_filter( vv_mean_uniform, Navg )[Navg/2:-Navg/2+1]
+            uvMeanAvg = uniform_filter( uv_mean_uniform, Navg )[Navg/2:-Navg/2+1]
+            wwMeanAvg = uniform_filter( ww_mean_uniform, Navg )[Navg/2:-Navg/2+1]
+            if SFS:
+                print 'Adding SFS component'
+                R11_mean_interp = self.R11_mean[:,k-1] + frac*(self.R11_mean[:,k] - self.R11_mean[:,k-1]) # length=len(self.t)
+                R22_mean_interp = self.R22_mean[:,k-1] + frac*(self.R22_mean[:,k] - self.R22_mean[:,k-1])
+                R12_mean_interp = self.R12_mean[:,k-1] + frac*(self.R12_mean[:,k] - self.R12_mean[:,k-1])
+                R33_mean_interp = self.R33_mean[:,k-1] + frac*(self.R33_mean[:,k] - self.R33_mean[:,k-1])
+                R11_mean_uniform = np.interp( tuniform, self.t, R11_mean_interp ) #length=Nt
+                R22_mean_uniform = np.interp( tuniform, self.t, R22_mean_interp )
+                R12_mean_uniform = np.interp( tuniform, self.t, R12_mean_interp )
+                R33_mean_uniform = np.interp( tuniform, self.t, R33_mean_interp )
+                uuMeanAvg += uniform_filter( R11_mean_uniform, Navg )[Navg/2:-Navg/2+1] # length=Ntavg
+                vvMeanAvg += uniform_filter( R22_mean_uniform, Navg )[Navg/2:-Navg/2+1]
+                uvMeanAvg += uniform_filter( R12_mean_uniform, Navg )[Navg/2:-Navg/2+1]
+                wwMeanAvg += uniform_filter( R33_mean_uniform, Navg )[Navg/2:-Navg/2+1]
+
+            Umag = np.sqrt( UMeanAvg**2 + VMeanAvg**2 + WMeanAvg**2 )
+            windDir = np.abs( np.arctan2(VMeanAvg,UMeanAvg) )
+
+            # calculate TKE and TI
+            TIx[:,ih] = np.sqrt( uuMeanAvg ) / Umag
+            TIy[:,ih] = np.sqrt( vvMeanAvg ) / Umag
+            TIz[:,ih] = np.sqrt( wwMeanAvg ) / Umag
+            TKE[:,ih] = 0.5*( uuMeanAvg + vvMeanAvg + wwMeanAvg )
+            TIxyz[:,ih] = np.sqrt( 2./3.*TKE[:,ih] ) / Umag
+
+            TIdir[:,ih] = uuMeanAvg *   np.cos(windDir)**2 \
+                        + uvMeanAvg * 2*np.sin(windDir)*np.cos(windDir) \
+                        + vvMeanAvg *   np.sin(windDir)**2
+            TIdir[:,ih] = np.sqrt(TIdir[:,ih]) / Umag
+
+        # end loop over heights
+
+        # save attributes
+        self.tavg       = tavg
+        self.TIx_hist   = TIx
+        self.TIy_hist   = TIy
+        self.TIz_hist   = TIz
+        self.TIdir_hist = TIdir
+        self.TIxyz_hist = TIxyz
+        self.TKE_hist   = TKE
+
+        # }}}
+        return tavg,TIx,TIy,TIz,TIdir,TIxyz,TKE
 
 #===========================================================
 if __name__ == '__main__':
@@ -257,4 +401,6 @@ if __name__ == '__main__':
     print 'TIdir=',TIdir
     print 'TIxyz=',TIxyz
     print 'TKE=',TKE
+
+    tavg,TIx_hist,TIy_hist,TIz_hist,TIdir_hist,TIxyz_hist,TKE_hist = data.TI_hist(heights=[90.],SFS=True)
 
