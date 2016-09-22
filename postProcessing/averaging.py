@@ -36,12 +36,17 @@ class averagingData(object):
         self.processed = False
         self.simTimeDirs = [] # output time names
         self.simStartTimes = [] # start or restart simulation times
+        
+        if len(args)==0: args = os.listdir('.')
 
         # find results
         for opt in args:
-            if not os.path.isdir(opt): continue
+            try:
+                if not os.path.isdir(opt): continue
+            except TypeError: # number specified
+                opt = '{:g}'.format(opt)
+
             listing = os.listdir(opt)
-            print 'Checking directory with',listing
             if 'hLevelsCell' in listing:
                 # directly specified an output (time) directory
                 self.simTimeDirs.append( opt )
@@ -50,6 +55,7 @@ class averagingData(object):
                 except: # specified results dir is not a number
                     self.simStartTimes.append( -1 )
             else:
+                print 'Checking directory with',listing
                 # specified a directory containing output (time) subdirectories
                 for dirname in listing:
                     if not os.path.isdir(opt+os.sep+dirname): continue
@@ -72,6 +78,13 @@ class averagingData(object):
             print 'Processing',tdir
             self._process(tdir)
     # }}}
+
+    def __repr__(self):
+        s = 'SOWFA postProcessing: averaging data'
+        for t,d in zip(self.simStartTimes,self.simTimeDirs):
+            fullpath = os.path.realpath(os.curdir) + os.sep + d
+            s += '\n  {:f}\t{:s}'.format(t,fullpath)
+        return s
 
     def _process(self,tdir):
         """ Reads all files within an averaging output time directory, presumably containing hLevelsCell and other cell-averaged quantities
@@ -167,7 +180,11 @@ class averagingData(object):
             print 'No time directories were processed'
             return
 
-        Nout  = len(heights)
+        try:
+            Nout = len(heights)
+        except TypeError: # specified float instead of list of floats
+            heights = [heights]
+            Nout = 1
         if Nout==0:
             print 'Need to specify output heights'
             return
