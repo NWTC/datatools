@@ -59,7 +59,7 @@ class averagingData(object):
                 # specified a directory containing output (time) subdirectories
                 for dirname in listing:
                     if not os.path.isdir(opt+os.sep+dirname): continue
-                    print '  checking subdirectory',dirname
+                    #print '  checking subdirectory',dirname
                     try:
                         startTime = float(dirname)
                         if 'hLevelsCell' in os.listdir(opt+os.sep+dirname):
