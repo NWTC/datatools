@@ -55,7 +55,7 @@ class averagingData(object):
                 except: # specified results dir is not a number
                     self.simStartTimes.append( -1 )
             else:
-                print 'Checking directory with',listing
+                print 'Checking directory',opt,'with',listing
                 # specified a directory containing output (time) subdirectories
                 for dirname in listing:
                     if not os.path.isdir(opt+os.sep+dirname): continue
@@ -89,6 +89,7 @@ class averagingData(object):
     def _process(self,tdir):
         """ Reads all files within an averaging output time directory, presumably containing hLevelsCell and other cell-averaged quantities
         An object attribute corresponding to the averaged output name is updated; e.g., ${timeDir}/U_mean is appended to the array self.U_mean
+        Typically, objects have shape (Ntimes,NlevelsCell)
         """# {{{
         self.processed = True
 
