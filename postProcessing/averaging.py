@@ -74,9 +74,10 @@ class averagingData(object):
         print 'Simulation (re)start times:',self.simStartTimes
 
         # process all output dirs
-        for idir,tdir in enumerate( self.simTimeDirs ):
-            print 'Processing',tdir
-            self._process(tdir)
+        #for idir,tdir in enumerate( self.simTimeDirs ):
+        #    print 'Processing',tdir
+        #    self._process(tdir)
+        self._processDirs( self.simTimeDirs )
     # }}}
 
     def __repr__(self):
@@ -87,9 +88,10 @@ class averagingData(object):
         return s
 
     def _process(self,tdir):
+        # DEPRECATED
         """ Reads all files within an averaging output time directory, presumably containing hLevelsCell and other cell-averaged quantities
         An object attribute corresponding to the averaged output name is updated; e.g., ${timeDir}/U_mean is appended to the array self.U_mean
-        Typically, objects have shape (Ntimes,NlevelsCell)
+        Typically, objects have shape (Nt,Nz)
         """# {{{
         self.processed = True
 
@@ -157,6 +159,59 @@ class averagingData(object):
         except AttributeError: # this is the first time dir
             self.t = np.array( newdata[:,0] )
             self.dt = np.array( newdata[:,1] )
+    # }}}
+
+    def _processDirs(self,tdirList):
+        """ Reads all files from a list of output time directories, presumably containing hLevelsCell and other cell-averaged quantities
+        An object attribute corresponding to the averaged output name is updated; e.g., ${timeDir}/U_mean is appended to the array self.U_mean
+        Typically, objects have shape (Nt,Nz)
+        """# {{{
+        self.processed = True
+
+        allOutputs = os.listdir(tdirList[0])
+        outputs = []
+        for out in allOutputs:
+            if out=='hLevelsCell': continue
+            field = out[:-5] # strip '_mean' suffix
+            if len(field)==1 or field.startswith('R') or \
+                    (len(field)==2 and not field.startswith('T') and not field.startswith('q')):
+                outputs.append( out )
+
+        # process hLevelsCell first, verify we have the same cells
+        with open(tdirList[0]+os.sep+'hLevelsCell','r') as f:
+            line = f.readline()
+        self.hLevelsCell = np.array([ float(val) for val in line.split() ])
+
+        # check that we have the same amount of data
+        for tdir in tdirList:
+            Nlines = []
+            for qty in outputs:
+                output = tdir + os.sep + qty
+                if not os.path.isfile(output): continue
+
+                with open(output,'r') as f:
+                    for i,line in enumerate(f): pass
+                    Nlines.append(i+1)
+                    line = line.split() # check final line for the right number of values
+                    if not len(line) == len(self.hLevelsCell)+2: # t,dt,f_1,f_2,...,f_N for N heights
+                        print 'z',z
+                        print 'line',line
+                        print 'Error: number of output points inconsistent with hLevelsCell in',output
+                        return
+            if not np.min(Nlines) == np.max(Nlines):
+                print 'Error: number of output times do not match in all files'
+                return
+        N = Nlines[0]
+
+        # now process all data
+        for qty in outputs:
+            arrays = [ np.loadtxt( tdir+os.sep+qty ) for tdir in tdirList ]
+            newdata = np.concatenate(arrays)
+            setattr( self, qty, newdata[:,2:] )
+            print '  read',qty
+
+        self.t = np.array( newdata[:,0] )
+        self.dt = np.array( newdata[:,1] )
     # }}}
 
     def calcTI(self,heights=[],avg_time=None,avg_width=300,SFS=True):
