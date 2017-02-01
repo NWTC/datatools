@@ -467,7 +467,7 @@ class averagingData(object):
         # }}}
         return tavg,TIx,TIy,TIz,TIdir,TIxyz,TKE
 
-    def estShear(self,heights=[20.0,40.0,80.0],zref=80.0,Uref=8.0,verbose=True):
+    def shear(self,heights=[20.0,40.0,80.0],zref=80.0,Uref=8.0,verbose=True):
         """ Estimate the shear from the average streamwise velocity from the final time step.
         Sets the property 'approxWindProfile' to the fitted wind profile
 
@@ -498,7 +498,7 @@ class averagingData(object):
 
         return alpha#}}}
 
-    def estVeer(self,hmax=9e9,verbose=True):
+    def veer(self,hmax=9e9,verbose=True):
         """ Estimate the veer from the average streamwise velocity from the final time step
         Also calculates the height-varying wind direction [deg]
 
