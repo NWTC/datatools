@@ -221,7 +221,7 @@ class averagingData(object):
         self.dt = np.array( newdata[:,1] )
     # }}}
 
-    def calcTI(self,heights=[],avg_time=None,avg_width=300,SFS=True):
+    def calcTI(self,heights=[],avg_time=None,avg_width=300,SFS=True,verbose=True):
         """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined fluctuations (resolved and sub-filter scale, SFS)
         Based on ABLTools/variances_avg_cell.m
 
@@ -260,22 +260,23 @@ class averagingData(object):
 
         if avg_time is None:
             avg_time = self.t[-1]
-        print 'Average at time',avg_time
+        if verbose: print 'Average at time',avg_time
 
         dtmin = np.min(self.dt)
         dtmax = np.max(self.dt)
         if dtmin==dtmax:
-            print 'Constant dt, averaging window :',2*avg_width*dtmin,'s'
+            if verbose: print 'Constant dt, averaging window :',2*avg_width*dtmin,'s'
         else:
             dtmean = np.mean(self.dt)
-            print 'Variable dt, approximate averaging window :',avg_width*dtmean,'s'
-            print '  dt min/mean/max=',dtmin,dtmean,dtmax
+            if verbose: 
+                print 'Variable dt, approximate averaging window :',avg_width*dtmean,'s'
+                print '  dt min/mean/max=',dtmin,dtmean,dtmax
 
         i = np.argmin(np.abs(self.t-avg_time))
         js = max( i-avg_width  , 0 )
         je = min( i+avg_width+1, len(self.t) )
         dtsub = self.dt[js:je]
-        print 'Processing range js,je,sum(dt):',js,je,np.sum(dtsub)
+        if verbose: print 'Processing range js,je,sum(dt):',js,je,np.sum(dtsub)
 
         # calculate time-averaged velocity profiles
         UMeanAvg = np.dot( dtsub, self.U_mean[js:je,:] ) / np.sum(dtsub)
@@ -288,7 +289,7 @@ class averagingData(object):
         uvMeanAvg = np.dot( dtsub, self.uv_mean[js:je,:] ) / np.sum(dtsub)
         wwMeanAvg = np.dot( dtsub, self.ww_mean[js:je,:] ) / np.sum(dtsub)
         if SFS:
-            print 'Adding SFS component'
+            if verbose: print 'Adding SFS component'
             uuMeanAvg += np.dot( dtsub, self.R11_mean[js:je,:] ) / np.sum(dtsub)
             vvMeanAvg += np.dot( dtsub, self.R22_mean[js:je,:] ) / np.sum(dtsub)
             uvMeanAvg += np.dot( dtsub, self.R12_mean[js:je,:] ) / np.sum(dtsub)
@@ -308,7 +309,7 @@ class averagingData(object):
         wwMeanAvg = np.interp( heights, self.hLevelsCell, wwMeanAvg )
 
         Umag = np.sqrt( Ux**2 + Uy**2 + Uz**2 )
-        print 'Umag at z=',heights,'m : ',Umag,'m/s'
+        if verbose: print 'Umag at z=',heights,'m : ',Umag,'m/s'
 
         # calculate wind direction
         windDir = np.abs( np.arctan2(Uy,Ux) )
@@ -336,7 +337,7 @@ class averagingData(object):
         # }}}
         return TIx,TIy,TIz,TIdir,TIxyz,TKE
 
-    def calcTI_hist(self,heights=[],tavg_window=600,dt=1.0,SFS=True):
+    def calcTI_hist(self,heights=[],tavg_window=600,dt=1.0,SFS=True,verbose=True):
         """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined fluctuations (resolved and sub-filter scale, SFS)
 
         INPUTS
@@ -374,8 +375,9 @@ class averagingData(object):
         Navg    = int(tavg_window/dt)
         tavg    = tuniform[Navg/2:-Navg/2+1]
         Ntavg   = len(tavg)
-        print 'Interpolating to',Nt,'uniformly-spaced data points'
-        print 'Moving average window:',tavg_window,'s'
+        if verbose:
+            print 'Interpolating to',Nt,'uniformly-spaced data points'
+            print 'Moving average window:',tavg_window,'s'
 
         TIx   = np.zeros((Ntavg,Nout))
         TIy   = np.zeros((Ntavg,Nout))
@@ -424,7 +426,7 @@ class averagingData(object):
             uvMeanAvg = uniform_filter( uv_mean_uniform, Navg )[Navg/2:-Navg/2+1]
             wwMeanAvg = uniform_filter( ww_mean_uniform, Navg )[Navg/2:-Navg/2+1]
             if SFS:
-                print 'Adding SFS component'
+                if verbose: print 'Adding SFS component'
                 R11_mean_interp = self.R11_mean[:,k-1] + frac*(self.R11_mean[:,k] - self.R11_mean[:,k-1]) # length=len(self.t)
                 R22_mean_interp = self.R22_mean[:,k-1] + frac*(self.R22_mean[:,k] - self.R22_mean[:,k-1])
                 R12_mean_interp = self.R12_mean[:,k-1] + frac*(self.R12_mean[:,k] - self.R12_mean[:,k-1])
@@ -467,7 +469,7 @@ class averagingData(object):
         # }}}
         return tavg,TIx,TIy,TIz,TIdir,TIxyz,TKE
 
-    def shear(self,heights=[20.0,40.0,80.0],zref=80.0,Uref=8.0,verbose=True):
+    def calcShear(self,heights=[20.0,40.0,80.0],zref=80.0,Uref=8.0,verbose=True):
         """ Estimate the shear from the average streamwise velocity from the final time step.
         Sets the property 'approxWindProfile' to the fitted wind profile
 
@@ -477,6 +479,10 @@ class averagingData(object):
         OUTPUTS
             alpha       power law wind profile exponent
         """#{{{
+        if not self.processed:
+            print 'No time directories were processed'
+            return
+
         from scipy.interpolate import interp1d
         Uh = np.sqrt( self.U_mean**2 + self.V_mean**2 )[-1,:]
         Ufn = interp1d( self.hLevelsCell, Uh, kind='linear' )
@@ -496,9 +502,10 @@ class averagingData(object):
         self.approxUfn = Ufn
         self.approxWindProfile = Uref * (self.hLevelsCell/zref)**alpha
 
-        return alpha#}}}
+        #}}}
+        return alpha
 
-    def veer(self,hmax=9e9,verbose=True):
+    def calcVeer(self,hmax=9e9,verbose=True):
         """ Estimate the veer from the average streamwise velocity from the final time step
         Also calculates the height-varying wind direction [deg]
 
@@ -507,8 +514,12 @@ class averagingData(object):
 
         OUTPUTS
             veer        veer angle [deg]
-                        >0 implies clockwise change in wind direction seen from above#{{{
-        """
+                        >0 implies clockwise change in wind direction seen from above
+        """#{{{
+        if not self.processed:
+            print 'No time directories were processed'
+            return
+
         dir = np.arctan2( -self.U_mean, -self.V_mean )[-1,:]
         dir[dir<0] += 2*np.pi
         dir *= 180.0/np.pi
@@ -522,8 +533,62 @@ class averagingData(object):
         imax = np.argmax(np.abs(deltaWind[idxs]))
         veer = deltaWind[imax]
 
-        return veer#}}}
+        #}}}
+        return veer
 
+    def calcRichardsonNumber(self,g=9.81,zref=90.0,D=126.0,verbose=True):
+        """ Estimate the Richardson number from the averaged T profile at the final time step
+        which should range between -O(0.01) to +O(0.1), for unstable to stable.
+        Difference formula used are second-order accurate.
+
+        INPUTS
+            g           gravity [m/s^2]
+            zref        reference height used to locate the top of the rotor [m]
+            D           rotor diameter used to locate the top of the rotor [m]
+
+        OUTPUTS
+            Ri          Richardson number
+        """#{{{
+        if not self.processed:
+            print 'No time directories were processed'
+            return
+
+        z = self.hLevelsCell
+        T = self.T_mean[-1,:]
+        U = np.sqrt( self.U_mean[-1,:]**2 + self.V_mean[-1,:]**2 )
+        spacings = z[1:3] - z[0:2]
+        assert( spacings[0] == spacings[1] )
+        dz = spacings[0]
+
+        rotorTop = zref + D/2
+        idxs = z<=rotorTop
+        Tmean = np.mean( T[idxs] )
+
+        centralFormula = np.array([-1,0,1])/(2*dz)
+        dTdz1 = centralFormula.dot(T[:3])
+        dUdz1 = centralFormula.dot(U[:3])
+
+        oneSidedFormula = np.array([-3,4,-1])/(2*dz)
+        dTdz0 = oneSidedFormula.dot(T[:3])
+        dUdz0 = oneSidedFormula.dot(U[:3])
+
+        dTdz = (dTdz1-dTdz0)/dz * (-z[0]) + dTdz0
+        dUdz = (dUdz1-dUdz0)/dz * (-z[0]) + dUdz0
+
+        if verbose:
+            print 'Calculating Ri with:'
+            print '  mean T :',Tmean
+            print '  dT/dz at z=',z[1],':',dTdz1,' (finite difference)'
+            print '  dT/dz at z=',z[0],':',dTdz0,' (finite difference)'
+            print '  dT/dz at z=0:',dTdz,' (extrapolated)'
+            print '  dU/dz at z=',z[1],':',dUdz1,' (finite difference)'
+            print '  dU/dz at z=',z[0],':',dUdz0,' (finite difference)'
+            print '  dU/dz at z=0:',dUdz,' (extrapolated)'
+
+        Ri = g/Tmean * dTdz / dUdz**2
+
+        #}}}
+        return Ri
 
 #===========================================================
 if __name__ == '__main__':
