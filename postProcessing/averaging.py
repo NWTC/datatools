@@ -54,7 +54,7 @@ class averagingData(object):
                     self.simStartTimes.append( float(opt) )
                 except: # specified results dir is not a number
                     self.simStartTimes.append( -1 )
-            else:
+            elif not opt.startswith('boundaryData'):
                 print 'Checking directory',opt#,'with',listing
                 # specified a directory containing output (time) subdirectories
                 for dirname in listing:
@@ -466,6 +466,64 @@ class averagingData(object):
 
         # }}}
         return tavg,TIx,TIy,TIz,TIdir,TIxyz,TKE
+
+    def estShear(self,heights=[20.0,40.0,80.0],zref=80.0,Uref=8.0,verbose=True):
+        """ Estimate the shear from the average streamwise velocity from the final time step.
+        Sets the property 'approxWindProfile' to the fitted wind profile
+
+        INPUTS
+            heights     list of three points to use to fit the wind profile
+
+        OUTPUTS
+            alpha       power law wind profile exponent
+        """#{{{
+        from scipy.interpolate import interp1d
+        Uh = np.sqrt( self.U_mean**2 + self.V_mean**2 )[-1,:]
+        Ufn = interp1d( self.hLevelsCell, Uh, kind='linear' )
+        U = Ufn(heights)
+
+        if verbose:
+            print 'Estimating shear coefficient for Uref=',Uref,'and zref=',zref,':'
+            print '     U=',U,'m/s'
+            print '  at z=',heights,'m'
+        lnz = np.log( np.array(heights)/zref )
+        lnU = np.log( U/Uref )
+        alpha = lnz.dot(lnU) / lnz.dot(lnz)
+
+        self.Uh = Uh
+        self.approxHeights = heights
+        self.approxU = U # at heights
+        self.approxUfn = Ufn
+        self.approxWindProfile = Uref * (self.hLevelsCell/zref)**alpha
+
+        return alpha#}}}
+
+    def estVeer(self,hmax=9e9,verbose=True):
+        """ Estimate the veer from the average streamwise velocity from the final time step
+        Also calculates the height-varying wind direction [deg]
+
+        INPUTS
+            hmax        estimate change up to this height; up to top of domain if None
+
+        OUTPUTS
+            veer        veer angle [deg]
+                        >0 implies clockwise change in wind direction seen from above#{{{
+        """
+        dir = np.arctan2( -self.U_mean, -self.V_mean )[-1,:]
+        dir[dir<0] += 2*np.pi
+        dir *= 180.0/np.pi
+
+        self.windDir = dir
+        
+        idxs = self.hLevelsCell < hmax
+        z = self.hLevelsCell[idxs]
+        deltaWind = dir - dir[0]
+        if verbose: print 'Estimating shear up to z=',z[-1],'m'
+        imax = np.argmax(np.abs(deltaWind[idxs]))
+        veer = deltaWind[imax]
+
+        return veer#}}}
+
 
 #===========================================================
 if __name__ == '__main__':
