@@ -24,12 +24,12 @@ Sample usage:
 import os
 import numpy as np
 
-def read(*args):
-    return averagingData(*args)
+def read(*args,**kwargs):
+    return averagingData(*args,**kwargs)
 
 class averagingData(object):
 
-    def __init__(self,*args):
+    def __init__(self,*args,**kwargs):
         """ Find and process all time directories
         """# {{{
         self.hLevelsCell = None
@@ -77,7 +77,7 @@ class averagingData(object):
         #for idir,tdir in enumerate( self.simTimeDirs ):
         #    print 'Processing',tdir
         #    self._process(tdir)
-        self._processDirs( self.simTimeDirs )
+        self._processDirs( self.simTimeDirs, **kwargs )
     # }}}
 
     def __repr__(self):
@@ -161,21 +161,26 @@ class averagingData(object):
             self.dt = np.array( newdata[:,1] )
     # }}}
 
-    def _processDirs(self,tdirList):
+    def _processDirs(self,tdirList,varList=None):
         """ Reads all files from a list of output time directories, presumably containing hLevelsCell and other cell-averaged quantities
         An object attribute corresponding to the averaged output name is updated; e.g., ${timeDir}/U_mean is appended to the array self.U_mean
         Typically, objects have shape (Nt,Nz)
         """# {{{
         self.processed = True
 
-        allOutputs = os.listdir(tdirList[0])
-        outputs = []
-        for out in allOutputs:
-            if out=='hLevelsCell': continue
-            field = out[:-5] # strip '_mean' suffix
-            if len(field)==1 or field.startswith('R') or \
-                    (len(field)==2 and not field.startswith('T') and not field.startswith('q')):
-                outputs.append( out )
+        if varList is None:
+            allOutputs = os.listdir(tdirList[0])
+            outputs = []
+            for out in allOutputs:
+                if out=='hLevelsCell': continue
+                field = out[:-5] # strip '_mean' suffix
+                if len(field)==1 or field.startswith('R') or \
+                        (len(field)==2 and not field.startswith('T') and not field.startswith('q')):
+                    outputs.append( out )
+        elif isinstance( varList, (str,unicode) ):
+            outputs = [varList]
+        else:
+            outputs = varList
 
         # process hLevelsCell first, verify we have the same cells
         with open(tdirList[0]+os.sep+'hLevelsCell','r') as f:
@@ -187,7 +192,9 @@ class averagingData(object):
             Nlines = []
             for qty in outputs:
                 output = tdir + os.sep + qty
-                if not os.path.isfile(output): continue
+                if not os.path.isfile(output):
+                    print 'Error:',output,'not found'
+                    return
 
                 with open(output,'r') as f:
                     for i,line in enumerate(f): pass
