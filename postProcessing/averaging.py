@@ -55,7 +55,7 @@ class averagingData(object):
                 except: # specified results dir is not a number
                     self.simStartTimes.append( -1 )
             else:
-                print 'Checking directory',opt,'with',listing
+                print 'Checking directory',opt#,'with',listing
                 # specified a directory containing output (time) subdirectories
                 for dirname in listing:
                     if not os.path.isdir(opt+os.sep+dirname): continue
