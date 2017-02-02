@@ -25,7 +25,16 @@ import os
 import numpy as np
 
 def read(*args,**kwargs):
+    """ Specify variables to read with keyword 'varList'
+    """
     return averagingData(*args,**kwargs)
+
+allAveragingVars = [
+        'T_mean',
+        'U_mean','V_mean','W_mean',
+        'uu_mean', 'vv_mean', 'ww_mean', 'uv_mean', 'uw_mean', 'vw_mean',
+        'R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean'
+        ]
 
 class averagingData(object):
 
@@ -33,7 +42,7 @@ class averagingData(object):
         """ Find and process all time directories
         """# {{{
         self.hLevelsCell = None
-        self.processed = False
+        self.processed = []
         self.simTimeDirs = [] # output time names
         self.simStartTimes = [] # start or restart simulation times
         
@@ -93,15 +102,11 @@ class averagingData(object):
         An object attribute corresponding to the averaged output name is updated; e.g., ${timeDir}/U_mean is appended to the array self.U_mean
         Typically, objects have shape (Nt,Nz)
         """# {{{
-        self.processed = True
-
         allOutputs = os.listdir(tdir)
         outputs = []
-        for out in allOutputs:
-            if out=='hLevelsCell': continue
-            field = out[:-5] # strip '_mean' suffix
-            if len(field)==1 or field.startswith('R') or \
-                    (len(field)==2 and not field.startswith('T') and not field.startswith('q')):
+        for field in allOutputs:
+            if field=='hLevelsCell': continue
+            if field in allAveragingVars:
                 outputs.append( out )
 
         # process hLevelsCell first, verify we have the same cells
@@ -116,8 +121,8 @@ class averagingData(object):
 
         # check that we have the same amount of data
         Nlines = []
-        for qty in outputs:
-            output = tdir + os.sep + qty
+        for field in outputs:
+            output = tdir + os.sep + field
             if not os.path.isfile(output): continue
 
             with open(output,'r') as f:
@@ -135,9 +140,12 @@ class averagingData(object):
             return
         N = Nlines[0]
 
-        # now process all data
-        for qty in outputs:
-            output = tdir + os.sep + qty
+        # NOW process all data
+        for field in outputs:
+            if field in self.processed: continue
+            else: self.processed.append(field)
+
+            output = tdir + os.sep + field
             if not os.path.isfile(output): continue
 
             with open(output,'r') as f:
@@ -145,12 +153,12 @@ class averagingData(object):
             newdata = np.array([ [ float(val) for val in line.split()] for line in lines ]) # newdata.shape = (Nt,Nz+2)
 
             try:
-                olddata = getattr(self,qty)
-                setattr( self, qty, np.concatenate((olddata,newdata[:,2:])) )
-                print '  concatenated',qty
+                olddata = getattr(self,field)
+                setattr( self, field, np.concatenate((olddata,newdata[:,2:])) )
+                print '  concatenated',field
             except AttributeError:
-                setattr( self, qty, newdata[:,2:] )
-                print '  created',qty
+                setattr( self, field, newdata[:,2:] )
+                print '  created',field
 
         # add additional times
         try:
@@ -161,26 +169,28 @@ class averagingData(object):
             self.dt = np.array( newdata[:,1] )
     # }}}
 
-    def _processDirs(self,tdirList,varList=None):
+    def _processDirs(self,tdirList,varList=['U_mean','V_mean','W_mean']):
         """ Reads all files from a list of output time directories, presumably containing hLevelsCell and other cell-averaged quantities
         An object attribute corresponding to the averaged output name is updated; e.g., ${timeDir}/U_mean is appended to the array self.U_mean
         Typically, objects have shape (Nt,Nz)
         """# {{{
-        self.processed = True
-
-        if varList is None:
-            allOutputs = os.listdir(tdirList[0])
-            outputs = []
-            for out in allOutputs:
-                if out=='hLevelsCell': continue
-                field = out[:-5] # strip '_mean' suffix
-                if len(field)==1 or field.startswith('R') or \
-                        (len(field)==2 and not field.startswith('T') and not field.startswith('q')):
-                    outputs.append( out )
-        elif isinstance( varList, (str,unicode) ):
-            outputs = [varList]
-        else:
+        outputs = []
+        if isinstance( varList, (str,unicode) ): # single specified var
+            if varList.lower()=='all':
+                # special case: read all vars
+                allOutputs = os.listdir(tdirList[0])
+                for field in allOutputs:
+                    if field=='hLevelsCell': continue
+                    if field in allAveragingVars:
+                        outputs.append( out )
+            else:
+                outputs = [varList]
+        else: # specified list
             outputs = varList
+
+        for field in outputs:
+            if field in self.processed: outputs.remove(field)
+        if len(outputs)==0: return
 
         # process hLevelsCell first, verify we have the same cells
         with open(tdirList[0]+os.sep+'hLevelsCell','r') as f:
@@ -190,8 +200,8 @@ class averagingData(object):
         # check that we have the same amount of data
         for tdir in tdirList:
             Nlines = []
-            for qty in outputs:
-                output = tdir + os.sep + qty
+            for field in outputs:
+                output = tdir + os.sep + field
                 if not os.path.isfile(output):
                     print 'Error:',output,'not found'
                     return
@@ -210,16 +220,27 @@ class averagingData(object):
                 return
         N = Nlines[0]
 
-        # now process all data
-        for qty in outputs:
-            arrays = [ np.loadtxt( tdir+os.sep+qty ) for tdir in tdirList ]
+        # NOW process all data
+        for field in outputs:
+            arrays = [ np.loadtxt( tdir + os.sep + field ) for tdir in tdirList ]
             newdata = np.concatenate(arrays)
-            setattr( self, qty, newdata[:,2:] )
-            print '  read',qty
+            setattr( self, field, newdata[:,2:] )
+
+            self.processed.append(field)
+            print '  read',field
 
         self.t = np.array( newdata[:,0] )
         self.dt = np.array( newdata[:,1] )
     # }}}
+
+    def getVarsIfNeeded(self,varList,reread=False):
+        """ Read in specified list of variables
+        """
+        if reread:
+            for var in varList:
+                if var in self.processed: self.processed.remove(var)
+        self._processDirs( self.simTimeDirs, varList=varList )
+
 
     def calcTI(self,heights=[],avg_time=None,avg_width=300,SFS=True,verbose=True):
         """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined fluctuations (resolved and sub-filter scale, SFS)
@@ -239,9 +260,8 @@ class averagingData(object):
             TIxyz           variance assuming homogeneous turbulence, calculated from TKE
             TKE             turbulent kinetic energy (TKE)
         """# {{{
-        if not self.processed:
-            print 'No time directories were processed'
-            return
+        self.getVarsIfNeeded(['uu_mean','vv_mean','ww_mean','uv_mean','uw_mean','vw_mean'])
+        if SFS: self.getVarsIfNeeded(['R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean'])
 
         try:
             Nout = len(heights)
@@ -300,7 +320,7 @@ class averagingData(object):
         Uy = np.interp( heights, self.hLevelsCell, VMeanAvg )
         Uz = np.interp( heights, self.hLevelsCell, WMeanAvg )
         sqrt_uuMeanAvg = np.interp( heights, self.hLevelsCell, np.sqrt(uuMeanAvg) ) # for agreement with variances_avg_cell.m
-        sqrt_uvMeanAvg = np.interp( heights, self.hLevelsCell, np.sqrt(uvMeanAvg) )
+        #sqrt_uvMeanAvg = np.interp( heights, self.hLevelsCell, np.sqrt(uvMeanAvg) ) # not used
         sqrt_vvMeanAvg = np.interp( heights, self.hLevelsCell, np.sqrt(vvMeanAvg) )
         sqrt_wwMeanAvg = np.interp( heights, self.hLevelsCell, np.sqrt(wwMeanAvg) )
         uuMeanAvg = np.interp( heights, self.hLevelsCell, uuMeanAvg )
@@ -337,7 +357,7 @@ class averagingData(object):
         # }}}
         return TIx,TIy,TIz,TIdir,TIxyz,TKE
 
-    def calcTI_hist(self,heights=[],tavg_window=600,dt=1.0,SFS=True,verbose=True):
+    def calcTI_hist(self,heights=[],tavg_window=600.0,dt=1.0,SFS=True,verbose=True):
         """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined fluctuations (resolved and sub-filter scale, SFS)
 
         INPUTS
@@ -361,9 +381,8 @@ class averagingData(object):
             print 'Moving average calculation uses scipy.ndimage'
             return
 
-        if not self.processed:
-            print 'No time directories were processed'
-            return
+        self.getVarsIfNeeded(['uu_mean','vv_mean','ww_mean','uv_mean','uw_mean','vw_mean'])
+        if SFS: self.getVarsIfNeeded(['R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean'])
 
         Nout  = len(heights)
         if Nout==0:
@@ -479,10 +498,6 @@ class averagingData(object):
         OUTPUTS
             alpha       power law wind profile exponent
         """#{{{
-        if not self.processed:
-            print 'No time directories were processed'
-            return
-
         from scipy.interpolate import interp1d
         Uh = np.sqrt( self.U_mean**2 + self.V_mean**2 )[-1,:]
         Ufn = interp1d( self.hLevelsCell, Uh, kind='linear' )
@@ -516,10 +531,6 @@ class averagingData(object):
             veer        veer angle [deg]
                         >0 implies clockwise change in wind direction seen from above
         """#{{{
-        if not self.processed:
-            print 'No time directories were processed'
-            return
-
         dir = np.arctan2( -self.U_mean, -self.V_mean )[-1,:]
         dir[dir<0] += 2*np.pi
         dir *= 180.0/np.pi
@@ -549,9 +560,7 @@ class averagingData(object):
         OUTPUTS
             Ri          Richardson number
         """#{{{
-        if not self.processed:
-            print 'No time directories were processed'
-            return
+        self.getVarsIfNeeded('T_mean')
 
         z = self.hLevelsCell
         T = self.T_mean[-1,:]
