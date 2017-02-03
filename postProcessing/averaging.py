@@ -30,10 +30,9 @@ def read(*args,**kwargs):
     return averagingData(*args,**kwargs)
 
 allAveragingVars = [
-        'T_mean',
-        'U_mean','V_mean','W_mean',
+        'U_mean','V_mean','W_mean','T_mean',
         'uu_mean', 'vv_mean', 'ww_mean', 'uv_mean', 'uw_mean', 'vw_mean',
-        'R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean'
+        'R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean',
         ]
 
 class averagingData(object):
@@ -41,8 +40,8 @@ class averagingData(object):
     def __init__(self,*args,**kwargs):
         """ Find and process all time directories
         """# {{{
+        self._processed = []
         self.hLevelsCell = None
-        self.processed = []
         self.simTimeDirs = [] # output time names
         self.simStartTimes = [] # start or restart simulation times
         
@@ -96,11 +95,30 @@ class averagingData(object):
             s += '\n  {:f}\t{:s}'.format(t,fullpath)
         return s
 
+    def getVarsIfNeeded(self,*args,**kwargs): # reread=False (default keywords after *args not possible in Python 2)
+        """ Read in specified list of variables
+        """
+        varList = []
+        if 'reread' in kwargs and kwargs['reread']:
+            for var in args:
+                if var in self._processed: self._processed.remove(var)
+                varList.append(var)
+            print 'Rereading variables',varList
+        else:
+            for var in args:
+                if var not in self._processed: varList.append(var)
+        if len(varList)==0: return
+
+        self._processDirs( self.simTimeDirs, varList=varList )
+
     def _process(self,tdir):
-        # DEPRECATED
-        """ Reads all files within an averaging output time directory, presumably containing hLevelsCell and other cell-averaged quantities
-        An object attribute corresponding to the averaged output name is updated; e.g., ${timeDir}/U_mean is appended to the array self.U_mean
-        Typically, objects have shape (Nt,Nz)
+        ### DEPRECATED ###
+        # This reads each field from one time directory (specified) at a time; several times slower than _processDirs
+        """ Reads all files within an averaging output time directory, presumably containing
+        hLevelsCell and other cell-averaged quantities. An object attribute corresponding to the
+        averaged output name is updated, e.g.:
+            ${timeDir}/U_mean is appended to the array self.U_mean
+        Typically, objects have shape (Nt,Nz).
         """# {{{
         allOutputs = os.listdir(tdir)
         outputs = []
@@ -142,8 +160,8 @@ class averagingData(object):
 
         # NOW process all data
         for field in outputs:
-            if field in self.processed: continue
-            else: self.processed.append(field)
+            if field in self._processed: continue
+            else: self._processed.append(field)
 
             output = tdir + os.sep + field
             if not os.path.isfile(output): continue
@@ -169,28 +187,28 @@ class averagingData(object):
             self.dt = np.array( newdata[:,1] )
     # }}}
 
-    def _processDirs(self,tdirList,varList=['U_mean','V_mean','W_mean']):
-        """ Reads all files from a list of output time directories, presumably containing hLevelsCell and other cell-averaged quantities
-        An object attribute corresponding to the averaged output name is updated; e.g., ${timeDir}/U_mean is appended to the array self.U_mean
-        Typically, objects have shape (Nt,Nz)
+    def _processDirs(self,tdirList,varList=['U_mean','V_mean','W_mean','T_mean']):
+        # This reads each field from all time directories simultaneously; several times faster than _process!
+        """ Reads all files within an averaging output time directory, presumably containing
+        hLevelsCell and other cell-averaged quantities. An object attribute corresponding to the
+        averaged output name is updated, e.g.:
+            ${timeDir}/U_mean is appended to the array self.U_mean
+        Typically, objects have shape (Nt,Nz).
         """# {{{
         outputs = []
-        if isinstance( varList, (str,unicode) ): # single specified var
+        if isinstance( varList, (str,unicode) ):
             if varList.lower()=='all':
                 # special case: read all vars
                 allOutputs = os.listdir(tdirList[0])
                 for field in allOutputs:
-                    if field=='hLevelsCell': continue
-                    if field in allAveragingVars:
-                        outputs.append( out )
-            else:
+                    if field=='hLevelsCell':
+                        continue
+                    else:
+                        outputs.append( field )
+            else: # specified single var
                 outputs = [varList]
         else: # specified list
             outputs = varList
-
-        for field in outputs:
-            if field in self.processed: outputs.remove(field)
-        if len(outputs)==0: return
 
         # process hLevelsCell first, verify we have the same cells
         with open(tdirList[0]+os.sep+'hLevelsCell','r') as f:
@@ -226,24 +244,17 @@ class averagingData(object):
             newdata = np.concatenate(arrays)
             setattr( self, field, newdata[:,2:] )
 
-            self.processed.append(field)
+            self._processed.append(field)
             print '  read',field
 
         self.t = np.array( newdata[:,0] )
         self.dt = np.array( newdata[:,1] )
-    # }}}
-
-    def getVarsIfNeeded(self,varList,reread=False):
-        """ Read in specified list of variables
-        """
-        if reread:
-            for var in varList:
-                if var in self.processed: self.processed.remove(var)
-        self._processDirs( self.simTimeDirs, varList=varList )
-
+        # }}}
+        return None
 
     def calcTI(self,heights=[],avg_time=None,avg_width=300,SFS=True,verbose=True):
-        """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined fluctuations (resolved and sub-filter scale, SFS)
+        """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined
+        fluctuations (including resolved and sub-filter scale, SFS).
         Based on ABLTools/variances_avg_cell.m
 
         INPUTS
@@ -260,8 +271,8 @@ class averagingData(object):
             TIxyz           variance assuming homogeneous turbulence, calculated from TKE
             TKE             turbulent kinetic energy (TKE)
         """# {{{
-        self.getVarsIfNeeded(['uu_mean','vv_mean','ww_mean','uv_mean','uw_mean','vw_mean'])
-        if SFS: self.getVarsIfNeeded(['R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean'])
+        self.getVarsIfNeeded('uu_mean','vv_mean','ww_mean','uv_mean','uw_mean','vw_mean')
+        if SFS: self.getVarsIfNeeded('R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean')
 
         try:
             Nout = len(heights)
@@ -329,7 +340,8 @@ class averagingData(object):
         wwMeanAvg = np.interp( heights, self.hLevelsCell, wwMeanAvg )
 
         Umag = np.sqrt( Ux**2 + Uy**2 + Uz**2 )
-        if verbose: print 'Umag at z=',heights,'m : ',Umag,'m/s'
+        if verbose:
+            for zi,ui in zip(heights,Umag): print 'Umag at z=',zi,'m : ',ui,'m/s'
 
         # calculate wind direction
         windDir = np.abs( np.arctan2(Uy,Ux) )
@@ -354,11 +366,14 @@ class averagingData(object):
         self.TIxyz  = TIxyz
         self.TKE    = TKE
 
+        if Nout==1:
+            return TIx[0],TIy[0],TIz[0],TIdir[0],TIxyz[0],TKE[0]
         # }}}
-        return TIx,TIy,TIz,TIdir,TIxyz,TKE
+        return TIx, TIy, TIz, TIdir, TIxyz, TKE
 
-    def calcTI_hist(self,heights=[],tavg_window=600.0,dt=1.0,SFS=True,verbose=True):
-        """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined fluctuations (resolved and sub-filter scale, SFS)
+    def calcTI_hist(self, heights=[], tavg_window=600.0, dt=1.0, SFS=True, verbose=True):
+        """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined
+        fluctuations (including resolved and sub-filter scale, SFS).
 
         INPUTS
             tavg_window     size of window for moving average [s]
@@ -381,8 +396,8 @@ class averagingData(object):
             print 'Moving average calculation uses scipy.ndimage'
             return
 
-        self.getVarsIfNeeded(['uu_mean','vv_mean','ww_mean','uv_mean','uw_mean','vw_mean'])
-        if SFS: self.getVarsIfNeeded(['R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean'])
+        self.getVarsIfNeeded('uu_mean','vv_mean','ww_mean','uv_mean','uw_mean','vw_mean')
+        if SFS: self.getVarsIfNeeded('R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean')
 
         Nout  = len(heights)
         if Nout==0:
@@ -484,13 +499,12 @@ class averagingData(object):
         self.TIdir_hist = TIdir
         self.TIxyz_hist = TIxyz
         self.TKE_hist   = TKE
-
         # }}}
-        return tavg,TIx,TIy,TIz,TIdir,TIxyz,TKE
+        return tavg, TIx, TIy, TIz, TIdir, TIxyz, TKE
 
-    def calcShear(self,heights=[20.0,40.0,80.0],zref=80.0,Uref=8.0,verbose=True):
-        """ Estimate the shear from the average streamwise velocity from the final time step.
-        Sets the property 'approxWindProfile' to the fitted wind profile
+    def calcShear(self, heights=[20.0,40.0,80.0], zref=80.0, Uref=8.0, verbose=True):
+        """ Estimate the shear from the average streamwise velocity from the final time step. Sets
+        self.approxWindProfile to the fitted wind profile.
 
         INPUTS
             heights     list of three points to use to fit the wind profile
@@ -516,13 +530,14 @@ class averagingData(object):
         self.approxU = U # at heights
         self.approxUfn = Ufn
         self.approxWindProfile = Uref * (self.hLevelsCell/zref)**alpha
+        self.alpha = alpha
 
         #}}}
-        return alpha
+        return self.alpha
 
-    def calcVeer(self,hmax=9e9,verbose=True):
-        """ Estimate the veer from the average streamwise velocity from the final time step
-        Also calculates the height-varying wind direction [deg]
+    def calcVeer(self, hmax=9e9, verbose=True):
+        """ Estimate the veer from the average streamwise velocity from the final time step. Also
+        calculates the height-varying wind direction, saved in self.windDir [deg].
 
         INPUTS
             hmax        estimate change up to this height; up to top of domain if None
@@ -542,15 +557,37 @@ class averagingData(object):
         deltaWind = dir - dir[0]
         if verbose: print 'Estimating shear up to z=',z[-1],'m'
         imax = np.argmax(np.abs(deltaWind[idxs]))
-        veer = deltaWind[imax]
+        self.veer = deltaWind[imax]
 
         #}}}
-        return veer
+        return self.veer
 
-    def calcRichardsonNumber(self,g=9.81,zref=90.0,D=126.0,verbose=True):
-        """ Estimate the Richardson number from the averaged T profile at the final time step
-        which should range between -O(0.01) to +O(0.1), for unstable to stable.
-        Difference formula used are second-order accurate.
+    def calcTGradients(self, zi):
+        """ Calculate the temperature gradient at the inversion height and at the top of the
+        computational domain.
+
+        INPUTS
+            zi          inversion height [m]
+
+        OUTPUTS
+            dTdz_inv    temperature gradient at the inversion [deg K/m]
+            dTdz_upper  upper temperature gradient [deg K/m]
+        """#{{{
+        self.getVarsIfNeeded('T_mean')
+
+        ii = np.argmin(np.abs(self.hLevelsCell-zi))
+        dTdz_inv = (self.T_mean[-1,ii+1] - self.T_mean[-1,ii]) \
+                 / (self.hLevelsCell[ii+1] - self.hLevelsCell[ii])
+
+        dTdz_upper = (self.T_mean[-1,-1] - self.T_mean[-1,-2]) \
+                   / (self.hLevelsCell[-1] - self.hLevelsCell[-2])
+#}}}
+        return dTdz_inv, dTdz_upper
+
+    def calcRichardsonNumber(self, g=9.81, zref=90.0, D=126.0, verbose=True):
+        """ Estimate the Richardson number from the averaged T profile at the final time step which
+        should range between -O(0.01) to +O(0.1), for unstable to stable. Difference formula used
+        are second-order accurate.
 
         INPUTS
             g           gravity [m/s^2]
@@ -594,10 +631,12 @@ class averagingData(object):
             print '  dU/dz at z=',z[0],':',dUdz0,' (finite difference)'
             print '  dU/dz at z=0:',dUdz,' (extrapolated)'
 
-        Ri = g/Tmean * dTdz / dUdz**2
+        self.dUdz_surf = dUdz
+        self.dTdz_surf = dTdz
+        self.Ri = g/Tmean * dTdz / dUdz**2
 
         #}}}
-        return Ri
+        return self.Ri
 
 #===========================================================
 if __name__ == '__main__':
