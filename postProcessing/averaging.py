@@ -618,6 +618,9 @@ class averagingData(object):
         dTdz0 = oneSidedFormula.dot(T[:3])
         dUdz0 = oneSidedFormula.dot(U[:3])
 
+        Tsurf = (T[1]-T[0])/(z[1]-z[0])*(-z[0]) + T[0]
+
+        # extrapolate derivatives to the ground
         dTdz = (dTdz1-dTdz0)/dz * (-z[0]) + dTdz0
         dUdz = (dUdz1-dUdz0)/dz * (-z[0]) + dUdz0
 
@@ -631,6 +634,7 @@ class averagingData(object):
             print '  dU/dz at z=',z[0],':',dUdz0,' (finite difference)'
             print '  dU/dz at z=0:',dUdz,' (extrapolated)'
 
+        self.Tsurf = Tsurf
         self.dUdz_surf = dUdz
         self.dTdz_surf = dTdz
         self.Ri = g/Tmean * dTdz / dUdz**2
