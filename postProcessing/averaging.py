@@ -234,8 +234,7 @@ class averagingData(object):
                         print 'Error: number of output points inconsistent with hLevelsCell in',output
                         return
             if not np.min(Nlines) == np.max(Nlines):
-                print 'Error: number of output times do not match in all files'
-                return
+                print 'Warning: number of output times do not match in all files'
         N = Nlines[0]
 
         # NOW process all data
@@ -404,6 +403,22 @@ class averagingData(object):
             print 'Need to specify output heights'
             return
 
+        # check for inconsistent array lengths
+        Nt0 = len(self.t)
+        fieldsToCheck = [
+            self.U_mean, self.V_mean, self.W_mean,
+            self.uu_mean, self.uv_mean, self.vv_mean, self.ww_mean,
+            self.R11_mean, self.R12_mean, self.R22_mean, self.R33_mean
+        ]
+        if any([ field.shape[0] < Nt0 for field in fieldsToCheck ]):
+            # need to prune arrays
+            Nt_new = np.min([ field.shape[0] for field in fieldsToCheck ])
+            print 'Inconsistent averaging field lengths, resizing from',Nt0,'to',Nt_new
+            self.t = self.t[:Nt_new]
+            for field in fieldsToCheck:
+                field = field[:Nt_new,:]
+
+        # setup uniform points for interpolation and averaging windows
         Nt = int(np.ceil(self.t[-1]/dt))
         tuniform = np.arange(1,Nt+1)*dt
         Navg    = int(tavg_window/dt)
