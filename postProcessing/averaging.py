@@ -413,10 +413,20 @@ class averagingData(object):
         if any([ field.shape[0] < Nt0 for field in fieldsToCheck ]):
             # need to prune arrays
             Nt_new = np.min([ field.shape[0] for field in fieldsToCheck ])
-            print 'Inconsistent averaging field lengths, resizing from',Nt0,'to',Nt_new
+            print 'Inconsistent averaging field lengths... simulation is still running?'
+            print '  truncated field histories from',Nt0,'to',Nt_new
             self.t = self.t[:Nt_new]
-            for field in fieldsToCheck:
-                field = field[:Nt_new,:]
+            self.U_mean = self.U_mean[:Nt_new,:]
+            self.V_mean = self.V_mean[:Nt_new,:]
+            self.W_mean = self.W_mean[:Nt_new,:]
+            self.uu_mean = self.uu_mean[:Nt_new,:]
+            self.uv_mean = self.uv_mean[:Nt_new,:]
+            self.vv_mean = self.vv_mean[:Nt_new,:]
+            self.ww_mean = self.ww_mean[:Nt_new,:]
+            self.R11_mean = self.R11_mean[:Nt_new,:]
+            self.R12_mean = self.R12_mean[:Nt_new,:]
+            self.R22_mean = self.R22_mean[:Nt_new,:]
+            self.R33_mean = self.R33_mean[:Nt_new,:]
 
         # setup uniform points for interpolation and averaging windows
         Nt = int(np.ceil(self.t[-1]/dt))
