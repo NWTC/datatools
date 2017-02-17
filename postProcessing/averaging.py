@@ -560,12 +560,13 @@ class averagingData(object):
         #}}}
         return self.alpha
 
-    def calcVeer(self, hmax=9e9, verbose=True):
+    def calcVeer(self, zhub=80.0, D=126.0, verbose=True):
         """ Estimate the veer from the average streamwise velocity from the final time step. Also
         calculates the height-varying wind direction, saved in self.windDir [deg].
 
         INPUTS
-            hmax        estimate change up to this height; up to top of domain if None
+            zhub        hub height [m]
+            D           rotor diameter [m]
 
         OUTPUTS
             veer        veer angle [deg]
@@ -577,12 +578,14 @@ class averagingData(object):
 
         self.windDir = dir
         
-        idxs = self.hLevelsCell < hmax
-        z = self.hLevelsCell[idxs]
-        deltaWind = dir - dir[0]
-        if verbose: print 'Estimating shear up to z=',z[-1],'m'
-        imax = np.argmax(np.abs(deltaWind[idxs]))
-        self.veer = deltaWind[imax]
+        idxs = (self.hLevelsCell >= zhub-D/2) & (self.hLevelsCell <= zhub+D/2)
+        if verbose:
+            z = self.hLevelsCell[idxs]
+            #for zi,angi,tf in zip(self.hLevelsCell,dir,idxs):
+            #    print zi,'m ',angi,'deg ',tf
+            print 'Estimating shear between z=',z[0],'and',z[-1],'m'
+        rotorWindDir = dir[idxs]
+        self.veer = rotorWindDir[-1] - rotorWindDir[0]
 
         #}}}
         return self.veer
