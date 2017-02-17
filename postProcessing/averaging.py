@@ -111,13 +111,15 @@ class averagingData(object):
 
         self._processDirs( self.simTimeDirs, varList=varList )
 
+    ### DEPRECATED ###
+    # This reads each field from one time directory (specified) at a time; several times slower than _processDirs
     def _process(self,tdir):
-        ### DEPRECATED ###
-        # This reads each field from one time directory (specified) at a time; several times slower than _processDirs
-        """ Reads all files within an averaging output time directory, presumably containing
-        hLevelsCell and other cell-averaged quantities. An object attribute corresponding to the
-        averaged output name is updated, e.g.:
+        """ Reads all files within an averaging output time directory,
+        presumably containing hLevelsCell and other cell-averaged
+        quantities. An object attribute corresponding to the averaged
+        output name is updated, e.g.:
             ${timeDir}/U_mean is appended to the array self.U_mean
+
         Typically, objects have shape (Nt,Nz).
         """# {{{
         allOutputs = os.listdir(tdir)
@@ -187,12 +189,14 @@ class averagingData(object):
             self.dt = np.array( newdata[:,1] )
     # }}}
 
+    # This reads each field from all time directories simultaneously; several times faster than _process!
     def _processDirs(self,tdirList,varList=['U_mean','V_mean','W_mean','T_mean']):
-        # This reads each field from all time directories simultaneously; several times faster than _process!
-        """ Reads all files within an averaging output time directory, presumably containing
-        hLevelsCell and other cell-averaged quantities. An object attribute corresponding to the
-        averaged output name is updated, e.g.:
+        """ Reads all files within an averaging output time directory,
+        presumably containing hLevelsCell and other cell-averaged
+        quantities. An object attribute corresponding to the averaged
+        output name is updated, e.g.:
             ${timeDir}/U_mean is appended to the array self.U_mean
+
         Typically, objects have shape (Nt,Nz).
         """# {{{
         outputs = []
@@ -251,9 +255,16 @@ class averagingData(object):
         # }}}
         return None
 
-    def calcTI(self,heights=[],avg_time=None,avg_width=300,SFS=True,verbose=True):
-        """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined
-        fluctuations (including resolved and sub-filter scale, SFS).
+    def calcTI(self,
+            heights=[],
+            avg_time=None,
+            avg_width=300,
+            SFS=True,
+            verbose=True):
+        """ Calculate the turbulence intensity (TI) of the resolved
+        fluctuations alone or combined fluctuations (including resolved
+        and sub-filter scale, SFS). 
+        
         Based on ABLTools/variances_avg_cell.m
 
         INPUTS
@@ -370,9 +381,15 @@ class averagingData(object):
         # }}}
         return TIx, TIy, TIz, TIdir, TIxyz, TKE
 
-    def calcTI_hist(self, heights=[], tavg_window=600.0, dt=1.0, SFS=True, verbose=True):
-        """ Calculate the turbulence intensity (TI) of the resolved fluctuations alone or combined
-        fluctuations (including resolved and sub-filter scale, SFS).
+    def calcTI_hist(self,
+            heights=[],
+            tavg_window=600.0,
+            dt=1.0,
+            SFS=True,
+            verbose=True):
+        """ Calculate the turbulence intensity (TI) of the resolved
+        fluctuations alone or combined fluctuations (including resolved
+        and sub-filter scale, SFS).
 
         INPUTS
             tavg_window     size of window for moving average [s]
@@ -527,9 +544,15 @@ class averagingData(object):
         # }}}
         return tavg, TIx, TIy, TIz, TIdir, TIxyz, TKE
 
-    def calcShear(self, heights=[20.0,40.0,80.0], zref=80.0, Uref=8.0, verbose=True):
-        """ Estimate the shear from the average streamwise velocity from the final time step. Sets
-        self.approxWindProfile to the fitted wind profile.
+    def calcShear(self,
+            heights=[20.0,40.0,80.0],
+            zref=80.0,
+            Uref=8.0,
+            interp=False,
+            verbose=True):
+        """ Estimate the shear from the average streamwise velocity from
+        the final time step. Sets self.approxWindProfile to the fitted
+        wind profile.
 
         INPUTS
             heights     list of three points to use to fit the wind profile
@@ -538,9 +561,22 @@ class averagingData(object):
             alpha       power law wind profile exponent
         """#{{{
         from scipy.interpolate import interp1d
-        Uh = np.sqrt( self.U_mean**2 + self.V_mean**2 )[-1,:]
-        Ufn = interp1d( self.hLevelsCell, Uh, kind='linear' )
-        U = Ufn(heights)
+        Uh = np.sqrt( self.U_mean**2 + self.V_mean**2 )[-1,:] # horizontal wind
+
+        if interp:
+            Ufn = interp1d( self.hLevelsCell, Uh, kind='linear' )
+            U = Ufn(heights)
+            self.approxHeights = heights
+            self.approxU = U # at heights
+            self.approxUfn = Ufn
+        else:
+            # find nearest cell without interpolating
+            idx = [ np.argmin(np.abs(h-self.hLevelsCell)) for h in sorted(heights) ]
+            print idx
+            print self.hLevelsCell[idx]
+            assert(len(set(idx)) >= 3)
+            heights = self.hLevelsCell[idx]
+            U = Uh[idx]
 
         if verbose:
             print 'Estimating shear coefficient for Uref=',Uref,'and zref=',zref,':'
@@ -551,9 +587,6 @@ class averagingData(object):
         alpha = lnz.dot(lnU) / lnz.dot(lnz)
 
         self.Uh = Uh
-        self.approxHeights = heights
-        self.approxU = U # at heights
-        self.approxUfn = Ufn
         self.approxWindProfile = Uref * (self.hLevelsCell/zref)**alpha
         self.alpha = alpha
 
@@ -561,8 +594,9 @@ class averagingData(object):
         return self.alpha
 
     def calcVeer(self, zhub=80.0, D=126.0, verbose=True):
-        """ Estimate the veer from the average streamwise velocity from the final time step. Also
-        calculates the height-varying wind direction, saved in self.windDir [deg].
+        """ Estimate the veer from the average streamwise velocity from
+        the final time step. Also calculates the height-varying wind
+        direction, saved in self.windDir [deg].
 
         INPUTS
             zhub        hub height [m]
@@ -591,8 +625,8 @@ class averagingData(object):
         return self.veer
 
     def calcTGradients(self, zi):
-        """ Calculate the temperature gradient at the inversion height and at the top of the
-        computational domain.
+        """ Calculate the temperature gradient at the inversion height
+        and at the top of the computational domain.
 
         INPUTS
             zi          inversion height [m]
@@ -613,9 +647,10 @@ class averagingData(object):
         return dTdz_inv, dTdz_upper
 
     def calcRichardsonNumber(self, g=9.81, zref=90.0, D=126.0, verbose=True):
-        """ Estimate the Richardson number from the averaged T profile at the final time step which
-        should range between -O(0.01) to +O(0.1), for unstable to stable. Difference formula used
-        are second-order accurate.
+        """ Estimate the Richardson number from the averaged T profile
+        at the final time step which should range between -O(0.01) to
+        +O(0.1), for unstable to stable. Difference formula used are
+        second-order accurate.
 
         INPUTS
             g           gravity [m/s^2]
