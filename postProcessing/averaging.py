@@ -572,8 +572,6 @@ class averagingData(object):
         else:
             # find nearest cell without interpolating
             idx = [ np.argmin(np.abs(h-self.hLevelsCell)) for h in sorted(heights) ]
-            print idx
-            print self.hLevelsCell[idx]
             assert(len(set(idx)) >= 3)
             heights = self.hLevelsCell[idx]
             U = Uh[idx]
