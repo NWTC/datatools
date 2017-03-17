@@ -67,7 +67,7 @@ def readRotorOutputs(datadir='turbineOutput',prefix='rotor',Nturb=1,turbineList=
                 turbinedata[turbNum] = dframes[iturb]
             else:
                 turbinedata[turbNum] = pd.concat(
-                        (turbinedata[turbNum], dframes[iturb].iloc[:,len(headerNames)-2:]),
+                        (turbinedata[turbNum], dframes[iturb].iloc[:,-1:]),
                         axis=1)
 
     # sort everything by the (time) index once
@@ -129,7 +129,7 @@ def readBladeOutputs(datadir='turbineOutput',prefix='blade',Nturb=1,bladeNum=0,t
                 turbinedata[turbNum] = dframes[iturb]
             else:
                 turbinedata[turbNum] = pd.concat(
-                        (turbinedata[turbNum], dframes[iturb].iloc[:,len(headerNames)-2:]),
+                        (turbinedata[turbNum], dframes[iturb].iloc[:,-numBladePoints:]),
                         axis=1)
 
     # sort everything by the (time) index once
