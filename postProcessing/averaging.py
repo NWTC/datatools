@@ -45,33 +45,36 @@ class averagingData(object):
         self.simTimeDirs = [] # output time names
         self.simStartTimes = [] # start or restart simulation times
         
-        if len(args)==0: args = os.listdir('.')
+        if len(args)==0:
+            args = os.listdir('.')
+            if 'averaging' in args: args = ['averaging']
 
         # find results
-        for opt in args:
+        for arg in args:
             try:
-                if not os.path.isdir(opt): continue
+                if not os.path.isdir(arg): continue
             except TypeError: # number specified
-                opt = '{:g}'.format(opt)
+                arg = '{:g}'.format(arg)
+                if not os.path.isdir(arg): continue
 
-            listing = os.listdir(opt)
+            listing = os.listdir(arg)
             if 'hLevelsCell' in listing:
-                # directly specified an output (time) directory
-                self.simTimeDirs.append( opt )
+                # an output (time) directory was directly specified
+                self.simTimeDirs.append( arg )
                 try:
-                    self.simStartTimes.append( float(opt) )
+                    self.simStartTimes.append( float(arg) )
                 except: # specified results dir is not a number
                     self.simStartTimes.append( -1 )
-            elif not opt.startswith('boundaryData'):
-                print 'Checking directory',opt#,'with',listing
+            elif not arg.startswith('boundaryData'):
+                print 'Checking directory',arg#,'with',listing
                 # specified a directory containing output (time) subdirectories
                 for dirname in listing:
-                    if not os.path.isdir(opt+os.sep+dirname): continue
+                    if not os.path.isdir(arg+os.sep+dirname): continue
                     #print '  checking subdirectory',dirname
                     try:
                         startTime = float(dirname)
-                        if 'hLevelsCell' in os.listdir(opt+os.sep+dirname):
-                            self.simTimeDirs.append( opt+os.sep+dirname )
+                        if 'hLevelsCell' in os.listdir(arg+os.sep+dirname):
+                            self.simTimeDirs.append( arg+os.sep+dirname )
                             self.simStartTimes.append( startTime )
                     except ValueError: pass # dirname is not a number
 
@@ -85,7 +88,10 @@ class averagingData(object):
         #for idir,tdir in enumerate( self.simTimeDirs ):
         #    print 'Processing',tdir
         #    self._process(tdir)
-        self._processDirs( self.simTimeDirs, **kwargs )
+        if len(self.simTimeDirs) > 0:
+            self._processDirs( self.simTimeDirs, **kwargs )
+        else:
+            print 'No averaging time directories found!'
     # }}}
 
     def __repr__(self):
