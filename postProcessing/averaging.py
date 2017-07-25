@@ -53,18 +53,23 @@ class averagingData(object):
         for arg in args:
             try:
                 if not os.path.isdir(arg): continue
-            except TypeError: # number specified
+            except TypeError: # a number was specified
                 arg = '{:g}'.format(arg)
                 if not os.path.isdir(arg): continue
+
+            if arg[-1] == os.sep: arg = arg[:-1] # strip trailing slash
 
             listing = os.listdir(arg)
             if 'hLevelsCell' in listing:
                 # an output (time) directory was directly specified
-                self.simTimeDirs.append( arg )
+                self.simTimeDirs.append(arg)
                 try:
-                    self.simStartTimes.append( float(arg) )
+                    timeDirName = os.path.split(arg)[1] # final part of path after last slash
+                    dirTime = float(timeDirName)
+
                 except: # specified results dir is not a number
-                    self.simStartTimes.append( -1 )
+                    dirTime = -1
+                self.simStartTimes.append(dirTime)
             elif not arg.startswith('boundaryData'):
                 print 'Checking directory',arg#,'with',listing
                 # specified a directory containing output (time) subdirectories
