@@ -457,7 +457,7 @@ class averagingData(object):
             self.R33_mean = self.R33_mean[:Nt_new,:]
 
         # setup uniform points for interpolation and averaging windows
-        Nt = int(np.ceil(self.t[-1]/dt))
+        Nt = int(np.ceil((self.t[-1]-self.t[0])/dt))
         tuniform = np.arange(1,Nt+1)*dt
         Navg    = int(tavg_window/dt)
         tavg    = tuniform[Navg/2:-Navg/2+1]
