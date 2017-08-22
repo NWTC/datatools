@@ -36,6 +36,8 @@ class binaryfile:
         return self
 
     def read(self,N=1): return self.f.read(N)
+
+    # integers
     def read_int1(self,N=1):
         if N==1: return struct.unpack('b',self.f.read(1))[0] #short
         else: return struct.unpack('{:d}b',self.f.read(N*1))[0:N] #short
@@ -48,6 +50,8 @@ class binaryfile:
     def read_int8(self,N=1):
         if N==1: return struct.unpack('l',self.f.read(8))[0] #long
         else: return struct.unpack('{:d}l'.format(N),self.f.read(N*8))[0:N] #long
+
+    # floats
     def read_float(self,N=1,dtype=float):
         if N==1: return dtype( struct.unpack('f',self.f.read(4))[0] )
         else: return [ dtype(val) for val in struct.unpack('{:d}f'.format(N),self.f.read(N*4))[0:N] ]
@@ -58,5 +62,8 @@ class binaryfile:
         return self.read_float(N,dtype=np.float32)
     def read_real8(self,N=1):
         return self.read_float(N,dtype=np.float64)
+
+    # aliases
+    def read_int(self,N=1): return self.read_int4(N)
 
 
