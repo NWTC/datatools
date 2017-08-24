@@ -35,7 +35,11 @@ class binaryfile:
            #return False # uncomment to pass exception through
         return self
 
-    def read(self,N=1): return self.f.read(N)
+    def close(self):
+        self.f.close()
+
+    def read(self,N=1):
+        return self.f.read(N)
 
     def unpack(self,*args):
         try:
