@@ -247,3 +247,143 @@ def write_vtkStructured(data,meta,fileOutPath,descStr="PLACEHOLDER",verbose=Fals
     if verbose:
         print "Saved data to {0}".format(fileOutPath)
     return
+#==============================================================================
+# 
+#==============================================================================
+def vtk_write_structured_points( f, nx,ny,nz, data,
+        datatype=['vector'],
+        ds=None,dx=None,dy=None,dz=None,
+        origin=(0.0,0.0,0.0),
+        dataname=[],
+        indexorder='jik',
+        vtk_header='# vtk DataFile Version 2.0',
+        vtk_datatype='float',
+        vtk_description='really cool data'
+    ):
+    """Write a VTK dataset with regular topology to file handle 'f'
+    written by Eliot Quon (eliot.quon@nrel.gov)
+    Note: This should be merged with the existing write_vtkStructured (EWQ)
+
+    Inputs are written with x increasing fastest, then y, then z.
+
+    Example: Writing out two vector fields in one VTK file.
+        vtk_write_structured_points(f,nx,ny,nz,[U,V,W,up,vp,wp],ds=1.0,dataname=['mean','fluctuation'])
+
+    Parameters
+    ----------
+    nx, ny, nz : int
+        Data dimensions
+    data : list of numpy.ndarray
+        The length of this list should correspond to the total number of
+        scalars and vector components
+    datatype : list
+        Acceptable types are 'vector' or 'scalar', and dictate which
+        input data correspond to which field
+    ds : float, optional
+        Default grid spacing; dx,dy,dz may be specified to override
+    dx, dy, dz : float, optional
+        Specific grid spacings; if ds is not specified, then all three
+        must be specified
+    origin : list-like, optional
+        Origin of the grid
+    dataname : list
+        List of names for each vector or scalar field in data
+    indexorder: str
+        Specify the indexing convention (standard: 'ijk', TTUDD: 'jik')
+
+    @author: ewquon
+    """
+    # calculate grid spacings if needed
+    if ds:
+        if not dx: dx = ds
+        if not dy: dy = ds
+        if not dz: dz = ds
+    else:
+        assert( dx > 0 and dy > 0 and dz > 0 ) 
+
+    # replace shorthand names
+    if type(dataname)==str: dataname = [dataname]
+    Nvector = 0
+    Nscalar = 0
+    Nvalues = 0
+    for i,name in enumerate(datatype):
+        if name[0].lower() == 'v':
+            datatype[i] = 'vector'
+            Nvector += 1
+            Nvalues += 3
+        elif name[0].lower() == 's':
+            datatype[i] = 'scalar'
+            Nscalar += 1
+            Nvalues += 1
+        else:
+            print 'unrecognized data type',name
+
+    # sanity checks
+    assert( len(data) == Nvalues )
+
+    # write header
+    f.write(vtk_header+'\n')
+    f.write(vtk_description+'\n')
+    if 'b' in f.mode:
+        binary = True
+        import struct
+        f.write('BINARY\n')
+    else:
+        binary = False
+        f.write('ASCII\n')
+    f.write('DATASET STRUCTURED_POINTS\n')
+
+    # write out mesh descriptors
+    f.write('DIMENSIONS {:d} {:d} {:d}\n'.format(nx,ny,nz))
+    f.write('ORIGIN {:f} {:f} {:f}\n'.format(origin[0],origin[1],origin[2]))
+    f.write('SPACING {:f} {:f} {:f}\n'.format(dx,dy,dz))
+
+    # write out data
+    f.write('POINT_DATA {:d}\n'.format(nx*ny*nz))
+    idx = 0 # data list index
+    for idata,outputtype in enumerate(datatype):
+
+        if outputtype=='vector':
+            u,v,w = data[idx], data[idx+1], data[idx+2]
+            idx += 3
+        elif outputtype=='scalar':
+            u = data[idx]
+            idx += 1
+        else: continue
+
+        try:
+            #name = dataname[idata]
+            name = dataname[idata].replace(' ','_')
+        except IndexError:
+            name = outputtype+str(idata)
+
+        if outputtype=='vector':
+            f.write('{:s}S {:s} {:s}\n'.format(outputtype.upper(),name,vtk_datatype))
+            mapping = { 'i': range(nx), 'j': range(ny), 'k': range(nz) }
+            ijkranges = [ mapping[ijk] for ijk in indexorder ]
+            if binary:
+                for k in ijkranges[2]:
+                    for j in ijkranges[1]:
+                        for i in ijkranges[0]:
+                            f.write(struct.pack('>fff', u[i,j,k], v[i,j,k], w[i,j,k])) # big endian
+            else: #ascii
+                for k in ijkranges[2]:
+                    for j in ijkranges[1]:
+                        for i in ijkranges[0]:
+                            f.write(' {:f} {:f} {:f}\n'.format(u[i,j,k], v[i,j,k], w[i,j,k]))
+        elif outputtype=='scalar':
+            f.write('{:s}S {:s} {:s}\n'.format(outputtype.upper(),name,vtk_datatype))
+            f.write('LOOKUP_TABLE default\n')
+            if binary:
+                for k in range(nz):
+                    for j in range(ny):
+                        for i in range(nx):
+                            #f.write(struct.pack('f',u[j,i,k])) # native endianness
+                            f.write(struct.pack('>f',u[j,i,k])) # big endian
+            else:
+                for k in range(nz):
+                    for j in range(ny):
+                        for i in range(nx):
+                            f.write(' {:f}\n'.format(u[j,i,k]))
+
+
