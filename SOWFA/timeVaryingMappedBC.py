@@ -163,3 +163,67 @@ def readBoundaryPoints(fname,checkConst=True,tol=1e-6):
 
     return _getPointsFromList(ylist,zlist)
 
+def readVectorData(fname,NY=None,NZ=None,order='F'):
+    N = None
+    data = None
+    iread = 0
+    with open(fname,'r') as f:
+        for line in f:
+            if N is None:
+                try:
+                    N = int(line)
+                    if (NY is not None) and (NZ is not None):
+                        if not N == NY*NZ:
+                            NY = None
+                            NZ = None
+                    data = np.zeros((N,3))
+                    print 'Reading',N,'vectors from',fname
+                except ValueError: pass
+            elif not line.strip() in ['','(',')']:
+                data[iread,:] = [ float(val) for val in line.strip().strip('()').split() ]
+                iread += 1
+    assert(iread == N)
+
+    if (NY is not None) and (NZ is not None):
+        vectorField = np.zeros((3,NY,NZ))
+        for i in range(3):
+            vectorField[i,:,:] = data[:,i].reshape((NY,NZ),order=order)
+    else:
+        vectorField = data.T
+
+    return vectorField
+
+
+def readScalarData(fname,NY=None,NZ=None,order='F'):
+    N = None
+    data = None
+    iread = 0
+    with open(fname,'r') as f:
+        for line in f:
+            if (N is None) or N < 0:
+                try:
+                    if N is None: 
+                        avgval = float(line)
+                        N = -1 # skip first scalar, which is the average field value (not used)
+                    else:
+                        assert(N < 0)
+                        N = int(line) # now read the number of points
+                        if (NY is not None) and (NZ is not None):
+                            if not N == NY*NZ:
+                                NY = None
+                                NZ = None
+                        data = np.zeros(N)
+                        print 'Reading',N,'scalars from',fname
+                except ValueError: pass
+            elif not line.strip() in ['','(',')']:
+                data[iread] = float(line)
+                iread += 1
+    assert(iread == N)
+
+    if (NY is not None) and (NZ is not None):
+        scalarField = data.reshape((NY,NZ),order=order)
+    else:
+        scalarField = data
+
+    return scalarField
+
