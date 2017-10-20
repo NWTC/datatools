@@ -82,6 +82,9 @@ class TimeSeries(object):
     def __repr__(self):
         return str(self.Ntimes) + ' time subdirectories located in ' + self.dataDir
 
+    def __len__(self):
+        return len(self.fileList)
+
     def __getitem__(self,i):
         return self.fileList[i]
 
