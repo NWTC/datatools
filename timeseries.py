@@ -5,6 +5,8 @@ class TimeSeries(object):
     """ Object for holding general time series data which may be stored
     in multiple time subdirectories
 
+    Written by Eliot Quon (eliot.quon@nrel.gov)
+
     Sample usage:
         from datatools.timeseries import TimeSeries
         ts = TimeSeries('/path/to/data',filename='U')
@@ -76,7 +78,7 @@ class TimeSeries(object):
                 print 'Files starting with "'+prefix+'" in each subdirectory:'
             else:
                 print 'Files in each subdirectory:'
-            print '\n'.join([ '    '+name for name in selectedOutputNames ])
+            print '\t'.join([ '    '+name for name in selectedOutputNames ])
         return selectedOutputNames
 
     def __repr__(self):
