@@ -4,6 +4,12 @@ import os
 class TimeSeries(object):
     """ Object for holding general time series data which may be stored
     in multiple time subdirectories
+
+    Sample usage:
+        from datatools.timeseries import TimeSeries
+        ts = TimeSeries('/path/to/data',filename='U')
+        for fname in ts:
+            do_something(fname)
     """
 
     def __init__(self,datadir='.',filename=None,verbose=True):
