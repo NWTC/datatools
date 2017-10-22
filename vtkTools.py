@@ -25,9 +25,9 @@ VTK structured refers to the following (used in FAST.Farm):
     <value_at_nx-1> <value_at_y0-1> <value_at_z0-1>
 
 """
-
 import numpy as np 
 import os, glob
+import struct
 
 #==============================================================================
 # 
@@ -182,6 +182,8 @@ def read_vtkStructured(vtkPath,verbose=False):
     """
     Reads in VTK structured data (either one file or a set of files).
 
+    Note: This doesn't work for binary files at the moment --EWQ
+
     Parameters
     ----------
     vtkPath : str,
@@ -255,7 +257,7 @@ def vtk_write_structured_points( f, nx,ny,nz, data,
         ds=None,dx=None,dy=None,dz=None,
         origin=(0.0,0.0,0.0),
         dataname=[],
-        indexorder='jik',
+        indexorder='ijk',
         vtk_header='# vtk DataFile Version 2.0',
         vtk_datatype='float',
         vtk_description='really cool data'
@@ -387,3 +389,52 @@ def vtk_write_structured_points( f, nx,ny,nz, data,
                             f.write(' {:f}\n'.format(u[j,i,k]))
 
 
+def vtk_read_binary_structured_points(fname,dtype=np.float32,verbose=True):
+    """Read VTK dataset written with vtk_write_structured_points
+    Note: At the moment read_vtkStructured doesn't properly handle
+    binary files
+    """
+    if verbose:
+        def readecho(): print f.readline().strip()
+    else:
+        def readecho(): f.readline()
+    prec = np.dtype(dtype).itemsize
+    vectorData = dict()
+    scalarData = dict()
+    with open(fname,'rb') as f:
+        readecho() # header
+        readecho() # description
+        readecho() # file mode
+        readecho() # expected: DATASET
+        dims = [int(val) for val in f.readline().split()[1:]]
+        origin = [float(val) for val in f.readline().split()[1:]]
+        spacing = [float(val) for val in f.readline().split()[1:]]
+        N = np.prod(dims)
+        readecho() # expected: POINT_DATA
+        newdataline = f.readline()
+        while not newdataline=='':
+            fieldtype, name, datatype = newdataline.split()
+            print 'Processing {}field {} (dtype={})'.format(fieldtype.lower().strip('s'),name,datatype)
+            if fieldtype.lower().startswith('vector'):
+                #vectorData[name] = np.zeros([3]+dims,dtype=dtype)
+                data = struct.unpack('>{:d}f'.format(3*N),f.read(3*N*prec))
+                vectorData[name] = np.array(data,dtype=dtype).reshape([3]+dims,order='F')
+            elif fieldtype.lower().startswith('scalar'):
+                #scalarData[name] = np.zeros(dims,dtype=dtype)    
+                scalarData[name] = np.array(data,dtype=dtype).reshape(dims,order='F')
+            newdataline = f.readline()
+    if verbose:
+        print 'Read scalar data:',scalarData.keys()
+        print 'Read vector data:',vectorData.keys()
+    meta = dict()
+    meta['dx'] = spacing[0]
+    meta['dy'] = spacing[1]
+    meta['dz'] = spacing[2]
+    meta['nx'] = dims[0]
+    meta['ny'] = dims[1]
+    meta['nz'] = dims[2]
+    meta['xOrigin'] = origin[0]
+    meta['yOrigin'] = origin[1]
+    meta['zOrigin'] = origin[2]
+    meta['nPts'] = N
+    return scalarData,vectorData,meta
