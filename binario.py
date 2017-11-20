@@ -15,9 +15,10 @@ import struct
 import numpy as np
 
 class binaryfile:
-    def __init__(self,path):
+    def __init__(self,path,mode='r'):
         self.path = path
-        self.f = open(path,'rb')
+        self.mode = mode.strip('b')
+        self.f = open(path,self.mode+'b')
 
     def __enter__(self):
         # Called when used with the 'with' statement
@@ -73,7 +74,24 @@ class binaryfile:
     def read_real8(self,N=1):
         return self.read_float(N,dtype=np.float64)
 
+    # binary output
+    def write_type(self,val,type):
+        if hasattr(val,'__iter__'):
+            N = len(val)
+            self.f.write(struct.pack('{:d}{:s}'.format(N,type),*val))
+        else:
+            self.f.write(struct.pack(type,val))
+
+
     # aliases
     def read_int(self,N=1): return self.read_int4(N)
 
+    def write_int1(self,val): self.write_type(val,'b')
+    def write_int2(self,val): self.write_type(val,'h')
+    def write_int4(self,val): self.write_type(val,'i')
+    def write_int8(self,val): self.write_type(val,'l')
+
+    def write_int(self,val): self.write_int4(val)
+    def write_float(self,val): self.write_type(val,'f')
+    def write_double(self,val): self.write_type(val,'d')
 

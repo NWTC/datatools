@@ -1,5 +1,24 @@
-#!usr/bin/env python
+#!/usr/bin/env python
 import os
+
+def pretty_list(strlist,indent=2,sep='\t',width=80):
+    """For formatting long lists of strings of arbitrary length
+    """
+    sep = sep.expandtabs()
+    max_item_len = max([len(s) for s in strlist])
+    items_per_line = (width - (indent+max_item_len)) / (len(sep)+max_item_len) + 1
+    Nlines = len(strlist) / items_per_line
+    extraline = (len(strlist) % items_per_line) > 0
+    fmtstr = '{{:{:d}s}}'.format(max_item_len)
+    strlist = [ fmtstr.format(s) for s in strlist ] # pad strings so that they're all the same length
+    finalline = ''
+    for line in range(Nlines):
+        ist = line*items_per_line
+        finalline += indent*' ' + sep.join(strlist[ist:ist+items_per_line]) + '\n'
+    if extraline:
+        finalline += indent*' ' + sep.join(strlist[Nlines*items_per_line:]) + '\n'
+    return finalline
+
 
 class TimeSeries(object):
     """ Object for holding general time series data which may be stored
@@ -78,7 +97,8 @@ class TimeSeries(object):
                 print 'Files starting with "'+prefix+'" in each subdirectory:'
             else:
                 print 'Files in each subdirectory:'
-            print '\t'.join([ '    '+name for name in selectedOutputNames ])
+            #print '\t'.join([ '    '+name for name in selectedOutputNames ])
+            print pretty_list(sorted(selectedOutputNames))
         return selectedOutputNames
 
     def __repr__(self):
