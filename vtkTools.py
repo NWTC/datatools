@@ -25,6 +25,7 @@ VTK structured refers to the following (used in FAST.Farm):
     <value_at_nx-1> <value_at_y0-1> <value_at_z0-1>
 
 """
+from __future__ import print_function
 import numpy as np 
 import os, glob
 import struct
@@ -100,12 +101,12 @@ def _read_vtkStructured_oneFile(vtkPath,verbose=False):
     meta['nPts'] = npts
 
     if verbose:            
-        print "dx = {0}".format(dx)
-        print "dy = {0}".format(dy)
-        print "dz = {0}".format(dz)
-        print "nx = {0}".format(nx)
-        print "ny = {0}".format(ny)
-        print "nz = {0}".format(nz)
+        print("dx = {0}".format(dx))
+        print("dy = {0}".format(dy))
+        print("dz = {0}".format(dz))
+        print("nx = {0}".format(nx))
+        print("ny = {0}".format(ny))
+        print("nz = {0}".format(nz))
         
     return data, meta
 #==============================================================================
@@ -149,7 +150,7 @@ def _read_vtkStructured_manyFiles(vtkPath,t0,dt,nt,verbose=False):
         [X,Y,Z,U,V,W]   = data
         
         if verbose:
-            print "Reading in {0}...".format(vtkFile)
+            print("Reading in {0}...".format(vtkFile))
     
         if itime==0:
             
@@ -247,7 +248,7 @@ def write_vtkStructured(data,meta,fileOutPath,descStr="PLACEHOLDER",verbose=Fals
     os.remove("bot.txt")    
 
     if verbose:
-        print "Saved data to {0}".format(fileOutPath)
+        print("Saved data to {0}".format(fileOutPath))
     return
 #==============================================================================
 # 
@@ -318,7 +319,7 @@ def vtk_write_structured_points( f, nx,ny,nz, data,
             Nscalar += 1
             Nvalues += 1
         else:
-            print 'unrecognized data type',name
+            print('unrecognized data type',name)
 
     # sanity checks
     assert( len(data) == Nvalues )
@@ -395,7 +396,7 @@ def vtk_read_binary_structured_points(fname,dtype=np.float32,verbose=True):
     binary files
     """
     if verbose:
-        def readecho(): print f.readline().strip()
+        def readecho(): print(f.readline().strip())
     else:
         def readecho(): f.readline()
     prec = np.dtype(dtype).itemsize
@@ -414,7 +415,7 @@ def vtk_read_binary_structured_points(fname,dtype=np.float32,verbose=True):
         newdataline = f.readline()
         while not newdataline=='':
             fieldtype, name, datatype = newdataline.split()
-            print 'Processing {}field {} (dtype={})'.format(fieldtype.lower().strip('s'),name,datatype)
+            print('Processing {}field {} (dtype={})'.format(fieldtype.lower().strip('s'),name,datatype))
             if fieldtype.lower().startswith('vector'):
                 #vectorData[name] = np.zeros([3]+dims,dtype=dtype)
                 data = struct.unpack('>{:d}f'.format(3*N),f.read(3*N*prec))
@@ -424,8 +425,8 @@ def vtk_read_binary_structured_points(fname,dtype=np.float32,verbose=True):
                 scalarData[name] = np.array(data,dtype=dtype).reshape(dims,order='F')
             newdataline = f.readline()
     if verbose:
-        print 'Read scalar data:',scalarData.keys()
-        print 'Read vector data:',vectorData.keys()
+        print('Read scalar data:',scalarData.keys())
+        print('Read vector data:',vectorData.keys())
     meta = dict()
     meta['dx'] = spacing[0]
     meta['dy'] = spacing[1]

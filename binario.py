@@ -11,6 +11,7 @@
 #     f = f.read_float()
 #     someArray = f.read_float(10)
 #
+from __future__ import print_function
 import struct
 import numpy as np
 
@@ -31,7 +32,7 @@ class binaryfile:
         self.f.close()
         # handle exceptions
         if exc_type is not None:
-            print exc_type, exc_value, traceback
+            print(exc_type, exc_value, traceback)
            #return False # uncomment to pass exception through
         return self
 
