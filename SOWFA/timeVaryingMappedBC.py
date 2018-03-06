@@ -4,6 +4,7 @@
 #
 # Written by Eliot Quon (eliot.quon@nrel.gov) -- 2017-10/18
 #
+from __future__ import print_function
 import numpy as np
 
 pointsheader = """/*--------------------------------*- C++ -*----------------------------------*\\
@@ -83,7 +84,7 @@ def writeBoundaryData(fname,data,
         else:
             avgValueStr = '(' + ' '.join([str(val) for val in list(avgValue)]) + ')'
     else:
-        print 'ERROR: Unexpected number of dimensions! No data written.'
+        print('ERROR: Unexpected number of dimensions! No data written.')
         return
 
     with open(fname,'w') as f:
@@ -138,7 +139,7 @@ def readBoundaryPoints(fname,checkConst=True,tol=1e-6):
                 try:
                     N = int(line)
                     points = np.zeros((N,3))
-                    print 'Reading',N,'points from',fname
+                    print('Reading',N,'points from',fname)
                 except ValueError: pass
             elif not line.strip() in ['','(',')']:
                 points[iread,:] = [ float(val) for val in line.strip().strip('()').split() ]
@@ -151,7 +152,7 @@ def readBoundaryPoints(fname,checkConst=True,tol=1e-6):
     constX = np.max(points[:,0]) - np.min(points[0,0]) < tol
     constY = np.max(points[:,1]) - np.min(points[0,1]) < tol
     constZ = np.max(points[:,2]) - np.min(points[0,2]) < tol
-    print 'Constant in x/y/z :',constX,constY,constZ
+    print('Constant in x/y/z :',constX,constY,constZ)
     assert(constX or constY)
 
     if constX:
@@ -177,7 +178,7 @@ def readVectorData(fname,NY=None,NZ=None,order='F'):
                             NY = None
                             NZ = None
                     data = np.zeros((N,3))
-                    print 'Reading',N,'vectors from',fname
+                    print('Reading',N,'vectors from',fname)
                 except ValueError: pass
             elif not line.strip() in ['','(',')']:
                 data[iread,:] = [ float(val) for val in line.strip().strip('()').split() ]
@@ -213,7 +214,7 @@ def readScalarData(fname,NY=None,NZ=None,order='F'):
                                 NY = None
                                 NZ = None
                         data = np.zeros(N)
-                        print 'Reading',N,'scalars from',fname
+                        print('Reading',N,'scalars from',fname)
                 except ValueError: pass
             elif not line.strip() in ['','(',')']:
                 data[iread] = float(line)
