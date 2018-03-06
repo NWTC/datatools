@@ -7,8 +7,8 @@ def pretty_list(strlist,indent=2,sep='\t',width=80):
     """
     sep = sep.expandtabs()
     max_item_len = max([len(s) for s in strlist])
-    items_per_line = (width - (indent+max_item_len)) / (len(sep)+max_item_len) + 1
-    Nlines = len(strlist) / items_per_line
+    items_per_line = int((width - (indent+max_item_len)) / (len(sep)+max_item_len) + 1)
+    Nlines = int(len(strlist) / items_per_line)
     extraline = (len(strlist) % items_per_line) > 0
     fmtstr = '{{:{:d}s}}'.format(max_item_len)
     strlist = [ fmtstr.format(s) for s in strlist ] # pad strings so that they're all the same length
