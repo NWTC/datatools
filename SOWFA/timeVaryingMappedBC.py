@@ -43,12 +43,18 @@ FoamFile
 // Average
 {avgValue}\n\n"""
 
-def writeBoundaryData(fname,data,
-        patchName='patch',
-        timeName=0,
-        avgValue=None):
+def write_points(fname,x,y,z):
+    """Write out a points file which should be stored in
+        constant/boundaryData/patchName/points
+    """
+
+def write_data(fname,
+               data,
+               patchName='patch',
+               timeName=0,
+               avgValue=None):
     """Write out a boundaryData file which should be stored in
-        constant/boundarydata/patchName/timeName/fname
+        constant/boundarydata/patchName/timeName/fieldName
 
     NOTE: This has not been tested yet.
 
@@ -94,9 +100,14 @@ def writeBoundaryData(fname,data,
                 timeName=timeName,
                 avgValue=avgValueStr))
         f.write('{:d}\n(\n'.format(NY*NZ))
-        for k in range(NZ):
-            for j in range(NY):
-                f.write('({v[0]:f} {v[1]:f} {v[2]:f})\n'.format(v=data[:,j,k]))
+        if patchType == 'vector':
+            for k in range(NZ):
+                for j in range(NY):
+                    f.write('({v[0]:g} {v[1]:g} {v[2]:g})\n'.format(v=data[:,j,k]))
+        elif patchType == 'scalar':
+            for k in range(NZ):
+                for j in range(NY):
+                    f.write('{v:g}\n'.format(v=data[j,k]))
         f.write(')\n')
 
 
@@ -125,7 +136,7 @@ def _getPointsFromList(ylist,zlist):
         y = ylist.reshape((NY,NZ),order='C')[:,0]
     return y,z
 
-def readBoundaryPoints(fname,checkConst=True,tol=1e-6):
+def read_boundary_points(fname,checkConst=True,tol=1e-6):
     """Returns a 2D set of points if one of the coordinates is constant
     otherwise returns a 3D set of points.
     Assumes that the points are on a structured grid.
@@ -164,7 +175,7 @@ def readBoundaryPoints(fname,checkConst=True,tol=1e-6):
 
     return _getPointsFromList(ylist,zlist)
 
-def readVectorData(fname,NY=None,NZ=None,order='F'):
+def read_vector_data(fname,NY=None,NZ=None,order='F'):
     N = None
     data = None
     iread = 0
@@ -195,7 +206,7 @@ def readVectorData(fname,NY=None,NZ=None,order='F'):
     return vectorField
 
 
-def readScalarData(fname,NY=None,NZ=None,order='F'):
+def read_scalar_data(fname,NY=None,NZ=None,order='F'):
     N = None
     data = None
     iread = 0
