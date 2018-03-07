@@ -43,10 +43,18 @@ FoamFile
 // Average
 {avgValue}\n\n"""
 
-def write_points(fname,x,y,z):
+def write_points(fname,x,y,z,patchName='patch'):
     """Write out a points file which should be stored in
         constant/boundaryData/patchName/points
     """
+    N = len(x)
+    assert(N == len(y) == len(z))
+    with open(fname,'w') as f:
+        f.write(pointsheader.format(patchName=patchName))
+        f.write('{:d}\n(\n'.format(N))
+        for i in range(N):
+            f.write('({:f} {:f} {:f})\n'.format(x[i],y[i],z[i]))
+        f.write(')\n')
 
 def write_data(fname,
                data,
@@ -93,11 +101,10 @@ def write_data(fname,
         return
 
     with open(fname,'w') as f:
-        f.write(dataheader.format(
-                patchType=patchType,
-                patchName=patchName,
-                timeName=timeName,
-                avgValue=avgValueStr))
+        f.write(dataheader.format(patchType=patchType,
+                                  patchName=patchName,
+                                  timeName=timeName,
+                                  avgValue=avgValueStr))
         f.write('{:d}\n(\n'.format(N))
         if patchType == 'vector':
             for i in range(N):
