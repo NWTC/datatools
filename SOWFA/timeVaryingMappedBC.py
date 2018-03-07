@@ -56,15 +56,14 @@ def write_data(fname,
     """Write out a boundaryData file which should be stored in
         constant/boundarydata/patchName/timeName/fieldName
 
-    NOTE: This has not been tested yet.
-
     Parameters
     ----------
     fname : str
         Output data file name
     data : numpy.ndarray
-        Field data to be written out, with shape (3,NY,NZ) for vectors
-        and shape (NY,NZ) for scalars
+        Field data to be written out, with shape (3,N) for vectors
+        and shape (N) for scalars; 2-D or 3-D data should be flattened
+        beforehand.
     patchName : str, optional
         Name of the boundary patch
     timeName : scalar or str, optional
@@ -75,16 +74,16 @@ def write_data(fname,
     @author: ewquon
     """
     dims = data.shape
-    if len(dims) == 2:
+    N = dims[-1]
+    if len(dims) == 1:
         patchType = 'scalar'
-        NY,NZ = dims
         if avgValue is None:
             avgValueStr = '0'
         else:
             avgValueStr = str(avgValue)
-    elif len(dims) == 3:
+    elif len(dims) == 2:
         patchType = 'vector'
-        NY,NZ = dims[1:]
+        assert(dims[0] == 3)
         if avgValue is None:
             avgValueStr = '(0 0 0)'
         else:
@@ -99,15 +98,13 @@ def write_data(fname,
                 patchName=patchName,
                 timeName=timeName,
                 avgValue=avgValueStr))
-        f.write('{:d}\n(\n'.format(NY*NZ))
+        f.write('{:d}\n(\n'.format(N))
         if patchType == 'vector':
-            for k in range(NZ):
-                for j in range(NY):
-                    f.write('({v[0]:g} {v[1]:g} {v[2]:g})\n'.format(v=data[:,j,k]))
+            for i in range(N):
+                f.write('({v[0]:g} {v[1]:g} {v[2]:g})\n'.format(v=data[:,i]))
         elif patchType == 'scalar':
-            for k in range(NZ):
-                for j in range(NY):
-                    f.write('{v:g}\n'.format(v=data[j,k]))
+            for i in range(N):
+                f.write('{v:g}\n'.format(v=data[i]))
         f.write(')\n')
 
 
