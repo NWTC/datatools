@@ -22,7 +22,10 @@ FoamFile
     location    "constant/boundaryData/{patchName}";
     object      points;
 }}
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n"""
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+{N}
+("""
 
 dataheader = """/*--------------------------------*- C++ -*----------------------------------*\\
 | =========                 |                                                 |
@@ -41,7 +44,10 @@ FoamFile
 }}
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 // Average
-{avgValue}\n\n"""
+{avgValue}
+
+{N}
+("""
 
 def write_points(fname,x,y,z,patchName='patch'):
     """Write out a points file which should be stored in
@@ -49,12 +55,17 @@ def write_points(fname,x,y,z,patchName='patch'):
     """
     N = len(x)
     assert(N == len(y) == len(z))
-    with open(fname,'w') as f:
-        f.write(pointsheader.format(patchName=patchName))
-        f.write('{:d}\n(\n'.format(N))
-        for i in range(N):
-            f.write('({:f} {:f} {:f})\n'.format(x[i],y[i],z[i]))
-        f.write(')\n')
+#    with open(fname,'w') as f:
+#        f.write(pointsheader.format(patchName=patchName,N=N))
+#        f.write('{:d}\n(\n'.format(N))
+#        for i in range(N):
+#            f.write('({:f} {:f} {:f})\n'.format(x[i],y[i],z[i]))
+#        f.write(')\n')
+    np.savetxt(fname,
+               np.stack((x,y,z)).T, fmt='(%f %f %f)',
+               header=pointsheader.format(patchName=patchName,N=N),
+               footer=')',
+               comments='')
 
 def write_data(fname,
                data,
@@ -100,20 +111,36 @@ def write_data(fname,
         print('ERROR: Unexpected number of dimensions! No data written.')
         return
 
-    with open(fname,'w') as f:
-        f.write(dataheader.format(patchType=patchType,
+#    with open(fname,'w') as f:
+#        f.write(dataheader.format(patchType=patchType,
+#                                  patchName=patchName,
+#                                  timeName=timeName,
+#                                  avgValue=avgValueStr,
+#                                  N=N))
+#        f.write('{:d}\n(\n'.format(N))
+#        if patchType == 'vector':
+#            for i in range(N):
+#                f.write('({v[0]:g} {v[1]:g} {v[2]:g})\n'.format(v=data[:,i]))
+#        elif patchType == 'scalar':
+#            for i in range(N):
+#                f.write('{v:g}\n'.format(v=data[i]))
+#        f.write(')\n')
+
+    headerstr = dataheader.format(patchType=patchType,
                                   patchName=patchName,
                                   timeName=timeName,
-                                  avgValue=avgValueStr))
-        f.write('{:d}\n(\n'.format(N))
-        if patchType == 'vector':
-            for i in range(N):
-                f.write('({v[0]:g} {v[1]:g} {v[2]:g})\n'.format(v=data[:,i]))
-        elif patchType == 'scalar':
-            for i in range(N):
-                f.write('{v:g}\n'.format(v=data[i]))
-        f.write(')\n')
-
+                                  avgValue=avgValueStr,
+                                  N=N)
+    if patchType == 'vector':
+        np.savetxt(fname,
+                   data.T, fmt='(%g %g %g)',
+                   header=headerstr, footer=')',
+                   comments='')
+    elif patchType == 'scalar':
+        np.savetxt(fname,
+                   data.reshape((N,1)), fmt='%g',
+                   header=headerstr, footer=')',
+                   comments='')
 
 def _getPointsFromList(ylist,zlist):
     """Detects y and z (1-D arrays) from a list of points on a
