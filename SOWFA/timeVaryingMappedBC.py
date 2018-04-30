@@ -22,7 +22,10 @@ FoamFile
     location    "constant/boundaryData/{patchName}";
     object      points;
 }}
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //\n\n"""
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+{N}
+("""
 
 dataheader = """/*--------------------------------*- C++ -*----------------------------------*\\
 | =========                 |                                                 |
@@ -41,24 +44,45 @@ FoamFile
 }}
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 // Average
-{avgValue}\n\n"""
+{avgValue}
 
-def writeBoundaryData(fname,data,
-        patchName='patch',
-        timeName=0,
-        avgValue=None):
+{N}
+("""
+
+def write_points(fname,x,y,z,patchName='patch'):
+    """Write out a points file which should be stored in
+        constant/boundaryData/patchName/points
+    """
+    N = len(x)
+    assert(N == len(y) == len(z))
+#    with open(fname,'w') as f:
+#        f.write(pointsheader.format(patchName=patchName,N=N))
+#        f.write('{:d}\n(\n'.format(N))
+#        for i in range(N):
+#            f.write('({:f} {:f} {:f})\n'.format(x[i],y[i],z[i]))
+#        f.write(')\n')
+    np.savetxt(fname,
+               np.stack((x,y,z)).T, fmt='(%f %f %f)',
+               header=pointsheader.format(patchName=patchName,N=N),
+               footer=')',
+               comments='')
+
+def write_data(fname,
+               data,
+               patchName='patch',
+               timeName=0,
+               avgValue=None):
     """Write out a boundaryData file which should be stored in
-        constant/boundarydata/patchName/timeName/fname
-
-    NOTE: This has not been tested yet.
+        constant/boundarydata/patchName/timeName/fieldName
 
     Parameters
     ----------
     fname : str
         Output data file name
     data : numpy.ndarray
-        Field data to be written out, with shape (3,NY,NZ) for vectors
-        and shape (NY,NZ) for scalars
+        Field data to be written out, with shape (3,N) for vectors
+        and shape (N) for scalars; 2-D or 3-D data should be flattened
+        beforehand.
     patchName : str, optional
         Name of the boundary patch
     timeName : scalar or str, optional
@@ -69,16 +93,16 @@ def writeBoundaryData(fname,data,
     @author: ewquon
     """
     dims = data.shape
-    if len(dims) == 2:
+    N = dims[-1]
+    if len(dims) == 1:
         patchType = 'scalar'
-        NY,NZ = dims
         if avgValue is None:
             avgValueStr = '0'
         else:
             avgValueStr = str(avgValue)
-    elif len(dims) == 3:
+    elif len(dims) == 2:
         patchType = 'vector'
-        NY,NZ = dims[1:]
+        assert(dims[0] == 3)
         if avgValue is None:
             avgValueStr = '(0 0 0)'
         else:
@@ -87,18 +111,36 @@ def writeBoundaryData(fname,data,
         print('ERROR: Unexpected number of dimensions! No data written.')
         return
 
-    with open(fname,'w') as f:
-        f.write(dataheader.format(
-                patchType=patchType,
-                patchName=patchName,
-                timeName=timeName,
-                avgValue=avgValueStr))
-        f.write('{:d}\n(\n'.format(NY*NZ))
-        for k in range(NZ):
-            for j in range(NY):
-                f.write('({v[0]:f} {v[1]:f} {v[2]:f})\n'.format(v=data[:,j,k]))
-        f.write(')\n')
+#    with open(fname,'w') as f:
+#        f.write(dataheader.format(patchType=patchType,
+#                                  patchName=patchName,
+#                                  timeName=timeName,
+#                                  avgValue=avgValueStr,
+#                                  N=N))
+#        f.write('{:d}\n(\n'.format(N))
+#        if patchType == 'vector':
+#            for i in range(N):
+#                f.write('({v[0]:g} {v[1]:g} {v[2]:g})\n'.format(v=data[:,i]))
+#        elif patchType == 'scalar':
+#            for i in range(N):
+#                f.write('{v:g}\n'.format(v=data[i]))
+#        f.write(')\n')
 
+    headerstr = dataheader.format(patchType=patchType,
+                                  patchName=patchName,
+                                  timeName=timeName,
+                                  avgValue=avgValueStr,
+                                  N=N)
+    if patchType == 'vector':
+        np.savetxt(fname,
+                   data.T, fmt='(%g %g %g)',
+                   header=headerstr, footer=')',
+                   comments='')
+    elif patchType == 'scalar':
+        np.savetxt(fname,
+                   data.reshape((N,1)), fmt='%g',
+                   header=headerstr, footer=')',
+                   comments='')
 
 def _getPointsFromList(ylist,zlist):
     """Detects y and z (1-D arrays) from a list of points on a
@@ -125,7 +167,7 @@ def _getPointsFromList(ylist,zlist):
         y = ylist.reshape((NY,NZ),order='C')[:,0]
     return y,z
 
-def readBoundaryPoints(fname,checkConst=True,tol=1e-6):
+def read_boundary_points(fname,checkConst=True,tol=1e-6):
     """Returns a 2D set of points if one of the coordinates is constant
     otherwise returns a 3D set of points.
     Assumes that the points are on a structured grid.
@@ -164,7 +206,7 @@ def readBoundaryPoints(fname,checkConst=True,tol=1e-6):
 
     return _getPointsFromList(ylist,zlist)
 
-def readVectorData(fname,NY=None,NZ=None,order='F'):
+def read_vector_data(fname,NY=None,NZ=None,order='F'):
     N = None
     data = None
     iread = 0
@@ -195,7 +237,7 @@ def readVectorData(fname,NY=None,NZ=None,order='F'):
     return vectorField
 
 
-def readScalarData(fname,NY=None,NZ=None,order='F'):
+def read_scalar_data(fname,NY=None,NZ=None,order='F'):
     N = None
     data = None
     iread = 0
