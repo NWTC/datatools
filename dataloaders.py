@@ -4,7 +4,7 @@ import os
 
 import numpy as np
 
-from NWTC.datatools.timeseries import TimeSeries
+from datatools.timeseries import TimeSeries
 
 class sampled_data(object):
     """Generic regularly sampled data object"""
@@ -562,7 +562,7 @@ class foam_ensight_array(sampled_data):
         NZ = self.NZ
 
         # read mesh
-        with open(os.path.join(self.ts.dirList[0],self.prefix+'.mesh'),'r') as f:
+        with open(os.path.join(self.ts.dirlist[0],self.prefix+'.mesh'),'r') as f:
             for _ in range(8):  # skip header
                 f.readline()
             N = int(f.readline())
