@@ -6,6 +6,8 @@ import numpy as np
 
 from datatools.timeseries import TimeSeries
 
+from datatools.readData import structuredVTK
+
 class sampled_data(object):
     """Generic regularly sampled data object"""
 
@@ -504,6 +506,110 @@ def interp_holes_2d(y,z,verbose=True):
     hole_locations = np.stack((y[hole_indices],z[hole_indices])).T
 
     return ynew, znew, data_map, hole_locations, hole_indices
+
+#------------------------------------------------------------------------------
+
+class foam_structuredVTK_array(sampled_data):
+    """OpenFOAM array sampling data in structuredVTK format
+    
+    See superclass sampled_data for more information.
+    """
+
+    def __init__(self,*args,**kwargs):
+        """Reads time series data from subdirectories in ${outputdir}.
+        Each time subdirectory should contain a file named
+        '${prefix}_U.vtk'.
+
+        If NY or NZ are set to None, then the array dimensions 
+        will be guessed from the data.
+
+        The geometry are assumed identical (the mesh is only read
+        once from the first directory)
+        """
+        super(self.__class__,self).__init__(*args,**kwargs)
+
+        if self.prefix is None:
+            if self.data_read_from is not None:
+                # we already have data that's been read in...
+                print("Note: 'prefix' not specified, time series was not read.")
+                return
+            else:
+                raise AttributeError("'prefix' needs to be specified")
+
+        # get time series
+        print 'Getting time directory layout...'
+        try:
+            datafile = self.prefix + '.vtk'
+            self.ts = TimeSeries(self.outputdir,datafile,verbose=False)
+        except AssertionError:
+            if self.data_read_from is not None:
+                print('Note: Data read but time series information is unavailable.')
+                print('      Proceed at your own risk.')
+                return
+            else:
+                raise IOError('Data not found in '+self.outputdir)
+
+        if self.data_read_from is not None:
+            # Previously saved $npzdata was read in super().__init__
+            if self.Ntimes == self.ts.Ntimes:
+                return
+            else:
+                print self.data_read_from,'has',self.Ntimes,'data series,', \
+                    'expected',self.ts.Ntimes
+
+        self.Ntimes = self.ts.Ntimes
+
+        # set convenience variables
+        NX = self.NX
+        NY = self.NY
+        NZ = self.NZ
+        
+        # Read the structured VTK data to get the mesh.
+        [dataSetName, dims, origin, spacing, xdata, ydata, zdata, nFields, fieldName, fieldDim, field] = structuredVTK(self.ts.dirList[0] + '/' + self.prefix+'.vtk')
+        
+        self.x,self.y,self.z = np.meshgrid(xdata,ydata,zdata,indexing='ij')
+        
+        print('x range : {} {}'.format(np.min(self.x),np.max(self.x)))
+        print('y range : {} {}'.format(np.min(self.y),np.max(self.y)))
+        print('z range : {} {}'.format(np.min(self.z),np.max(self.z)))
+        
+        self.datasize = fieldDim[0]
+        
+        N = dims[0]*dims[1]*dims[2]
+        self.NX = len(xdata)
+        self.NY = len(ydata)
+        self.NZ = len(zdata)
+
+        iField = 0
+        
+        data = np.zeros((self.Ntimes,self.NX,self.NY,self.NZ,self.datasize))           
+        
+        for itime,fname in enumerate(self.ts):
+            print('Reading time {} of {}...'.format(self.ts.outputTimes[itime],
+                                                    self.ts.outputTimes[len(self.ts.outputTimes)-1]))
+            [dataSetName, dims, origin, spacing, xdata, ydata, zdata, nFields, fieldName, fieldDim, field] = structuredVTK(fname) 
+            for i in range(fieldDim[iField]):
+               data[itime,:,:,:,i] = field[iField][i,:,:,:]
+
+        sys.stderr.write('\n')
+        self.data = data
+        self.data_read_from = os.path.join(self.outputdir,'*',datafile)
+
+        # save data
+        if self.npzdata:
+            savepath = os.path.join(self.outputdir,self.npzdata)
+            try:
+                np.savez_compressed(savepath,x=self.x,y=self.y,z=self.z,data=self.data)
+                print('Saved compressed array data to',savepath)
+            except IOError as e:
+                print('Problem saving array data to',savepath)
+                errstr = str(e)
+                if 'requested' in errstr and errstr.endswith('written'):
+                    print('IOError:',errstr)
+                    print('Possible known filesystem issue!')
+                    print('  Try adding TMPDIR=/scratch/$USER to your environment, or another')
+                    print('  path to use for temporary storage that has more available space.')
+                    print('  (see https://github.com/numpy/numpy/issues/5336)')
 
 #------------------------------------------------------------------------------
 
