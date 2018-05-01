@@ -1,39 +1,34 @@
 #!/usr/bin/env python
 #
-# Script to convert "array" sampling planes from SOWFA (written in
-# Ensight format) into a FAST turbulence box (written in binary HAWC
-# full-field file format)
+# Script to convert structured VTK data from SOWFA into a FAST
+# turbulence box (written in binary HAWC full-field file format)
 #
 # Written by Eliot Quon (eliot.quon@nrel.gov)
+# Modified by Matt Churchfield (matt.churchfield@nrel.gov)
 #
 # SAMPLE USAGE:
 # To process ./*/inflowPlane_03km_U.000.U:
 #   ensight_planes_to_hawc.py 'inflowPlane_03km_U'
 #
-# Note: Alternative values for reference velocity and height (uref
-# and zref) may be specified but should not be modify the velocity
-# field. They are subtracted out by the this script only to be added
-# back on by FAST (based on what is specified in the InflowWind input
-# file).
-#
 from __future__ import print_function
 import numpy as np
 
-from datatools.dataloaders import foam_ensight_array
+from datatools.dataloaders import foam_structuredVTK_array
 from datatools.FAST.InflowWind import input_template
 from datatools.binario import binaryfile
 
 
-def generate_inflow(prefix,
+def generate_inflow(dataDir,prefix,
         uref=8.0,zref=90.0,
         ufile='u.bin',vfile='v.bin',wfile='w.bin',
+        tstart=0,tend=1e99,
         inflowfile='InflowWind_from_SOWFA.dat'):
     """Writes out one binary file for each wind component in the HAWC
     format as described in the InflowWind manual, in addition to an
     InflowWind input file"""
 
-    inflow = foam_ensight_array('.', prefix=prefix,
-                                npzdata=prefix+'.npz') # auto-detect NX,NY,NZ
+    inflow = foam_structuredVTK_array(dataDir, prefix=prefix,
+                                      npzdata=prefix+'.npz') # auto-detect NX,NY,NZ
 
     # time series detected from directory names
     t = np.array(inflow.ts.outputTimes)
@@ -42,8 +37,15 @@ def generate_inflow(prefix,
     X,Y,Z,U = inflow.sliceI() # return arrays with shape (NY,NZ)
                               # or in the case of U: (Ntimes,NY,NZ,3)
     assert(np.min(X) == np.max(X)) # plane is at constant x
+    
+    #Create a slice of the time record
+#    indices = np.nonzero((t >= tstart) & (t <= tend))[0]
+#    t = t[indices]
+#    print 'selected time range:',np.min(t),np.max(t)
+#    U = U[indices,:,:,:]
 
     # calculate turbulence box description
+#    nx = len(t) # inflow.ts.Ntimes
     nt = inflow.ts.Ntimes
     ny = inflow.NY
     nz = inflow.NZ
@@ -55,6 +57,46 @@ def generate_inflow(prefix,
     dx = uref*(t[1]-t[0])
     dy = y[1] - y[0]
     dz = z[1] - z[0]
+
+
+
+    jProbe = 160
+    kProbe = [0, 10, 30, 70, 100]
+    pf = open('probeFileU.dat','w')
+    for i in range(nx):
+       pf.write(str(t[i]) + ' ')
+       for k in range(len(kProbe)):
+           if (k < len(kProbe)-1):
+               pf.write(str(U[i,jProbe,kProbe[k],0]) + ' ')
+           else:
+               pf.write(str(U[i,jProbe,kProbe[k],0]) + '\n')
+    pf.close()
+    print('Wrote u probe file')
+
+    pf = open('probeFileV.dat','w')
+    for i in range(nx):
+       pf.write(str(t[i]) + ' ')
+       for k in range(len(kProbe)):
+           if (k < len(kProbe)-1):
+               pf.write(str(U[i,jProbe,kProbe[k],1]) + ' ')
+           else:
+               pf.write(str(U[i,jProbe,kProbe[k],1]) + '\n')
+    pf.close()
+    print('Wrote v probe file')
+
+    pf = open('probeFileW.dat','w')
+    for i in range(nx):
+       pf.write(str(t[i]) + ' ')
+       for k in range(len(kProbe)):
+           if (k < len(kProbe)-1):
+               pf.write(str(U[i,jProbe,kProbe[k],2]) + ' ')
+           else:
+               pf.write(str(U[i,jProbe,kProbe[k],2]) + '\n')
+    pf.close()
+    print('Wrote w probe file')
+
+
+
 
     U[:,:,:,0] -= uref # InflowWind will add this back to the x-component
     with binaryfile(ufile,'w') as f:
