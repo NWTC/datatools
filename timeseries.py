@@ -77,9 +77,9 @@ class TimeSeries(object):
 
         # set up file list
         if filename is not None:
-            self.setFilename(filename)
+            self.update_filelist(filename)
 
-    def setFilename(self,filename):
+    def update_filelist(self,filename):
         """Update file list for iteration"""
         self.lastfile = -1  # reset iterator index
         self.filelist = []

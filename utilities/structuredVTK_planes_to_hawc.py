@@ -6,10 +6,6 @@
 # Written by Eliot Quon (eliot.quon@nrel.gov)
 # Modified by Matt Churchfield (matt.churchfield@nrel.gov)
 #
-# SAMPLE USAGE:
-# To process ./*/inflowPlane_03km_U.000.U:
-#   ensight_planes_to_hawc.py 'inflowPlane_03km_U'
-#
 from __future__ import print_function
 import numpy as np
 
@@ -18,17 +14,18 @@ from datatools.FAST.InflowWind import input_template
 from datatools.binario import binaryfile
 
 
-def generate_inflow(dataDir,prefix,
+def generate_inflow(datadir,prefix,
         uref=8.0,zref=90.0,
+        tstart=None,tend=None,
         ufile='u.bin',vfile='v.bin',wfile='w.bin',
-        tstart=0,tend=1e99,
         inflowfile='InflowWind_from_SOWFA.dat'):
     """Writes out one binary file for each wind component in the HAWC
     format as described in the InflowWind manual, in addition to an
     InflowWind input file"""
 
-    inflow = foam_structuredVTK_array(dataDir, prefix=prefix,
-                                      npzdata=prefix+'.npz') # auto-detect NX,NY,NZ
+    inflow = foam_structuredVTK_array(datadir, prefix=prefix,
+                                      tstart=tstart, tend=tend,
+                                      npzdata=prefix+'.npz')
 
     # time series detected from directory names
     t = np.array(inflow.ts.outputTimes)
@@ -136,11 +133,4 @@ def generate_inflow(dataDir,prefix,
                 dx=dx, dy=dy, dz=dz
         ))
     print('Wrote',inflowfile)
-
-
-#===============================================================================
-if __name__ == '__main__':
-    import sys
-    prefix = sys.argv[1]
-    generate_inflow(prefix)
 

@@ -14,6 +14,7 @@ class sampled_data(object):
     def __init__(self,
             outputdir='.', prefix=None,
             NX=1, NY=None, NZ=None, datasize=3,
+            tstart=None, tend=None,
             npzdata='arrayData.npz',
             interp_holes=False
             ):
@@ -55,13 +56,16 @@ class sampled_data(object):
         self.outputdir = outputdir
         self.prefix = prefix
 
-        self.Ntimes = 0
+        self.tstart = tstart
+        self.tend = tend
+        self.Ntimes = 0 # to be set after data are read
         self.NX = NX
         self.NY = NY
         self.NZ = NZ
         self.datasize = datasize
 
         self.ts = None
+
         self.x = None
         self.y = None
         self.z = None
@@ -117,6 +121,29 @@ class sampled_data(object):
         if self.data_read_from is not None:
             s += ' read from ' + self.data_read_from
         return s
+
+    def filter_series(self):
+        """Hack to select a range of time directories"""
+        if (self.tstart is None) and (self.tend is None):
+            # use full range of times
+            return
+        if self.ts is None:
+            print('Timeseries information has not been read; no filtering performed.')
+            return
+        if self.tstart is None:
+            self.tstart = self.ts.outputTimes[0]
+        if self.tend is None:
+            self.tend = self.ts.outputTimes[-1]
+        times = np.array(self.ts.outputTimes)
+        print('Filtered time series range: {} - {}'.format(self.tstart,self.tend))
+        indices = np.nonzero((times >= self.tstart) &
+                             (times <= self.tend))[0]
+        self.ts.outputTimes = times[indices]
+        self.ts.dirlist = [ self.ts.dirlist[i] for i in indices ]
+        self.ts.Ntimes = len(self.ts.outputTimes)
+        # don't forget to update the list of filenames which is what the
+        # timeseries iterator actually returns
+        self.ts.update_filelist(self.ts.filename)
 
     def _slice(self,i0=None,i1=None,j0=None,j1=None,k0=None,k1=None):
         """Note: This only extracts slices of the array, no
@@ -236,6 +263,7 @@ class _template_sampled_data_format(sampled_data):
         # get time series
         datafile = 'FILENAME.DAT'
         self.ts = TimeSeries(self.outputdir,datafile)
+        self.filter_series() # to trim input time series if needed
 
         # set convenience variables
         NX = self.NX
@@ -538,8 +566,8 @@ class foam_structuredVTK_array(sampled_data):
 
         # get time series
         print('Getting time directory layout...')
+        datafile = self.prefix + '.vtk'
         try:
-            datafile = self.prefix + '.vtk'
             self.ts = TimeSeries(self.outputdir,datafile,verbose=False)
         except AssertionError:
             if self.data_read_from is not None:
@@ -548,6 +576,8 @@ class foam_structuredVTK_array(sampled_data):
                 return
             else:
                 raise IOError('Data not found in '+self.outputdir)
+        else:
+            self.filter_series()
 
         if self.data_read_from is not None:
             # Previously saved $npzdata was read in super().__init__
@@ -641,8 +671,8 @@ class foam_ensight_array(sampled_data):
                 raise AttributeError("'prefix' needs to be specified")
 
         # get time series
+        datafile = self.prefix+'.000.U'
         try:
-            datafile = self.prefix+'.000.U'
             self.ts = TimeSeries(self.outputdir,datafile,verbose=False)
         except AssertionError:
             if self.data_read_from is not None:
@@ -651,6 +681,8 @@ class foam_ensight_array(sampled_data):
                 return
             else:
                 raise IOError('Data not found in '+self.outputdir)
+        else:
+            self.filter_series()
 
         if self.data_read_from is not None:
             # Previously saved $npzdata was read in super().__init__
