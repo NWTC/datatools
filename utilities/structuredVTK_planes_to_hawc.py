@@ -63,7 +63,7 @@ def generate_inflow(dataDir,prefix,
     jProbe = 160
     kProbe = [0, 10, 30, 70, 100]
     pf = open('probeFileU.dat','w')
-    for i in range(nx):
+    for i in range(nt):
        pf.write(str(t[i]) + ' ')
        for k in range(len(kProbe)):
            if (k < len(kProbe)-1):
@@ -74,7 +74,7 @@ def generate_inflow(dataDir,prefix,
     print('Wrote u probe file')
 
     pf = open('probeFileV.dat','w')
-    for i in range(nx):
+    for i in range(nt):
        pf.write(str(t[i]) + ' ')
        for k in range(len(kProbe)):
            if (k < len(kProbe)-1):
@@ -85,7 +85,7 @@ def generate_inflow(dataDir,prefix,
     print('Wrote v probe file')
 
     pf = open('probeFileW.dat','w')
-    for i in range(nx):
+    for i in range(nt):
        pf.write(str(t[i]) + ' ')
        for k in range(len(kProbe)):
            if (k < len(kProbe)-1):

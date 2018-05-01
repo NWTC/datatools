@@ -537,7 +537,7 @@ class foam_structuredVTK_array(sampled_data):
                 raise AttributeError("'prefix' needs to be specified")
 
         # get time series
-        print 'Getting time directory layout...'
+        print('Getting time directory layout...')
         try:
             datafile = self.prefix + '.vtk'
             self.ts = TimeSeries(self.outputdir,datafile,verbose=False)
@@ -554,8 +554,8 @@ class foam_structuredVTK_array(sampled_data):
             if self.Ntimes == self.ts.Ntimes:
                 return
             else:
-                print self.data_read_from,'has',self.Ntimes,'data series,', \
-                    'expected',self.ts.Ntimes
+                print('{} has {} data series, expected {}'.format(
+                    self.data_read_from,self.Ntimes,self.ts.Ntimes))
 
         self.Ntimes = self.ts.Ntimes
 
@@ -565,7 +565,7 @@ class foam_structuredVTK_array(sampled_data):
         NZ = self.NZ
         
         # Read the structured VTK data to get the mesh.
-        [dataSetName, dims, origin, spacing, xdata, ydata, zdata, nFields, fieldName, fieldDim, field] = structuredVTK(self.ts.dirList[0] + '/' + self.prefix+'.vtk')
+        [dataSetName, dims, origin, spacing, xdata, ydata, zdata, nFields, fieldName, fieldDim, field] = structuredVTK(self.ts.dirlist[0] + '/' + self.prefix+'.vtk')
         
         self.x,self.y,self.z = np.meshgrid(xdata,ydata,zdata,indexing='ij')
         

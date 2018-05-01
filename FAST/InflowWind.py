@@ -14,7 +14,7 @@ False         Echo           - Echo input data to <RootName>.ech (flag)
           0   WindVyiList    - List of coordinates in the inertial Y direction (m)
 {RefHt:>11f}   WindVziList    - List of coordinates in the inertial Z direction (m)
 ================== Parameters for Steady Wind Conditions [used only for WindType = 1] =========================
-          8   HWindSpeed     - Horizontal windspeed                            (m/s)
+{URef:>11f}   HWindSpeed     - Horizontal windspeed                            (m/s)
 {RefHt:>11f}   RefHt          - Reference height for horizontal wind speed      (m)
           0   PLexp          - Power law exponent                              (-)
 ================== Parameters for Uniform wind file   [used only for WindType = 2] ============================
