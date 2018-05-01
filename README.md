@@ -1,10 +1,22 @@
-# io
+# datatools
 
-Repository hosting python code developed at NWTC to handle input/output of commonly used file formats.
+Repository hosting python code developed at NWTC for data processing, 
+for example, input/output of commonly used file formats.
+
+Code-dependent outputs are organized into submodules:
+
+* datatools.SOWFA
+* datatools.FAST
+* etc.
+
+Helper scripts to be run from the command line that utilize these tools
+will live in datatools/utilities
 
 Acknowledgment
 ==============
-        If you use this code as part of any published research, please acknowledge the ``NWTC Open Source Wind Research Repositories (OSWRR)``. 
+If you use this code as part of any published research, please
+acknowledge the ``NWTC Open Source Wind Research Repositories
+(OSWRR)``. 
 
 Guidelines
 ==============
