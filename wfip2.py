@@ -43,6 +43,7 @@ def read_date_dirs(dpath='.',
     """
     dataframes = []
     for dname in os.listdir(dpath):
+        Nfiles = 0
         fullpath = os.path.join(dpath,dname)
         if os.path.isdir(fullpath):
             try:
@@ -55,9 +56,11 @@ def read_date_dirs(dpath='.',
                 for fname in os.listdir(fullpath):
                     fpath = os.path.join(fullpath,fname)
                     if not fname.endswith(ext): continue
-                    if verbose: print('Reading '+fname)
+                    if verbose: print('  reading '+fname)
                     df = reader(fpath,**kwargs)
                     dataframes.append(df)
+                    Nfiles += 1
+            print('  {} dataframes added'.format(Nfiles))
     return pd.concat(dataframes)
 
 
