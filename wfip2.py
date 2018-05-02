@@ -14,6 +14,7 @@ else:
 
 winddirection_colormap = plt.cm.hsv
 
+
 def read_dir(dpath='.',
              reader=pd.read_csv,
              ext='csv',
@@ -24,11 +25,12 @@ def read_dir(dpath='.',
     dataframes = []
     for fname in os.listdir(dpath):
         fpath = os.path.join(dpath,fname)
-        if not os.path.splitext(fpath)[1].endswith(ext): continue
+        if not fname.endswith(ext): continue
         if verbose: print('Reading '+fname)
         df = reader(fpath,**kwargs)
         dataframes.append(df)
     return pd.concat(dataframes)
+
 
 def read_date_dirs(dpath='.',
                    reader=pd.read_csv,
@@ -52,11 +54,12 @@ def read_date_dirs(dpath='.',
                 print('Processing '+fullpath)
                 for fname in os.listdir(fullpath):
                     fpath = os.path.join(fullpath,fname)
-                    if not os.path.splitext(fpath)[1].endswith(ext): continue
+                    if not fname.endswith(ext): continue
                     if verbose: print('Reading '+fname)
                     df = reader(fpath,**kwargs)
                     dataframes.append(df)
     return pd.concat(dataframes)
+
 
 def plot_wind(df,
               height_name='height',
