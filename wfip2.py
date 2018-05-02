@@ -1,3 +1,15 @@
+"""
+WFIP 2 Data Processing Tools
+============================
+written by Eliot Quon (eliot.quon@nrel.gov)
+
+Tools to read series of data files contained in either a single
+directory, or a series of subdirectories, into a single pandas
+dataframe.
+
+Also includes helper tools, e.g., to make time-height wind plots.
+
+"""
 from __future__ import print_function
 import os
 import numpy as np
