@@ -21,7 +21,10 @@ def read_dir(dpath='.',
              verbose=False,
              **kwargs):
     """Returns concatenated dataframe made up of dataframes read from CSV
-    files in specified directory"""
+    files in specified directory
+
+    Additional keyword arguments are passed to the data reader.
+    """
     dataframes = []
     for fname in os.listdir(dpath):
         fpath = os.path.join(dpath,fname)
@@ -40,6 +43,8 @@ def read_date_dirs(dpath='.',
                    **kwargs):
     """Return concatenated dataframe made up of dataframes read from
     CSV files contained in date subdirectories. 
+
+    Additional keyword arguments are passed to the data reader.
     """
     dataframes = []
     for dname in os.listdir(dpath):
