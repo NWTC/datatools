@@ -14,13 +14,30 @@ else:
 
 winddirection_colormap = plt.cm.hsv
 
+def read_dir(dpath='.',
+             reader=pd.read_csv,
+             ext='csv',
+             verbose=False,
+             **kwargs):
+    """Returns concatenated dataframe made up of dataframes read from CSV
+    files in specified directory"""
+    dataframes = []
+    for fname in os.listdir(dpath):
+        fpath = os.path.join(dpath,fname)
+        if not os.path.splitext(fpath)[1].endswith(ext): continue
+        if verbose: print('Reading '+fname)
+        df = reader(fpath,**kwargs)
+        dataframes.append(df)
+    return pd.concat(dataframes)
+
 def read_date_dirs(dpath='.',
                    reader=pd.read_csv,
+                   ext='csv',
                    expected_date_format=None,
                    verbose=False,
                    **kwargs):
     """Return concatenated dataframe made up of dataframes read from
-    files contained in date subdirectories. 
+    CSV files contained in date subdirectories. 
     """
     dataframes = []
     for dname in os.listdir(dpath):
@@ -34,8 +51,10 @@ def read_date_dirs(dpath='.',
             else:
                 print('Processing '+fullpath)
                 for fname in os.listdir(fullpath):
+                    fpath = os.path.join(fullpath,fname)
+                    if not os.path.splitext(fpath)[1].endswith(ext): continue
                     if verbose: print('Reading '+fname)
-                    df = reader(os.path.join(fullpath,fname),**kwargs)
+                    df = reader(fpath,**kwargs)
                     dataframes.append(df)
     return pd.concat(dataframes)
 
@@ -43,7 +62,8 @@ def plot_wind(df,
               height_name='height',
               speed_name='speed',
               direction_name='direction',
-              datetime_range=(None,None)):
+              datetime_range=(None,None),
+              verbose=False):
     """Make time-height plot of wind speed and direction"""
     # set up time range
     if datetime_range[0] is None:
@@ -60,19 +80,22 @@ def plot_wind(df,
     dfsub = df.loc[trange]
     height = dfsub[height_name].unique()
     time = dfsub.loc[dfsub[height_name]==height[0]].index
-    x,y = np.meshgrid(time,height,indexing='ij')
+    if verbose:
+        print('heights:',height)
+        print('times:',time)
+    X,Y = np.meshgrid(time,height,indexing='ij')
     Nt, Nh = len(time), len(height)
     wspd = np.zeros((Nt,Nh))
     wdir = np.zeros((Nt,Nh))
     for k,h in enumerate(height):
-        wspd[:,k] = dfsub.loc[dfsub['height']==h,speed_name]
-        wdir[:,k] = dfsub.loc[dfsub['height']==h,direction_name]
+        wspd[:,k] = dfsub.loc[dfsub[height_name]==h,speed_name]
+        wdir[:,k] = dfsub.loc[dfsub[height_name]==h,direction_name]
 
     # make plot
     fig,ax = plt.subplots(nrows=2,sharex=True,figsize=(10,6))
-    cont = ax[0].contourf(x,y,wspd, levels=np.arange(26), cmap=windspeed_colormap)
+    cont = ax[0].contourf(X,Y,wspd, levels=np.arange(26), cmap=windspeed_colormap)
     cbar = fig.colorbar(cont, ax=ax[0], ticks=np.arange(0,26,2), label='wind speed [m/s]')
-    cont = ax[1].contourf(x,y,wdir, levels=np.arange(0,361,15), cmap=winddirection_colormap)
+    cont = ax[1].contourf(X,Y,wdir, levels=np.arange(0,361,15), cmap=winddirection_colormap)
     cbar = fig.colorbar(cont, ax=ax[1], ticks=np.arange(0,361,45), label='wind direction [deg]')
 
     return fig, ax
