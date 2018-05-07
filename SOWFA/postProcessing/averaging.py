@@ -42,6 +42,7 @@ class PlanarAverages(object):
         self.hLevelsCell = None
         self.simTimeDirs = [] # output time names
         self.simStartTimes = [] # start or restart simulation times
+        self.imax = None # for truncating time series
         
         if len(args)==0:
             args = os.listdir('.')
@@ -69,7 +70,7 @@ class PlanarAverages(object):
                     dirTime = -1
                 self.simStartTimes.append(dirTime)
             elif not arg.startswith('boundaryData'):
-                print('Checking directory',arg) #,'with',listing
+                print('Checking directory:',arg) #,'with',listing
                 # specified a directory containing output (time) subdirectories
                 for dirname in listing:
                     if not os.path.isdir(arg+os.sep+dirname): continue
@@ -174,15 +175,33 @@ class PlanarAverages(object):
         for field in outputs:
             arrays = [ np.loadtxt( tdir + os.sep + field ) for tdir in tdirList ]
             newdata = np.concatenate(arrays)
-            setattr( self, field, newdata[:,2:] )
+            setattr( self, field, newdata[:self.imax,2:] )
 
             self._processed.append(field)
             print('  read',field)
 
-        self.t = np.array( newdata[:,0] )
-        self.dt = np.array( newdata[:,1] )
+        self.t = np.array( newdata[:self.imax,0] )
+        self.dt = np.array( newdata[:self.imax,1] )
         
         return None
+
+    def _trim_series_if_needed(self,fields_to_check=all_vars):
+        """check for inconsistent array lengths and trim if needed"""
+        Nt0 = len(self.t)
+        for field in fields_to_check:
+            try:
+                getattr(self,field)
+            except AttributeError:
+                fields_to_check.remove(field)
+        Nt_new = np.min([ getattr(self,field).shape[0] for field in fields_to_check ])
+        if Nt_new < Nt0:
+            # need to prune arrays
+            print('Inconsistent averaging field lengths... is simulation still running?')
+            print('  truncated field histories from',Nt0,'to',Nt_new)
+            self.t = self.t[:Nt_new]
+            for field in fields_to_check:
+                setattr(self, field, getattr(self,field)[:Nt_new,:])
+            self.imax = Nt_new
 
     #==========================================================================
     #
@@ -229,30 +248,7 @@ class PlanarAverages(object):
             print('Need to specify output heights')
             return
 
-        # check for inconsistent array lengths
-        Nt0 = len(self.t)
-        fieldsToCheck = [
-            self.U_mean, self.V_mean, self.W_mean,
-            self.uu_mean, self.uv_mean, self.vv_mean, self.ww_mean,
-            self.R11_mean, self.R12_mean, self.R22_mean, self.R33_mean
-        ]
-        if any([ field.shape[0] < Nt0 for field in fieldsToCheck ]):
-            # need to prune arrays
-            Nt_new = np.min([ field.shape[0] for field in fieldsToCheck ])
-            print('Inconsistent averaging field lengths... is simulation still running?')
-            print('  truncated field histories from',Nt0,'to',Nt_new)
-            self.t = self.t[:Nt_new]
-            self.U_mean = self.U_mean[:Nt_new,:]
-            self.V_mean = self.V_mean[:Nt_new,:]
-            self.W_mean = self.W_mean[:Nt_new,:]
-            self.uu_mean = self.uu_mean[:Nt_new,:]
-            self.uv_mean = self.uv_mean[:Nt_new,:]
-            self.vv_mean = self.vv_mean[:Nt_new,:]
-            self.ww_mean = self.ww_mean[:Nt_new,:]
-            self.R11_mean = self.R11_mean[:Nt_new,:]
-            self.R12_mean = self.R12_mean[:Nt_new,:]
-            self.R22_mean = self.R22_mean[:Nt_new,:]
-            self.R33_mean = self.R33_mean[:Nt_new,:]
+        self._trim_series_if_needed()
 
         # setup uniform points for interpolation and averaging windows
         Nt = int(np.ceil((self.t[-1]-self.t[0])/dt))
@@ -343,7 +339,7 @@ class PlanarAverages(object):
 
         # end loop over heights
 
-        # save attributes
+        # save attributes, shape==(Ntavg,Nout)
         self.TI_heights = heights
         self.tavg       = tavg
         self.TIx        = TIx
