@@ -133,7 +133,7 @@ class PlanarAverages(object):
         Typically, objects have shape (Nt,Nz).
         """
         outputs = []
-        if isinstance( varList, (str,unicode) ):
+        if isinstance( varList, (str,) ):
             if varList.lower()=='all':
                 # special case: read all vars
                 allOutputs = os.listdir(tdirList[0])
@@ -262,7 +262,8 @@ class PlanarAverages(object):
         Nt = int(np.ceil((self.t[-1]-self.t[0])/dt))
         tuniform = np.arange(1,Nt+1)*dt + self.t[0]
         Navg    = int(tavg_window/dt)
-        tavg    = tuniform[Navg/2:-Navg/2+1]
+        Navg_2  = int(Navg/2)
+        tavg    = tuniform[Navg_2:-Navg_2+1]
         Ntavg   = len(tavg)
         if verbose:
             print('Interpolating to',Nt,'uniformly-spaced data points')
@@ -297,9 +298,9 @@ class PlanarAverages(object):
             U_mean_uniform = np.interp( tuniform, self.t, U_mean_interp ) # length=Nt
             V_mean_uniform = np.interp( tuniform, self.t, V_mean_interp )
             W_mean_uniform = np.interp( tuniform, self.t, W_mean_interp )
-            UMeanAvg = uniform_filter( U_mean_uniform, Navg )[Navg/2:-Navg/2+1] # length=Ntavg
-            VMeanAvg = uniform_filter( V_mean_uniform, Navg )[Navg/2:-Navg/2+1]
-            WMeanAvg = uniform_filter( W_mean_uniform, Navg )[Navg/2:-Navg/2+1]
+            UMeanAvg = uniform_filter( U_mean_uniform, Navg )[Navg_2:-Navg_2+1] # length=Ntavg
+            VMeanAvg = uniform_filter( V_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+            WMeanAvg = uniform_filter( W_mean_uniform, Navg )[Navg_2:-Navg_2+1]
 
             # calculate time-averaged variances
             uu_mean_interp = self.uu_mean[:,k-1] + frac*(self.uu_mean[:,k] - self.uu_mean[:,k-1]) # length=len(self.t)
@@ -310,10 +311,10 @@ class PlanarAverages(object):
             vv_mean_uniform = np.interp( tuniform, self.t, vv_mean_interp )
             uv_mean_uniform = np.interp( tuniform, self.t, uv_mean_interp )
             ww_mean_uniform = np.interp( tuniform, self.t, ww_mean_interp )
-            uuMeanAvg = uniform_filter( uu_mean_uniform, Navg )[Navg/2:-Navg/2+1] # length=Ntavg
-            vvMeanAvg = uniform_filter( vv_mean_uniform, Navg )[Navg/2:-Navg/2+1]
-            uvMeanAvg = uniform_filter( uv_mean_uniform, Navg )[Navg/2:-Navg/2+1]
-            wwMeanAvg = uniform_filter( ww_mean_uniform, Navg )[Navg/2:-Navg/2+1]
+            uuMeanAvg = uniform_filter( uu_mean_uniform, Navg )[Navg_2:-Navg_2+1] # length=Ntavg
+            vvMeanAvg = uniform_filter( vv_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+            uvMeanAvg = uniform_filter( uv_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+            wwMeanAvg = uniform_filter( ww_mean_uniform, Navg )[Navg_2:-Navg_2+1]
             if SFS:
                 if verbose: print('Adding SFS component')
                 R11_mean_interp = self.R11_mean[:,k-1] + frac*(self.R11_mean[:,k] - self.R11_mean[:,k-1]) # length=len(self.t)
@@ -324,10 +325,10 @@ class PlanarAverages(object):
                 R22_mean_uniform = np.interp( tuniform, self.t, R22_mean_interp )
                 R12_mean_uniform = np.interp( tuniform, self.t, R12_mean_interp )
                 R33_mean_uniform = np.interp( tuniform, self.t, R33_mean_interp )
-                uuMeanAvg += uniform_filter( R11_mean_uniform, Navg )[Navg/2:-Navg/2+1] # length=Ntavg
-                vvMeanAvg += uniform_filter( R22_mean_uniform, Navg )[Navg/2:-Navg/2+1]
-                uvMeanAvg += uniform_filter( R12_mean_uniform, Navg )[Navg/2:-Navg/2+1]
-                wwMeanAvg += uniform_filter( R33_mean_uniform, Navg )[Navg/2:-Navg/2+1]
+                uuMeanAvg += uniform_filter( R11_mean_uniform, Navg )[Navg_2:-Navg_2+1] # length=Ntavg
+                vvMeanAvg += uniform_filter( R22_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+                uvMeanAvg += uniform_filter( R12_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+                wwMeanAvg += uniform_filter( R33_mean_uniform, Navg )[Navg_2:-Navg_2+1]
 
             Umag = np.sqrt( UMeanAvg**2 + VMeanAvg**2 + WMeanAvg**2 )
             windDir = np.abs( np.arctan2(VMeanAvg,UMeanAvg) )

@@ -19,7 +19,6 @@ avg = PlanarAverages( *sys.argv[1:] )
 #------------------------------------------------------------------------------
 avg.calculate_TI(heights, tavg_window=600.0, dt=1.0, SFS=True)
 fig,ax = avg.plot_TI_history(savefig='TIhist.png')
-plt.show()
 
 avg.save_TI_history(prefix='TIhist')
 
