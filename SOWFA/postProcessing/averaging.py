@@ -27,11 +27,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-def read(*args,**kwargs):
-    """Specify variables to read with keyword 'varList'"""
-    return PlanarAverages(*args,**kwargs)
-
-allAveragingVars = [
+all_vars = [
         'U_mean','V_mean','W_mean','T_mean',
         'uu_mean', 'vv_mean', 'ww_mean', 'uv_mean', 'uw_mean', 'vw_mean',
         'Tw_mean',
