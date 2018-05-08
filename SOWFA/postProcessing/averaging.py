@@ -349,6 +349,104 @@ class PlanarAverages(object):
         self.TIxyz      = TIxyz
         self.TKE        = TKE
         
+    def calculate_TI_profile(self,
+                             time=9e9,
+                             tavg_window=600.0,
+                             dt=1.0,
+                             SFS=True,
+                             verbose=True):
+        """Calculate the directional turbulence intensity (TI) profile
+        of the resolved fluctuations alone or combined fluctuations
+        (including resolved and sub-filter scale, SFS).
+
+        INPUTS
+            tavg_window     size of window for moving average [s]
+            dt              uniform time interval to which to interpolate [s]
+            SFS             set to True to include SFS terms
+
+        CALCULATED QUANTITIES
+            TI_profile      profile of variance resolved to flow direction
+            TKE_profile     profile of variance resolved to flow direction
+        """
+        try:
+            from scipy.ndimage import uniform_filter
+        except ImportError:
+            print('Moving average calculation uses scipy.ndimage')
+            return
+
+        self.get_vars_if_needed('uu_mean','vv_mean','ww_mean','uv_mean','uw_mean','vw_mean')
+        if SFS: self.get_vars_if_needed('R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean')
+
+        self._trim_series_if_needed()
+
+        # setup uniform points for interpolation and averaging windows
+        Nt = int(np.ceil((self.t[-1]-self.t[0])/dt))
+        tuniform = np.arange(1,Nt+1)*dt + self.t[0]
+        Navg    = int(tavg_window/dt)
+        Navg_2  = int(Navg/2)
+        tavg    = tuniform[Navg_2:-Navg_2+1]
+        Ntavg   = len(tavg)
+        if verbose:
+            print('Interpolating to',Nt,'uniformly-spaced data points')
+            print('Moving average window:',tavg_window,'s')
+
+        TI_profile = np.zeros((len(self.hLevelsCell)))
+        TKE_profile = np.zeros((len(self.hLevelsCell)))
+
+        for ih,z in enumerate(self.hLevelsCell):
+
+            # calculate time-averaged velocity profiles
+            # 1. interpolate from all times to a time history with uniformly-spaced samples
+            # 2. apply uniform_filter to perform moving average over the uniformly-spaced samples
+            U_mean_uniform = np.interp( tuniform, self.t, self.U_mean[:,ih] ) # length=Nt
+            V_mean_uniform = np.interp( tuniform, self.t, self.V_mean[:,ih] )
+            W_mean_uniform = np.interp( tuniform, self.t, self.W_mean[:,ih] )
+            UMeanAvg = uniform_filter( U_mean_uniform, Navg )[Navg_2:-Navg_2+1] # length=Ntavg
+            VMeanAvg = uniform_filter( V_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+            WMeanAvg = uniform_filter( W_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+
+            # calculate time-averaged variances
+            uu_mean_uniform = np.interp( tuniform, self.t, self.uu_mean[:,ih] ) # length=Nt
+            vv_mean_uniform = np.interp( tuniform, self.t, self.vv_mean[:,ih] )
+            uv_mean_uniform = np.interp( tuniform, self.t, self.uv_mean[:,ih] )
+            ww_mean_uniform = np.interp( tuniform, self.t, self.ww_mean[:,ih] )
+            uuMeanAvg = uniform_filter( uu_mean_uniform, Navg )[Navg_2:-Navg_2+1] # length=Ntavg
+            vvMeanAvg = uniform_filter( vv_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+            uvMeanAvg = uniform_filter( uv_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+            wwMeanAvg = uniform_filter( ww_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+            if SFS:
+                R11_mean_uniform = np.interp( tuniform, self.t, self.R11_mean[:,ih] ) #length=Nt
+                R22_mean_uniform = np.interp( tuniform, self.t, self.R22_mean[:,ih] )
+                R12_mean_uniform = np.interp( tuniform, self.t, self.R12_mean[:,ih] )
+                R33_mean_uniform = np.interp( tuniform, self.t, self.R33_mean[:,ih] )
+                uuMeanAvg += uniform_filter( R11_mean_uniform, Navg )[Navg_2:-Navg_2+1] # length=Ntavg
+                vvMeanAvg += uniform_filter( R22_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+                uvMeanAvg += uniform_filter( R12_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+                wwMeanAvg += uniform_filter( R33_mean_uniform, Navg )[Navg_2:-Navg_2+1]
+
+            Umag = np.sqrt( UMeanAvg**2 + VMeanAvg**2 + WMeanAvg**2 )
+            windDir = np.abs( np.arctan2(VMeanAvg,UMeanAvg) )
+
+            # calculate TKE and TI
+            #TIx_profile[ih] = np.sqrt( uuMeanAvg ) / Umag
+            #TIy_profile[ih] = np.sqrt( vvMeanAvg ) / Umag
+            #TIz_profile[ih] = np.sqrt( wwMeanAvg ) / Umag
+            #TIxyz_profile[ih] = np.sqrt( 2./3.*TKE[:,ih] ) / Umag
+
+            itime = np.argmin(np.abs(time - self.tavg))
+            TKE_profile[ih] = 0.5*( uuMeanAvg[itime] + vvMeanAvg[itime] + wwMeanAvg[itime] )
+            TI_profile[ih] = uuMeanAvg[itime] *   np.cos(windDir[itime])**2 \
+                           + uvMeanAvg[itime] * 2*np.sin(windDir[itime])*np.cos(windDir[itime]) \
+                           + vvMeanAvg[itime] *   np.sin(windDir[itime])**2
+            TI_profile[ih] = np.sqrt(TI_profile[ih]) / Umag[itime]
+
+        # end loop over heights
+
+        # save attributes, shape==(Ntavg,Nout)
+        self.tavg_profile = tavg
+        self.TI_profile   = TI_profile
+        self.TKE_profile  = TKE_profile
+        
     def calculate_shear(self,
                         heights=[20.0,40.0,80.0],
                         zref=80.0,

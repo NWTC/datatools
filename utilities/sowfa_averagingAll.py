@@ -11,13 +11,16 @@ import matplotlib.pyplot as plt
 from datatools.SOWFA.postProcessing.averaging import PlanarAverages
 
 heights = [90.,200, 400, 600, 800]
+tavg_window = 600.0
+dt = 1.0 # for data resampling
+include_SFS = True # include stresses from SGS model in TI calculation
 
 # read avg.hLevelsCell with shape (NZ)
 # read avg.U_mean, ... with shape (NT, NZ)
 avg = PlanarAverages( *sys.argv[1:] )
 
 #------------------------------------------------------------------------------
-avg.calculate_TI(heights, tavg_window=600.0, dt=1.0, SFS=True)
+avg.calculate_TI(heights, tavg_window=tavg_window, dt=dt, SFS=include_SFS)
 fig,ax = avg.plot_TI_history(savefig='TIhist.png')
 
 avg.save_TI_history(prefix='TIhist')
@@ -72,6 +75,20 @@ avg.plot_SFS_shearstress_profile(ax=ax[1])
 ax[1].set_ylabel('')
 fig.suptitle('Sub-Filter Scale Quantities')
 fig.savefig('Profiles_SFS.png')
+
+#------------------------------------------------------------------------------
+#
+# Calculated quantities
+#
+avg.calculate_TI_profile(tavg_window=tavg_window, dt=dt, SFS=include_SFS)
+
+fig,ax = plt.subplots(ncols=2)
+ax[0].plot(100*avg.TI_profile, avg.hLevelsCell, 'k-')
+ax[1].plot(avg.TKE_profile, avg.hLevelsCell, 'k-')
+ax[0].set_xlabel('turbulence intensity [%]')
+ax[1].set_xlabel('turbulence kinetic energy [m^2/s^2]')
+ax[1].set_ylabel('')
+fig.savefig('Profiles_TI.png')
 
 #------------------------------------------------------------------------------
 
