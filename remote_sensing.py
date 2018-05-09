@@ -123,7 +123,6 @@ def read_winds_data_block(f):
     return df
 
 def ESRL_wind_profiler(fname,
-                       height_conversion_to_m=1000.0,
                        bad_value=999999):
     """Wind Profiler radar with RASS
     Users: Earth Sciences Research Laboratory (ESRL)
@@ -138,7 +137,6 @@ def ESRL_wind_profiler(fname,
         dataframes.append(read_winds_data_block(f))
         dataframes.append(read_winds_data_block(f))
     df = pd.concat(dataframes)
-    df['HT'] = df['HT']*height_conversion_to_m
     if bad_value is not None:
         try:
             for val in bad_value:

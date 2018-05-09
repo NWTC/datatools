@@ -1,13 +1,21 @@
 """
 WFIP 2 Data Processing Tools
 ============================
-written by Eliot Quon (eliot.quon@nrel.gov)
+Written by Eliot Quon (eliot.quon@nrel.gov)
 
 Tools to read series of data files contained in either a single
 directory, or a series of subdirectories, into a single pandas
 dataframe.
 
 Also includes helper tools, e.g., to make time-height wind plots.
+
+Sample usage:
+    from datatools import wfip2, remote_sensing
+    # to read $dpath/*.winds
+    df = wfip2.read_dir(dpath,
+                        reader=remote_sensing.ESRL_wind_profiler,
+                        ext='winds',
+                        bad_value=[999999,-980.0])
 
 """
 from __future__ import print_function
