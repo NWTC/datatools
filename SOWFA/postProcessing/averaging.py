@@ -103,6 +103,8 @@ class PlanarAverages(object):
         for t,d in zip(self.simStartTimes,self.simTimeDirs):
             fullpath = os.path.realpath(os.curdir) + os.sep + d
             s += '\n  {:f}\t{:s}'.format(t,fullpath)
+        s += '\ntimes: {:d} [{:f},{:f}]'.format(len(self.t),self.t[0],self.t[-1])
+        s += '\nheights: {:d} [{:f},{:f}]'.format(len(self.hLevelsCell),self.hLevelsCell[0],self.hLevelsCell[-1])
         return s
 
     def get_vars_if_needed(self,*args,**kwargs):
@@ -451,14 +453,17 @@ class PlanarAverages(object):
                         heights=[20.0,40.0,80.0],
                         zref=80.0,
                         Uref=8.0,
-                        interp=False,
+                        interp=None,
                         verbose=True):
         """Estimate the shear from the average streamwise velocity from
         the final time step. Sets self.approxWindProfile to the fitted
         wind profile.
 
         INPUTS
-            heights     list of three points to use to fit the wind profile
+            heights     list of points to use to fit the wind profile
+            zref        power-law reference height
+            Uref        power-law reference velocity
+            interp      None, or 'kind' input to scipy.interpolate.interp1d
 
         OUTPUTS
             alpha       power law wind profile exponent
@@ -466,8 +471,8 @@ class PlanarAverages(object):
         from scipy.interpolate import interp1d
         Uh = np.sqrt( self.U_mean**2 + self.V_mean**2 )[-1,:] # horizontal wind
 
-        if interp:
-            Ufn = interp1d( self.hLevelsCell, Uh, kind='linear' )
+        if interp is not None:
+            Ufn = interp1d( self.hLevelsCell, Uh, kind=interp )
             U = Ufn(heights)
             self.approxHeights = heights
             self.approxU = U # at heights
@@ -475,7 +480,7 @@ class PlanarAverages(object):
         else:
             # find nearest cell without interpolating
             idx = [ np.argmin(np.abs(h-self.hLevelsCell)) for h in sorted(heights) ]
-            assert(len(set(idx)) >= 3)
+            assert(len(set(idx)) >= 2)
             heights = self.hLevelsCell[idx]
             U = Uh[idx]
 
