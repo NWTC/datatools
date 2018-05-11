@@ -36,7 +36,7 @@ def generate_inflow(prefix,
                                 npzdata=prefix+'.npz') # auto-detect NX,NY,NZ
 
     # time series detected from directory names
-    t = np.array(inflow.ts.outputTimes)
+    t = np.array(inflow.ts.times)
 
     # assume flow is in x direction
     X,Y,Z,U = inflow.sliceI() # return arrays with shape (NY,NZ)

@@ -131,16 +131,16 @@ class sampled_data(object):
             print('Timeseries information has not been read; no filtering performed.')
             return
         if self.tstart is None:
-            self.tstart = self.ts.outputTimes[0]
+            self.tstart = self.ts.times[0]
         if self.tend is None:
-            self.tend = self.ts.outputTimes[-1]
-        times = np.array(self.ts.outputTimes)
+            self.tend = self.ts.times[-1]
+        times = np.array(self.ts.times)
         print('Filtered time series range: {} - {}'.format(self.tstart,self.tend))
         indices = np.nonzero((times >= self.tstart) &
                              (times <= self.tend))[0]
-        self.ts.outputTimes = times[indices]
+        self.ts.times = times[indices]
         self.ts.dirlist = [ self.ts.dirlist[i] for i in indices ]
-        self.ts.Ntimes = len(self.ts.outputTimes)
+        self.ts.Ntimes = len(self.ts.times)
         # don't forget to update the list of filenames which is what the
         # timeseries iterator actually returns
         self.ts.update_filelist(self.ts.filename)
@@ -617,8 +617,8 @@ class foam_structuredVTK_array(sampled_data):
         data = np.zeros((self.Ntimes,self.NX,self.NY,self.NZ,self.datasize))           
         
         for itime,fname in enumerate(self.ts):
-            print('Reading time {} of {}...'.format(self.ts.outputTimes[itime],
-                                                    self.ts.outputTimes[len(self.ts.outputTimes)-1]))
+            print('Reading time {} of {}...'.format(self.ts.times[itime],
+                                                    self.ts.times[len(self.ts.times)-1]))
             [dataSetName, dims, origin, spacing, xdata, ydata, zdata, nFields, fieldName, fieldDim, field] = structuredVTK(fname) 
             for i in range(fieldDim[iField]):
                data[itime,:,:,:,i] = field[iField][i,:,:,:]

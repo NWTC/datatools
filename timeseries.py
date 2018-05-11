@@ -47,28 +47,28 @@ class TimeSeries(object):
         the time for each snapshot.
         """
         # default initialization for inherited objects
-        self.dataDir = os.path.abspath(datadir)
+        self.datadir = os.path.abspath(datadir)
         self.filelist = None
-        self.outputTimes = []
+        self.times = []
         self.verbose = verbose
 
         if prefix is not None:
             # handle standard time series in a single directory
             self.filelist = []
-            self.outputTimes = []
+            self.times = []
             self.dt = dt
             self.t0 = t0
-            for f in os.listdir(self.dataDir):
-                if (os.path.isfile(os.path.join(self.dataDir,f))) \
+            for f in os.listdir(self.datadir):
+                if (os.path.isfile(os.path.join(self.datadir,f))) \
                         and f.startswith(prefix) \
                         and f.endswith(suffix):
-                    fpath = os.path.join(self.dataDir,f)
+                    fpath = os.path.join(self.datadir,f)
                     self.filelist.append(fpath)
                     val = f[len(prefix):]
                     if len(suffix) > 0:
                         val = val[:-len(suffix)]
                     try:
-                        self.outputTimes.append(t0 + dt*float(val))
+                        self.times.append(t0 + dt*float(val))
                     except ValueError:
                         print('Prefix and/or suffix are improperly specified')
                         print('  attempting to cast value: '+val)
@@ -79,9 +79,9 @@ class TimeSeries(object):
                 print('Warning: no matching files were found')
 
             # sort by output time
-            iorder = [kv[0] for kv in sorted(enumerate(self.outputTimes),key=lambda x:x[1])]
+            iorder = [kv[0] for kv in sorted(enumerate(self.times),key=lambda x:x[1])]
             self.filelist = [self.filelist[i] for i in iorder]
-            self.outputTimes = [self.outputTimes[i] for i in iorder]
+            self.times = [self.times[i] for i in iorder]
 
     def __len__(self):
         return len(self.filelist)
@@ -107,7 +107,7 @@ class TimeSeries(object):
         return self.__next__()
             
     def itertimes(self):
-        return zip(self.outputTimes,self.filelist)
+        return zip(self.times,self.filelist)
 
 
 class SOWFATimeSeries(TimeSeries):
@@ -127,32 +127,32 @@ class SOWFATimeSeries(TimeSeries):
         """
         super(self.__class__,self).__init__(*args,**kwargs)
         self.dirlist = []
-        self.outputNames = []
+        self.timenames = []
         self.filename = filename
 
         # process all subdirectories
-        subdirs = [ os.path.join(self.dataDir,d)
-                    for d in os.listdir(self.dataDir)
-                    if os.path.isdir(os.path.join(self.dataDir,d)) ]
+        subdirs = [ os.path.join(self.datadir,d)
+                    for d in os.listdir(self.datadir)
+                    if os.path.isdir(os.path.join(self.datadir,d)) ]
         for path in subdirs:
             dname = os.path.split(path)[-1]
             try:
                 tval = float(dname)
             except ValueError:
                 continue
-            self.outputTimes.append(tval)
+            self.times.append(tval)
             self.dirlist.append(path)
         self.Ntimes = len(self.dirlist)
     
         # sort by output time
-        iorder = [kv[0] for kv in sorted(enumerate(self.outputTimes),key=lambda x:x[1])]
+        iorder = [kv[0] for kv in sorted(enumerate(self.times),key=lambda x:x[1])]
         self.dirlist = [self.dirlist[i] for i in iorder]
-        self.outputTimes = [self.outputTimes[i] for i in iorder]
+        self.times = [self.times[i] for i in iorder]
 
         # check that all subdirectories contain the same files
-        self.outputNames = os.listdir(self.dirlist[0])
+        self.timenames = os.listdir(self.dirlist[0])
         for d in self.dirlist:
-            if not os.listdir(d) == self.outputNames:
+            if not os.listdir(d) == self.timenames:
                 print('Warning: not all subdirectories contain the same files')
                 break
         if verbose:
@@ -174,7 +174,7 @@ class SOWFATimeSeries(TimeSeries):
 
     def outputs(self,prefix=''):
         """Print available outputs for the given data directory"""
-        selected_output_names = [ name for name in self.outputNames if name.startswith(prefix) ]
+        selected_output_names = [ name for name in self.timenames if name.startswith(prefix) ]
         if self.verbose:
             if prefix:
                 print('Files starting with "{}" in each subdirectory:'.format(prefix))
@@ -185,5 +185,5 @@ class SOWFATimeSeries(TimeSeries):
         return selected_output_names
 
     def __repr__(self):
-        return str(self.Ntimes) + ' time subdirectories located in ' + self.dataDir
+        return str(self.Ntimes) + ' time subdirectories located in ' + self.datadir
 
