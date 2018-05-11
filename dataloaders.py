@@ -4,7 +4,7 @@ import os
 
 import numpy as np
 
-from datatools.timeseries import TimeSeries
+import datatools.timeseries as series
 
 from datatools.readData import structuredVTK
 
@@ -27,7 +27,7 @@ class sampled_data(object):
         All inherited readers should call this generic data reader for
         consistency. The resulting data object should contain:
 
-        * ts: TimeSeries object with information regarding the location
+        * ts: time series object with information regarding the location
               of the data (None for raw data)
         * Ntimes: Number of output time directories
         * NX,NY,NZ: Number of points in the x,y,z directions
@@ -262,6 +262,7 @@ class _template_sampled_data_format(sampled_data):
 
         # get time series
         datafile = 'FILENAME.DAT'
+        TimeSeries = kwargs.get('timeseries', series.SOWFATimeSeries)
         self.ts = TimeSeries(self.outputdir,datafile)
         self.filter_series() # to trim input time series if needed
 
@@ -567,6 +568,7 @@ class foam_structuredVTK_array(sampled_data):
         # get time series
         print('Getting time directory layout...')
         datafile = self.prefix + '.vtk'
+        TimeSeries = kwargs.get('timeseries', series.SOWFATimeSeries)
         try:
             self.ts = TimeSeries(self.outputdir,datafile,verbose=False)
         except AssertionError:
@@ -672,6 +674,7 @@ class foam_ensight_array(sampled_data):
 
         # get time series
         datafile = self.prefix+'.000.U'
+        TimeSeries = kwargs.get('timeseries', series.SOWFATimeSeries)
         try:
             self.ts = TimeSeries(self.outputdir,datafile,verbose=False)
         except AssertionError:

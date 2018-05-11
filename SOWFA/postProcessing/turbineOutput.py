@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from SOWFA.timeseries import TimeSeries
+from datatools.timeseries import SOWFATimeSeries
 
 def _processTurbineOutputHeader(line):
     """turbineOutput file headers have the following format:
@@ -36,7 +36,7 @@ def readRotorOutputs(
     If turbineList is specified, then selected turbines are returned; 
     otherwise, all turbines (presumably Nturb many) are returned.
     """
-    dataseries = TimeSeries(datadir,verbose=False)
+    dataseries = SOWFATimeSeries(datadir,verbose=False)
    #dataNames = dataseries.outputs(prefix)
     dataNames = dataseries.outputs(prefix) + ['bladePitch']
     turbinedata = dict()
@@ -103,7 +103,7 @@ def readBladeOutputs(
 
     For reference: http://pandas.pydata.org/pandas-docs/stable/reshaping.html
     """
-    dataseries = TimeSeries(datadir,verbose=False)
+    dataseries = SOWFATimeSeries(datadir,verbose=False)
     dataNames = dataseries.outputs(prefix)
     dataNames.remove('bladePitch') # this is the collective pitch for all blades, and should be a 'rotor' quantity
     turbinedata = dict()
@@ -176,7 +176,7 @@ def readTowerOutputs(
 
     For reference: http://pandas.pydata.org/pandas-docs/stable/reshaping.html
     """
-    dataseries = TimeSeries(datadir,verbose=False)
+    dataseries = SOWFATimeSeries(datadir,verbose=False)
     dataNames = dataseries.outputs(prefix)
     turbinedata = dict()
 

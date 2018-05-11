@@ -21,9 +21,9 @@ def pretty_list(strlist,indent=2,sep='\t',width=80):
     return finalline
 
 
-class TimeSeries(object):
-    """ Object for holding general time series data which may be stored
-    in multiple time subdirectories
+class SOWFATimeSeries(object):
+    """Object for holding general time series data which may be stored
+    in multiple time subdirectories, e.g., as in OpenFOAM.
 
     Written by Eliot Quon (eliot.quon@nrel.gov)
 
