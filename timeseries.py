@@ -125,7 +125,7 @@ class SOWFATimeSeries(TimeSeries):
         """Collect data from subdirectories, assuming that subdirs
         have a name that can be cast as a float
         """
-        super(self.__class__,self).__init__(*args,**kwargs)
+        super(self.__class__,self).__init__(datadir=datadir,verbose=verbose)
         self.dirlist = []
         self.timenames = []
         self.filename = filename
