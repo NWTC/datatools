@@ -9,6 +9,7 @@
 from __future__ import print_function
 import numpy as np
 
+import datatools.timeseries as ts
 from datatools.dataloaders import foam_structuredVTK_array
 from datatools.FAST.InflowWind import input_template
 from datatools.binario import binaryfile
@@ -18,14 +19,16 @@ def generate_inflow(datadir,prefix,
         uref=8.0,zref=90.0,
         tstart=None,tend=None,
         ufile='u.bin',vfile='v.bin',wfile='w.bin',
-        inflowfile='InflowWind_from_SOWFA.dat'):
+        inflowfile='InflowWind_from_SOWFA.dat',
+        **kwargs):
     """Writes out one binary file for each wind component in the HAWC
     format as described in the InflowWind manual, in addition to an
     InflowWind input file"""
 
     inflow = foam_structuredVTK_array(datadir, prefix=prefix,
                                       tstart=tstart, tend=tend,
-                                      npzdata=prefix+'.npz')
+                                      npzdata=prefix+'.npz',
+                                      **kwargs)
 
     # time series detected from directory names
     t = np.array(inflow.ts.times)

@@ -26,14 +26,18 @@ from datatools.binario import binaryfile
 
 def generate_inflow(prefix,
         uref=8.0,zref=90.0,
+        tstart=None,tend=None,
         ufile='u.bin',vfile='v.bin',wfile='w.bin',
-        inflowfile='InflowWind_from_SOWFA.dat'):
+        inflowfile='InflowWind_from_SOWFA.dat',
+        **kwargs):
     """Writes out one binary file for each wind component in the HAWC
     format as described in the InflowWind manual, in addition to an
     InflowWind input file"""
 
     inflow = foam_ensight_array('.', prefix=prefix,
-                                npzdata=prefix+'.npz') # auto-detect NX,NY,NZ
+                                tstart=start, tend=tend,
+                                npzdata=prefix+'.npz',
+                                **kwargs) # auto-detect NX,NY,NZ
 
     # time series detected from directory names
     t = np.array(inflow.ts.times)

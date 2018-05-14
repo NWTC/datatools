@@ -16,8 +16,8 @@ class sampled_data(object):
             NX=1, NY=None, NZ=None, datasize=3,
             tstart=None, tend=None,
             npzdata='arrayData.npz',
-            interp_holes=False
-            ):
+            interp_holes=False,
+            **kwargs):
         """Attempts to load processed data with shape
         (Ntimes,NX,NY,NZ,datasize).
 
@@ -263,7 +263,9 @@ class _template_sampled_data_format(sampled_data):
         # get time series
         datafile = 'FILENAME.DAT'
         TimeSeries = kwargs.get('timeseries', series.SOWFATimeSeries)
-        self.ts = TimeSeries(self.outputdir,datafile)
+        tstart = kwargs.get('tstart',None)
+        tend = kwargs.get('tend',None)
+        self.ts = TimeSeries(self.outputdir,datafile,tstart=tstart,tend=tend)
         self.filter_series() # to trim input time series if needed
 
         # set convenience variables
@@ -569,8 +571,10 @@ class foam_structuredVTK_array(sampled_data):
         print('Getting time directory layout...')
         datafile = self.prefix + '.vtk'
         TimeSeries = kwargs.get('timeseries', series.SOWFATimeSeries)
+        tstart = kwargs.get('tstart',None)
+        tend = kwargs.get('tend',None)
         try:
-            self.ts = TimeSeries(self.outputdir,datafile,verbose=False)
+            self.ts = TimeSeries(self.outputdir,datafile,verbose=False,tstart=tstart,tend=tend)
         except AssertionError:
             if self.data_read_from is not None:
                 print('Note: Data read but time series information is unavailable.')
@@ -597,6 +601,7 @@ class foam_structuredVTK_array(sampled_data):
         NZ = self.NZ
         
         # Read the structured VTK data to get the mesh.
+        print(self.ts.dirlist[0] + '/' + self.prefix+'.vtk')
         [dataSetName, dims, origin, spacing, xdata, ydata, zdata, nFields, fieldName, fieldDim, field] = structuredVTK(self.ts.dirlist[0] + '/' + self.prefix+'.vtk')
         
         self.x,self.y,self.z = np.meshgrid(xdata,ydata,zdata,indexing='ij')
@@ -675,8 +680,10 @@ class foam_ensight_array(sampled_data):
         # get time series
         datafile = self.prefix+'.000.U'
         TimeSeries = kwargs.get('timeseries', series.SOWFATimeSeries)
+        tstart = kwargs.get('tstart',None)
+        tend = kwargs.get('tend',None)
         try:
-            self.ts = TimeSeries(self.outputdir,datafile,verbose=False)
+            self.ts = TimeSeries(self.outputdir,datafile,verbose=False,tstart=tstart,tend=tend)
         except AssertionError:
             if self.data_read_from is not None:
                 print('Note: Data read but time series information is unavailable.')

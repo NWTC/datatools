@@ -40,7 +40,8 @@ class TimeSeries(object):
                  datadir='.',
                  prefix=None, suffix='',
                  dt=1.0, t0=0.0,
-                 verbose=False):
+                 verbose=False,
+                 **kwargs):
         """Collect data from specified directory, for files with a
         given prefix and optional suffix. For series with integer time
         step numbers, dt can be specified (with t0 offset) to determine
@@ -121,7 +122,7 @@ class SOWFATimeSeries(TimeSeries):
         ts = SOWFATimeSeries('/path/to/data',filename='U')
     """
 
-    def __init__(self,datadir='.',filename=None,verbose=True):
+    def __init__(self,datadir='.',filename=None,verbose=True,**kwargs):
         """Collect data from subdirectories, assuming that subdirs
         have a name that can be cast as a float
         """
