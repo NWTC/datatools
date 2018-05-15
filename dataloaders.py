@@ -16,6 +16,7 @@ except ImportError:
     from datatools.readData import structuredVTK
 else:
     # create wrapper for backwards compatibility with Matt's structuredVTK()
+    # TODO: Move this to a separate vtk_wrappers module 
     print('Using vtkStructuredPointsReader')
     def structuredVTK(fpath):
         reader = vtkStructuredPointsReader()

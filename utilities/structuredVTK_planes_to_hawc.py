@@ -18,7 +18,7 @@ def generate_inflow(datadir,prefix,
         uref=8.0,zref=90.0,
         ufile='u.bin',vfile='v.bin',wfile='w.bin',
         inflowfile='InflowWind_from_SOWFA.dat',
-        jProbe=160, kProbe=[0, 10, 30, 70, 100],
+        jProbe=None, kProbe=[0, 10, 30, 70, 100],
         **kwargs):
     """Writes out one binary file for each wind component in the HAWC
     format as described in the InflowWind manual, in addition to an
@@ -60,39 +60,40 @@ def generate_inflow(datadir,prefix,
     dz = z[1] - z[0]
 
 
+    if jProbe is not None:
 
-    pf = open('probeFileU.dat','w')
-    for i in range(nt):
-       pf.write(str(t[i]) + ' ')
-       for k in range(len(kProbe)):
-           if (k < len(kProbe)-1):
-               pf.write(str(U[i,jProbe,kProbe[k],0]) + ' ')
-           else:
-               pf.write(str(U[i,jProbe,kProbe[k],0]) + '\n')
-    pf.close()
-    print('Wrote u probe file')
+        pf = open('probeFileU.dat','w')
+        for i in range(nt):
+           pf.write(str(t[i]) + ' ')
+           for k in range(len(kProbe)):
+               if (k < len(kProbe)-1):
+                   pf.write(str(U[i,jProbe,kProbe[k],0]) + ' ')
+               else:
+                   pf.write(str(U[i,jProbe,kProbe[k],0]) + '\n')
+        pf.close()
+        print('Wrote u probe file')
 
-    pf = open('probeFileV.dat','w')
-    for i in range(nt):
-       pf.write(str(t[i]) + ' ')
-       for k in range(len(kProbe)):
-           if (k < len(kProbe)-1):
-               pf.write(str(U[i,jProbe,kProbe[k],1]) + ' ')
-           else:
-               pf.write(str(U[i,jProbe,kProbe[k],1]) + '\n')
-    pf.close()
-    print('Wrote v probe file')
+        pf = open('probeFileV.dat','w')
+        for i in range(nt):
+           pf.write(str(t[i]) + ' ')
+           for k in range(len(kProbe)):
+               if (k < len(kProbe)-1):
+                   pf.write(str(U[i,jProbe,kProbe[k],1]) + ' ')
+               else:
+                   pf.write(str(U[i,jProbe,kProbe[k],1]) + '\n')
+        pf.close()
+        print('Wrote v probe file')
 
-    pf = open('probeFileW.dat','w')
-    for i in range(nt):
-       pf.write(str(t[i]) + ' ')
-       for k in range(len(kProbe)):
-           if (k < len(kProbe)-1):
-               pf.write(str(U[i,jProbe,kProbe[k],2]) + ' ')
-           else:
-               pf.write(str(U[i,jProbe,kProbe[k],2]) + '\n')
-    pf.close()
-    print('Wrote w probe file')
+        pf = open('probeFileW.dat','w')
+        for i in range(nt):
+           pf.write(str(t[i]) + ' ')
+           for k in range(len(kProbe)):
+               if (k < len(kProbe)-1):
+                   pf.write(str(U[i,jProbe,kProbe[k],2]) + ' ')
+               else:
+                   pf.write(str(U[i,jProbe,kProbe[k],2]) + '\n')
+        pf.close()
+        print('Wrote w probe file')
 
 
 
