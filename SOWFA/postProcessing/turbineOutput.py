@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from datatools.timeseries import SOWFATimeSeries
+from datatools.series import SOWFATimeSeries
 
 def _processTurbineOutputHeader(line):
     """turbineOutput file headers have the following format:

@@ -9,7 +9,6 @@
 from __future__ import print_function
 import numpy as np
 
-import datatools.timeseries as ts
 from datatools.dataloaders import foam_structuredVTK_array
 from datatools.FAST.InflowWind import input_template
 from datatools.binario import binaryfile

@@ -4,7 +4,7 @@ import os
 
 import numpy as np
 
-import datatools.timeseries as series
+import datatools.series as series
 
 try:
     # more general option using the vtk module

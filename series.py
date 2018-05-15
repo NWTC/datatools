@@ -80,7 +80,7 @@ class TimeSeries(Series):
     Written by Eliot Quon (eliot.quon@nrel.gov)
 
     Sample usage:
-        from datatools.timeseries import TimeSeries
+        from datatools.series import TimeSeries
         ts = TimeSeries('/path/to/data',prefix='foo',suffix='.bar')
         for fname in ts:
             do_something(fname)
@@ -143,7 +143,7 @@ class SOWFATimeSeries(Series):
     Written by Eliot Quon (eliot.quon@nrel.gov)
 
     Sample usage:
-        from datatools.timeseries import SOWFATimeSeries
+        from datatools.series import SOWFATimeSeries
         ts = SOWFATimeSeries('/path/to/data',filename='U')
     """
 
