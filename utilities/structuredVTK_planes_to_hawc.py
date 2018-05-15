@@ -17,16 +17,16 @@ from datatools.binario import binaryfile
 
 def generate_inflow(datadir,prefix,
         uref=8.0,zref=90.0,
-        tstart=None,tend=None,
         ufile='u.bin',vfile='v.bin',wfile='w.bin',
         inflowfile='InflowWind_from_SOWFA.dat',
+        jProbe=160, kProbe=[0, 10, 30, 70, 100],
         **kwargs):
     """Writes out one binary file for each wind component in the HAWC
     format as described in the InflowWind manual, in addition to an
     InflowWind input file"""
 
-    inflow = foam_structuredVTK_array(datadir, prefix=prefix,
-                                      tstart=tstart, tend=tend,
+    inflow = foam_structuredVTK_array(datadir,
+                                      prefix=prefix,
                                       npzdata=prefix+'.npz',
                                       **kwargs)
 
@@ -51,7 +51,9 @@ def generate_inflow(datadir,prefix,
     nz = inflow.NZ
     y = Y[:,0]
     z = Z[0,:]
-    print('x :',nt,(t-t[0])*uref)
+    print('selected times:',t)
+    print('Uinf =',uref)
+    print('x=Uinf*t :',nt,(t-t[0])*uref)
     print('y :',ny,y)
     print('z :',nz,z)
     dx = uref*(t[1]-t[0])
@@ -60,8 +62,6 @@ def generate_inflow(datadir,prefix,
 
 
 
-    jProbe = 160
-    kProbe = [0, 10, 30, 70, 100]
     pf = open('probeFileU.dat','w')
     for i in range(nt):
        pf.write(str(t[i]) + ' ')

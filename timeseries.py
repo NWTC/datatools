@@ -21,68 +21,16 @@ def pretty_list(strlist,indent=2,sep='\t',width=80):
     return finalline
 
 
-class TimeSeries(object):
-    """Object for holding general time series data in a single
-    directory
+class Series(object):
+    """Object for holding general series data
 
     Written by Eliot Quon (eliot.quon@nrel.gov)
-
-    Sample usage:
-        from datatools.timeseries import ATimeSeries
-        ts = TimeSeries('/path/to/data',prefix='foo',suffix='.bar')
-        for fname in ts:
-            do_something(fname)
-        for t,fname in ts.itertimes():
-            do_something(t,fname)
     """
-
-    def __init__(self,
-                 datadir='.',
-                 prefix=None, suffix='',
-                 dt=1.0, t0=0.0,
-                 verbose=False,
-                 **kwargs):
-        """Collect data from specified directory, for files with a
-        given prefix and optional suffix. For series with integer time
-        step numbers, dt can be specified (with t0 offset) to determine
-        the time for each snapshot.
-        """
-        # default initialization for inherited objects
+    def __init__(self,datadir,**kwargs):
         self.datadir = os.path.abspath(datadir)
-        self.filelist = None
+        self.filelist = []
         self.times = []
-        self.verbose = verbose
-
-        if prefix is not None:
-            # handle standard time series in a single directory
-            self.filelist = []
-            self.times = []
-            self.dt = dt
-            self.t0 = t0
-            for f in os.listdir(self.datadir):
-                if (os.path.isfile(os.path.join(self.datadir,f))) \
-                        and f.startswith(prefix) \
-                        and f.endswith(suffix):
-                    fpath = os.path.join(self.datadir,f)
-                    self.filelist.append(fpath)
-                    val = f[len(prefix):]
-                    if len(suffix) > 0:
-                        val = val[:-len(suffix)]
-                    try:
-                        self.times.append(t0 + dt*float(val))
-                    except ValueError:
-                        print('Prefix and/or suffix are improperly specified')
-                        print('  attempting to cast value: '+val)
-                        print('  for file: '+fpath)
-                        break
-            self.Ntimes = len(self.filelist)
-            if self.Ntimes == 0:
-                print('Warning: no matching files were found')
-
-            # sort by output time
-            iorder = [kv[0] for kv in sorted(enumerate(self.times),key=lambda x:x[1])]
-            self.filelist = [self.filelist[i] for i in iorder]
-            self.times = [self.times[i] for i in iorder]
+        self.verbose = kwargs.get('verbose',False)
 
     def __len__(self):
         return len(self.filelist)
@@ -110,8 +58,85 @@ class TimeSeries(object):
     def itertimes(self):
         return zip(self.times,self.filelist)
 
+    def trimtimes(self,tstart=None,tend=None):
+        if (tstart is not None) or (tend is not None):
+            if tstart is None: tstart = 0.0
+            if tend is None: tend = 9e9
+            selected = [ (t >= tstart) & (t <= tend) for t in self.times ]
+            self.filelist = [self.filelist[i] for i,b in enumerate(selected) if b ]
+            self.times = [self.times[i] for i,b in enumerate(selected) if b ]
+            self.Ntimes = len(self.times)
 
-class SOWFATimeSeries(TimeSeries):
+            # for SOWFATimeSeries:
+            try:
+                self.dirlist = [self.dirlist[i] for i,b in enumerate(selected) if b ]
+            except AttributeError:
+                pass
+
+
+class TimeSeries(Series):
+    """Object for holding time series data in a single directory
+
+    Written by Eliot Quon (eliot.quon@nrel.gov)
+
+    Sample usage:
+        from datatools.timeseries import TimeSeries
+        ts = TimeSeries('/path/to/data',prefix='foo',suffix='.bar')
+        for fname in ts:
+            do_something(fname)
+        for t,fname in ts.itertimes():
+            do_something(t,fname)
+    """
+
+    def __init__(self,
+                 datadir='.',
+                 prefix=None, suffix='',
+                 dt=1.0, t0=0.0,
+                 **kwargs):
+        """Collect data from specified directory, for files with a
+        given prefix and optional suffix. For series with integer time
+        step numbers, dt can be specified (with t0 offset) to determine
+        the time for each snapshot.
+        """
+        super(self.__class__,self).__init__(datadir,**kwargs)
+        self.dt = dt
+        self.t0 = t0
+
+        if self.verbose:
+            print('Retrieving time series from',self.datadir)
+
+        for f in os.listdir(self.datadir):
+            if (os.path.isfile(os.path.join(self.datadir,f))) \
+                    and f.startswith(prefix) \
+                    and f.endswith(suffix):
+                fpath = os.path.join(self.datadir,f)
+                self.filelist.append(fpath)
+                val = f[len(prefix):]
+                if len(suffix) > 0:
+                    val = val[:-len(suffix)]
+                try:
+                    self.times.append(t0 + dt*float(val))
+                except ValueError:
+                    print('Prefix and/or suffix are improperly specified')
+                    print('  attempting to cast value: '+val)
+                    print('  for file: '+fpath)
+                    break
+        self.Ntimes = len(self.filelist)
+        if self.Ntimes == 0:
+            print('Warning: no matching files were found')
+
+        # sort by output time
+        iorder = [kv[0] for kv in sorted(enumerate(self.times),key=lambda x:x[1])]
+        self.filelist = [self.filelist[i] for i in iorder]
+        self.times = [self.times[i] for i in iorder]
+
+        # select time range
+        tstart = kwargs.get('tstart',None)
+        tend = kwargs.get('tend',None)
+        self.trimtimes(tstart,tend)
+
+
+class SOWFATimeSeries(Series):
     """Object for holding general time series data stored in multiple
     time subdirectories, e.g., as done in OpenFOAM.
 
@@ -122,14 +147,17 @@ class SOWFATimeSeries(TimeSeries):
         ts = SOWFATimeSeries('/path/to/data',filename='U')
     """
 
-    def __init__(self,datadir='.',filename=None,verbose=True,**kwargs):
+    def __init__(self,datadir='.',filename=None,**kwargs):
         """Collect data from subdirectories, assuming that subdirs
         have a name that can be cast as a float
         """
-        super(self.__class__,self).__init__(datadir=datadir,verbose=verbose)
+        super(self.__class__,self).__init__(datadir,**kwargs)
         self.dirlist = []
         self.timenames = []
         self.filename = filename
+
+        if self.verbose:
+            print('Retrieving SOWFA time series from',self.datadir)
 
         # process all subdirectories
         subdirs = [ os.path.join(self.datadir,d)
@@ -156,12 +184,17 @@ class SOWFATimeSeries(TimeSeries):
             if not os.listdir(d) == self.timenames:
                 print('Warning: not all subdirectories contain the same files')
                 break
-        if verbose:
+        if self.verbose:
             self.outputs() # print available outputs
 
         # set up file list
         if filename is not None:
             self.update_filelist(filename)
+
+        # select time range
+        tstart = kwargs.get('tstart',None)
+        tend = kwargs.get('tend',None)
+        self.trimtimes(tstart,tend)
 
     def update_filelist(self,filename):
         """Update file list for iteration"""

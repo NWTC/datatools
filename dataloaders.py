@@ -6,7 +6,57 @@ import numpy as np
 
 import datatools.timeseries as series
 
-from datatools.readData import structuredVTK
+try:
+    # more general option using the vtk module
+    from vtk import vtkStructuredPointsReader
+    from vtk.util import numpy_support as VN
+except ImportError:
+    # Matt's structuredVTK reader, for use with SOWFA structured VTK output
+    print('Using readData.structuredVTK')
+    from datatools.readData import structuredVTK
+else:
+    # create wrapper for backwards compatibility with Matt's structuredVTK()
+    print('Using vtkStructuredPointsReader')
+    def structuredVTK(fpath):
+        reader = vtkStructuredPointsReader()
+        reader.SetFileName(fpath)
+        reader.ReadAllVectorsOn()
+        reader.ReadAllScalarsOn()
+        reader.Update()
+
+        data = reader.GetOutput()
+        dataSetName = 'unused'
+        dims = data.GetDimensions()
+        origin = data.GetOrigin()
+        spacing = data.GetSpacing()
+
+        # Form data point structured grid.
+        if (dims[0] > 1):
+            x = np.linspace(origin[0],origin[0]+spacing[0]*(dims[0]-1),dims[0])
+        else:
+            x = np.array([origin[0]])
+        if (dims[1] > 1):
+            y = np.linspace(origin[1],origin[1]+spacing[1]*(dims[1]-1),dims[1])
+        else:
+            y = np.array([origin[1]])
+        if (dims[2] > 1):
+            z = np.linspace(origin[2],origin[2]+spacing[2]*(dims[2]-1),dims[2])
+        else:
+            z = np.array([origin[2]])
+
+        pdata = data.GetPointData()
+        nFields = pdata.GetNumberOfArrays()
+        fieldName = [ pdata.GetArrayName(i) for i in range(nFields) ]
+        fieldDim = nFields*[ pdata.GetNumberOfComponents() ] # this is NOT array dependent?
+        field = []
+        for ifield in range(nFields):
+            vtkarray = VN.vtk_to_numpy(pdata.GetArray(ifield)) # shape==(Npts,fieldDim)
+            newfield = np.stack([ vtkarray[:,idim].reshape(dims,order='F')
+                                  for idim in range(fieldDim[ifield]) ]) # shape==(fieldDim,dims[0],dims[1],dims2])
+            field.append(newfield)
+
+        return dataSetName, dims, origin, spacing, x, y, z, nFields, fieldName, fieldDim, field
+
 
 class sampled_data(object):
     """Generic regularly sampled data object"""
@@ -14,7 +64,6 @@ class sampled_data(object):
     def __init__(self,
             outputdir='.', prefix=None,
             NX=1, NY=None, NZ=None, datasize=3,
-            tstart=None, tend=None,
             npzdata='arrayData.npz',
             interp_holes=False,
             **kwargs):
@@ -56,13 +105,13 @@ class sampled_data(object):
         self.outputdir = outputdir
         self.prefix = prefix
 
-        self.tstart = tstart
-        self.tend = tend
         self.Ntimes = 0 # to be set after data are read
         self.NX = NX
         self.NY = NY
         self.NZ = NZ
         self.datasize = datasize
+
+        self.verbose = kwargs.get('verbose',False)
 
         self.ts = None
 
@@ -122,29 +171,6 @@ class sampled_data(object):
             s += ' read from ' + self.data_read_from
         return s
 
-    def filter_series(self):
-        """Hack to select a range of time directories"""
-        if (self.tstart is None) and (self.tend is None):
-            # use full range of times
-            return
-        if self.ts is None:
-            print('Timeseries information has not been read; no filtering performed.')
-            return
-        if self.tstart is None:
-            self.tstart = self.ts.times[0]
-        if self.tend is None:
-            self.tend = self.ts.times[-1]
-        times = np.array(self.ts.times)
-        print('Filtered time series range: {} - {}'.format(self.tstart,self.tend))
-        indices = np.nonzero((times >= self.tstart) &
-                             (times <= self.tend))[0]
-        self.ts.times = times[indices]
-        self.ts.dirlist = [ self.ts.dirlist[i] for i in indices ]
-        self.ts.Ntimes = len(self.ts.times)
-        # don't forget to update the list of filenames which is what the
-        # timeseries iterator actually returns
-        self.ts.update_filelist(self.ts.filename)
-
     def _slice(self,i0=None,i1=None,j0=None,j1=None,k0=None,k1=None):
         """Note: This only extracts slices of the array, no
                  interpolation is performed to perform actual slicing
@@ -185,8 +211,6 @@ class sampled_data(object):
 
     def sliceI(self,i=0):
         """Return slice through the dimension 0.
-
-        This is probably the only slicing that makes sense...
 
         Returns
         -------
@@ -262,11 +286,8 @@ class _template_sampled_data_format(sampled_data):
 
         # get time series
         datafile = 'FILENAME.DAT'
-        TimeSeries = kwargs.get('timeseries', series.SOWFATimeSeries)
-        tstart = kwargs.get('tstart',None)
-        tend = kwargs.get('tend',None)
-        self.ts = TimeSeries(self.outputdir,datafile,tstart=tstart,tend=tend)
-        self.filter_series() # to trim input time series if needed
+        TimeSeries = kwargs.get('series', series.SOWFATimeSeries)
+        self.ts = TimeSeries(self.outputdir,prefix=self.prefix)
 
         # set convenience variables
         NX = self.NX
@@ -546,7 +567,7 @@ class foam_structuredVTK_array(sampled_data):
     See superclass sampled_data for more information.
     """
 
-    def __init__(self,*args,**kwargs):
+    def __init__(self,datadir,prefix=None,**kwargs):
         """Reads time series data from subdirectories in ${outputdir}.
         Each time subdirectory should contain a file named
         '${prefix}_U.vtk'.
@@ -557,7 +578,7 @@ class foam_structuredVTK_array(sampled_data):
         The geometry are assumed identical (the mesh is only read
         once from the first directory)
         """
-        super(self.__class__,self).__init__(*args,**kwargs)
+        super(self.__class__,self).__init__(datadir,prefix=prefix,**kwargs)
 
         if self.prefix is None:
             if self.data_read_from is not None:
@@ -568,13 +589,13 @@ class foam_structuredVTK_array(sampled_data):
                 raise AttributeError("'prefix' needs to be specified")
 
         # get time series
-        print('Getting time directory layout...')
         datafile = self.prefix + '.vtk'
-        TimeSeries = kwargs.get('timeseries', series.SOWFATimeSeries)
-        tstart = kwargs.get('tstart',None)
-        tend = kwargs.get('tend',None)
+        TimeSeries = kwargs.get('series', series.SOWFATimeSeries)
         try:
-            self.ts = TimeSeries(self.outputdir,datafile,verbose=False,tstart=tstart,tend=tend)
+            self.ts = TimeSeries(datadir=self.outputdir,
+                                 prefix=self.prefix,
+                                 filename=datafile,
+                                 **kwargs)
         except AssertionError:
             if self.data_read_from is not None:
                 print('Note: Data read but time series information is unavailable.')
@@ -582,8 +603,6 @@ class foam_structuredVTK_array(sampled_data):
                 return
             else:
                 raise IOError('Data not found in '+self.outputdir)
-        else:
-            self.filter_series()
 
         if self.data_read_from is not None:
             # Previously saved $npzdata was read in super().__init__
@@ -601,8 +620,21 @@ class foam_structuredVTK_array(sampled_data):
         NZ = self.NZ
         
         # Read the structured VTK data to get the mesh.
-        print(self.ts.dirlist[0] + '/' + self.prefix+'.vtk')
-        [dataSetName, dims, origin, spacing, xdata, ydata, zdata, nFields, fieldName, fieldDim, field] = structuredVTK(self.ts.dirlist[0] + '/' + self.prefix+'.vtk')
+        #print(self.ts.dirlist[0] + '/' + self.prefix+'.vtk')
+        print(self.ts[0])
+        [dataSetName, dims, origin, spacing, xdata, ydata, zdata, nFields, fieldName, fieldDim, field] = structuredVTK(self.ts[0])
+
+        if self.verbose:
+            print('dims:',dims)
+            print('origin:',origin)
+            print('spacing:',spacing)
+            print('xdata:',xdata)
+            print('ydata:',ydata)
+            print('zdata:',zdata)
+            print('nFields:',nFields)
+            print('fieldName:',fieldName)
+            print('fieldDim:',fieldDim)
+            print('field:',field)
         
         self.x,self.y,self.z = np.meshgrid(xdata,ydata,zdata,indexing='ij')
         
@@ -656,7 +688,7 @@ class foam_ensight_array(sampled_data):
     See superclass sampled_data for more information.
     """
 
-    def __init__(self,*args,**kwargs):
+    def __init__(self,datadir,prefix=None,**kwargs):
         """Reads time series data from subdirectories in ${outputdir}.
         Each time subdirectory should contain a file named
         '${prefix}.000.U'.
@@ -667,7 +699,7 @@ class foam_ensight_array(sampled_data):
         The .mesh files are assumed identical (the mesh is only read
         once from the first directory)
         """
-        super(self.__class__,self).__init__(*args,**kwargs)
+        super(self.__class__,self).__init__(datadir,prefix=prefix,**kwargs)
 
         if self.prefix is None:
             if self.data_read_from is not None:
@@ -679,11 +711,12 @@ class foam_ensight_array(sampled_data):
 
         # get time series
         datafile = self.prefix+'.000.U'
-        TimeSeries = kwargs.get('timeseries', series.SOWFATimeSeries)
-        tstart = kwargs.get('tstart',None)
-        tend = kwargs.get('tend',None)
+        TimeSeries = kwargs.get('series', series.SOWFATimeSeries)
         try:
-            self.ts = TimeSeries(self.outputdir,datafile,verbose=False,tstart=tstart,tend=tend)
+            self.ts = TimeSeries(datadir=self.outputdir,
+                                 prefix=self.prefix,
+                                 filename=datafile,
+                                 **kwargs)
         except AssertionError:
             if self.data_read_from is not None:
                 print('Note: Data read but time series information is unavailable.')
@@ -691,8 +724,6 @@ class foam_ensight_array(sampled_data):
                 return
             else:
                 raise IOError('Data not found in '+self.outputdir)
-        else:
-            self.filter_series()
 
         if self.data_read_from is not None:
             # Previously saved $npzdata was read in super().__init__

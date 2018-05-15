@@ -24,9 +24,8 @@ from datatools.FAST.InflowWind import input_template
 from datatools.binario import binaryfile
 
 
-def generate_inflow(prefix,
+def generate_inflow(datadir,prefix,
         uref=8.0,zref=90.0,
-        tstart=None,tend=None,
         ufile='u.bin',vfile='v.bin',wfile='w.bin',
         inflowfile='InflowWind_from_SOWFA.dat',
         **kwargs):
@@ -34,8 +33,8 @@ def generate_inflow(prefix,
     format as described in the InflowWind manual, in addition to an
     InflowWind input file"""
 
-    inflow = foam_ensight_array('.', prefix=prefix,
-                                tstart=start, tend=tend,
+    inflow = foam_ensight_array(datadir,
+                                prefix=prefix,
                                 npzdata=prefix+'.npz',
                                 **kwargs) # auto-detect NX,NY,NZ
 
@@ -53,7 +52,7 @@ def generate_inflow(prefix,
     nz = inflow.NZ
     y = Y[:,0]
     z = Z[0,:]
-    print('x :',nt,(t-t[0])*uref)
+    print('x=Uinf*t :',nt,(t-t[0])*uref)
     print('y :',ny,y)
     print('z :',nz,z)
     dx = uref*(t[1]-t[0])
