@@ -12,12 +12,12 @@ try:
     from vtk.util import numpy_support as VN
 except ImportError:
     # Matt's structuredVTK reader, for use with SOWFA structured VTK output
-    print('Using readData.structuredVTK')
     from datatools.readData import structuredVTK
+    print('Using Matt\'s readData.structuredVTK')
 else:
     # create wrapper for backwards compatibility with Matt's structuredVTK()
     # TODO: Move this to a separate vtk_wrappers module 
-    print('Using vtkStructuredPointsReader')
+    print('Using vtk.vtkStructuredPointsReader')
     def structuredVTK(fpath):
         reader = vtkStructuredPointsReader()
         reader.SetFileName(fpath)
