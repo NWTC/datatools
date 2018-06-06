@@ -37,6 +37,7 @@ winddirection_colormap = plt.cm.hsv
 
 def read_dir(dpath='.',
              reader=pd.read_csv,
+             prefix='',
              ext='csv',
              verbose=False,
              **kwargs):
@@ -48,7 +49,8 @@ def read_dir(dpath='.',
     dataframes = []
     for fname in os.listdir(dpath):
         fpath = os.path.join(dpath,fname)
-        if not fname.endswith(ext): continue
+        if (not fname.startswith(prefix)) or (not fname.endswith(ext)):
+            continue
         if verbose: print('Reading '+fname)
         df = reader(fpath,**kwargs)
         dataframes.append(df)
