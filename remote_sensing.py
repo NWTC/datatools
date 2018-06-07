@@ -225,3 +225,64 @@ def scintec_profiler(fname,
     return df
 
 
+#
+# Microwave radiometer data readers
+#
+
+def ESRL_radiometrics_mwr(fname,verbose=True):
+    """NOAA/PSD Microwave Radiometer level 2 files
+    
+    https://a2e.energy.gov/data/wfip2/attach/level2-files-record-types.pdf
+    Additional formatting are inferred...
+    """
+    records = dict()
+    with open(fname,'r') as f:
+        for line in f:
+            line = line.strip().split(',')
+            if not line[0] == 'Record': break
+            rec_id = int(line[2])
+            records[rec_id] = line[3:]
+    Nrecords = len(records.keys())
+    if verbose: print(Nrecords, 'records', records.keys(), 'read')
+
+    def record_header(record_id):
+        header_id = record_id - record_id%10
+        assert(header_id in records.keys())
+        return ['datetime','id'] + records[header_id]
+
+    # read entire file at once
+    with open(fname,'r') as f:
+        for _ in range(Nrecords): f.readline()
+        #rawdata = [ line.strip().split(',')[1:] for line in f.readlines() ]   
+        rawdata = [ line.strip().rstrip(',').split(',')[1:] for line in f.readlines() ]   
+    if verbose: print(len(rawdata),'lines read')
+
+    # sort data by record type (can't read all at once because each line
+    # has a different length)
+    data = dict()
+    datanames = dict()
+    for linesplit in rawdata:
+        # split line format: datetime, record_number, record_data
+        rec = int(linesplit[1])
+        if rec == 99:
+            if verbose: print('[99] ',' '.join(linesplit[2:]))
+        elif rec == 101:
+            datanames[int(linesplit[2])] = linesplit[3]
+        else:
+            try:
+                data[rec].append(linesplit)
+            except KeyError:
+                data[rec] = [linesplit]
+    if verbose: print(len(data.keys()), 'data sets', data.keys(), 'read')
+    if verbose: print('data names:',datanames)
+
+    for record_id in data.keys():
+        if verbose: print('Processing',record_id,record_header(record_id))
+        df = pd.DataFrame(data=data[record_id], columns=record_header(record_id))
+        df['datetime'] = pd.to_datetime(df['datetime'])
+        data[record_id] = df
+
+    for record_id, record_name in datanames.items():
+        data[record_name] = data.pop(record_id)
+
+    return data
