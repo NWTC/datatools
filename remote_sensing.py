@@ -278,11 +278,14 @@ def ESRL_radiometrics_mwr(fname,verbose=True):
 
     for record_id in data.keys():
         if verbose: print('Processing',record_id,record_header(record_id))
-        df = pd.DataFrame(data=data[record_id], columns=record_header(record_id))
+        df = pd.DataFrame(data=data[record_id],
+                          columns=record_header(record_id),
+                          dtype=float)
         df['datetime'] = pd.to_datetime(df['datetime'])
         data[record_id] = df
 
     for record_id, record_name in datanames.items():
+        if verbose: print('Renaming record',record_id,' --> ',record_name)
         data[record_name] = data.pop(record_id)
 
     return data
