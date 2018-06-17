@@ -99,11 +99,11 @@ def windcube_v1(fname,
 # Radar data readers
 #
 
-def read_winds_data_block(f):
+def read_profiler_data_block(f,datatypes=['WINDS','RASS']):
     """Dependency for wind_profiler radar"""
     assert(f.readline().strip() == '') # Line 1
     f.readline() # Line 2: station name
-    assert(f.readline().split()[0] == 'WINDS') # Line 3: WINDS, version
+    assert(f.readline().split()[0] in datatypes) # Line 3: WINDS, version
     f.readline() # Line 4: lat (N), long (W), elevation (m)
     Y,m,d,H,M,S,_ = f.readline().split() # Line 5: date
     date_time = pd.to_datetime('20{}{}{} {}{}{}'.format(Y,m,d,H,M,S))
@@ -123,6 +123,8 @@ def read_winds_data_block(f):
     return df
 
 def ESRL_wind_profiler(fname,
+                       nreturns=2,
+                       check_bad=['SPD','DIR'],
                        bad_value=999999):
     """Wind Profiler radar with RASS
     Users: Earth Sciences Research Laboratory (ESRL)
@@ -130,21 +132,31 @@ def ESRL_wind_profiler(fname,
     Assumed data format for consensus data format rev 5.1 based on
     provided reference for rev 4.1 from:
     https://a2e.energy.gov/data/wfip2/attach/915mhz-cns-winds-data-format.txt
+
+    Additional data format reference:
+    https://www.esrl.noaa.gov/psd/data/obs/formats/
+
+    'WINDS' output have 2 sets of returns per file, 'RASS' has only 1
     """
     dataframes = []
     with open(fname,'r') as f:
-        # read 2 blocks per file (i.e., per time)
-        dataframes.append(read_winds_data_block(f))
-        dataframes.append(read_winds_data_block(f))
+        for _ in range(nreturns):
+            dataframes.append(read_profiler_data_block(f))
     df = pd.concat(dataframes)
     if bad_value is not None:
         try:
+            # assume bad_value is a list
             for val in bad_value:
-                df.loc[df['SPD']==val,'SPD'] = np.nan # flag bad values
-                df.loc[df['DIR']==val,'DIR'] = np.nan # flag bad values
+                #df.loc[df['SPD']==val,'SPD'] = np.nan # flag bad values
+                #df.loc[df['DIR']==val,'DIR'] = np.nan # flag bad values
+                for col in check_bad:
+                    df.loc[df[col]==val,col] = np.nan # flag bad values
         except TypeError:
-            df.loc[df['SPD']==bad_value,'SPD'] = np.nan # flag bad values
-            df.loc[df['DIR']==bad_value,'DIR'] = np.nan # flag bad values
+            # otherwise, bad_value is a scalar
+            #df.loc[df['SPD']==bad_value,'SPD'] = np.nan # flag bad values
+            #df.loc[df['DIR']==bad_value,'DIR'] = np.nan # flag bad values
+            for col in check_bad:
+                df.loc[df[col]==bad_value,col] = np.nan # flag bad values
     return df
 
 #
