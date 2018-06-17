@@ -141,7 +141,7 @@ def ESRL_wind_profiler(fname,
     """
     dataframes = []
     with open(fname,'r') as f:
-        for _ in range(nreturns):
+        for _ in range(modes):
             dataframes.append(read_profiler_data_block(f))
     df = pd.concat(dataframes)
     if bad_value is not None:
