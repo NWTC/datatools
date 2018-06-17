@@ -123,7 +123,7 @@ def read_profiler_data_block(f,datatypes=['WINDS','RASS']):
     return df
 
 def ESRL_wind_profiler(fname,
-                       nreturns=2,
+                       modes=2,
                        check_bad=['SPD','DIR'],
                        bad_value=999999):
     """Wind Profiler radar with RASS
@@ -136,7 +136,8 @@ def ESRL_wind_profiler(fname,
     Additional data format reference:
     https://www.esrl.noaa.gov/psd/data/obs/formats/
 
-    'WINDS' output have 2 sets of returns per file, 'RASS' has only 1
+    'WINDS' output have 2 sets of returns (mode configurations) per file
+    'RASS' has only 1
     """
     dataframes = []
     with open(fname,'r') as f:
