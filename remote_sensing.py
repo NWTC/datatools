@@ -113,6 +113,10 @@ def read_profiler_data_block(f,datatypes=['WINDS','RASS']):
     f.readline() # Line 9: beam info
     f.readline() # Line 10: beam info
     header = f.readline().split()
+    header = [ col + '.' + str(header[:i].count(col))
+               if header.count(col) > 1
+               else col
+               for i,col in enumerate(header) ]
     block = []
     line = f.readline()
     while not line.strip()=='$' and not line=='':
@@ -124,8 +128,8 @@ def read_profiler_data_block(f,datatypes=['WINDS','RASS']):
 
 def ESRL_wind_profiler(fname,
                        modes=2,
-                       check_bad=['SPD','DIR'],
-                       bad_value=999999):
+                       check_na=['SPD','DIR'],
+                       na_values=999999):
     """Wind Profiler radar with RASS
     Users: Earth Sciences Research Laboratory (ESRL)
 
@@ -144,20 +148,26 @@ def ESRL_wind_profiler(fname,
         for _ in range(modes):
             dataframes.append(read_profiler_data_block(f))
     df = pd.concat(dataframes)
-    if bad_value is not None:
-        try:
-            # assume bad_value is a list
-            for val in bad_value:
-                #df.loc[df['SPD']==val,'SPD'] = np.nan # flag bad values
-                #df.loc[df['DIR']==val,'DIR'] = np.nan # flag bad values
-                for col in check_bad:
-                    df.loc[df[col]==val,col] = np.nan # flag bad values
-        except TypeError:
-            # otherwise, bad_value is a scalar
-            #df.loc[df['SPD']==bad_value,'SPD'] = np.nan # flag bad values
-            #df.loc[df['DIR']==bad_value,'DIR'] = np.nan # flag bad values
-            for col in check_bad:
-                df.loc[df[col]==bad_value,col] = np.nan # flag bad values
+    if na_values is not None:
+        nalist = []
+        for col in check_na:
+            if col in df.columns:
+                matches = [col]
+            else:
+                matches = [ c for c in df.columns if c.startswith(col+'.') ]
+            if len(matches) > 0:
+                nalist += matches
+            else:
+                print('Note: column '+col+'* not found')
+        check_na = nalist
+        if not hasattr(na_values,'__iter__'):
+            na_values = [na_values]
+        #print('Checking',check_na,'for',na_values)
+        for val in na_values:
+            #df.loc[df['SPD']==val,'SPD'] = np.nan # flag bad values
+            #df.loc[df['DIR']==val,'DIR'] = np.nan # flag bad values
+            for col in check_na:
+                df.loc[df[col]==val,col] = np.nan # flag bad values
     return df
 
 #

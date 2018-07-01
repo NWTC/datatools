@@ -15,7 +15,7 @@ Sample usage:
     df = wfip2.read_dir(dpath,
                         reader=remote_sensing.ESRL_wind_profiler,
                         ext='winds',
-                        bad_value=[999999,-980.0])
+                        na_values=[999999,-980.0])
 
 """
 from __future__ import print_function
@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 
 try:
     # use NOAA colormap
-    from abl.meteorology import idl_colortable
+    from abl.miscellaneous import idl_colortable
 except ImportError:
     windspeed_colormap = plt.cm.gist_ncar
 else:
@@ -41,7 +41,10 @@ def read_dir(dpath='.',
              ext='csv',
              verbose=False,
              **kwargs):
-    """Returns concatenated dataframe made up of dataframes read from CSV
+    """Wrapper around pandas read_csv() or a custom remote_sensing.*
+    reader function
+    
+    Returns concatenated dataframe made up of dataframes read from CSV
     files in specified directory
 
     Additional keyword arguments are passed to the data reader.
@@ -63,7 +66,10 @@ def read_date_dirs(dpath='.',
                    expected_date_format=None,
                    verbose=False,
                    **kwargs):
-    """Return concatenated dataframe made up of dataframes read from
+    """Wrapper around pandas read_csv() or custom remote_sensing.*
+    reader function
+    
+    Return concatenated dataframe made up of dataframes read from
     CSV files contained in date subdirectories. 
 
     Additional keyword arguments are passed to the data reader.
