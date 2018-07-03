@@ -625,11 +625,28 @@ class PlanarAverages(object):
             fig = plt.gcf()
         for ih,z in enumerate(self.TI_heights):
             ax.plot(self.tavg, 100.0*self.TIdir[:,ih], label='z={:.1f} m'.format(z))
-        ax.set_xlabel('Time [s]')
-        ax.set_ylabel('Turbulence Intensity [%]')
+        ax.set_xlabel(r'Time [s]')
+        ax.set_ylabel(r'Turbulence Intensity [%]')
         ax.legend(loc='best',fontsize='small')
         if savefig is not None:
-            fig.savefig(savefig)
+            fig.savefig(savefig,bbox_inches='tight')
+        return fig, ax
+
+    def plot_TKE_history(self,ax=None,savefig=None):
+        """Plots TKE history at all height at which TI was calculated
+        An optional image name may be specified as 'savefig'
+        """
+        if ax is None:
+            fig,ax = plt.subplots()
+        else:
+            fig = plt.gcf()
+        for ih,z in enumerate(self.TI_heights):
+            ax.plot(self.tavg, self.TKE[:,ih], label='z={:.1f} m'.format(z))
+        ax.set_xlabel(r'Time [s]')
+        ax.set_ylabel(r'Turbulent Kinetic Energy [m$^2$/s$^2$]')
+        ax.legend(loc='best',fontsize='small')
+        if savefig is not None:
+            fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
     def plot_UVW_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
@@ -644,11 +661,11 @@ class PlanarAverages(object):
         ax.plot(self.U_mean[itime,:], self.hLevelsCell, label=r'$U$', **kwargs)
         ax.plot(self.V_mean[itime,:], self.hLevelsCell, label=r'$V$', **kwargs)
         ax.plot(self.W_mean[itime,:], self.hLevelsCell, label=r'$W$', **kwargs)
-        ax.set_xlabel('Velocity [m/s]')
-        ax.set_ylabel('Height [m]')
+        ax.set_xlabel(r'Velocity [m/s]')
+        ax.set_ylabel(r'Height [m]')
         ax.legend(loc='best')
         if savefig is not None:
-            fig.savefig(savefig)
+            fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
     def plot_windspeed_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
@@ -662,10 +679,10 @@ class PlanarAverages(object):
         itime = np.argmin(np.abs(time - self.t))
         windMag = np.sqrt( self.U_mean[itime,:]**2 + self.V_mean[itime,:]**2 )
         ax.plot(windMag, self.hLevelsCell, **kwargs)
-        ax.set_xlabel('Horizontal Velocity [m/s]')
-        ax.set_ylabel('Height [m]')
+        ax.set_xlabel(r'Horizontal Velocity [m/s]')
+        ax.set_ylabel(r'Height [m]')
         if savefig is not None:
-            fig.savefig(savefig)
+            fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
     def plot_winddirection_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
@@ -687,10 +704,10 @@ class PlanarAverages(object):
         xlim = [ min(cur_xlim[0],np.round(meanWindDir-1.0)),
                  max(cur_xlim[1],np.round(meanWindDir+1.0)) ]
         ax.set_xlim(xlim)
-        ax.set_xlabel('Wind Direction [deg]')
-        ax.set_ylabel('Height [m]')
+        ax.set_xlabel(r'Wind Direction [deg]')
+        ax.set_ylabel(r'Height [m]')
         if savefig is not None:
-            fig.savefig(savefig)
+            fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
     def plot_T_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
@@ -703,10 +720,10 @@ class PlanarAverages(object):
             fig = plt.gcf()
         itime = np.argmin(np.abs(time - self.t))
         ax.plot(self.T_mean[itime,:], self.hLevelsCell, label=r'$T$', **kwargs)
-        ax.set_xlabel('Temperature [K]')
-        ax.set_ylabel('Height [m]')
+        ax.set_xlabel(r'Temperature [K]')
+        ax.set_ylabel(r'Height [m]')
         if savefig is not None:
-            fig.savefig(savefig)
+            fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
     def plot_variance_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
@@ -722,11 +739,11 @@ class PlanarAverages(object):
         ax.plot(self.uu_mean[itime,:], self.hLevelsCell, label=r"$<u'u'>$", **kwargs)
         ax.plot(self.vv_mean[itime,:], self.hLevelsCell, label=r"$<v'v'>$", **kwargs)
         ax.plot(self.ww_mean[itime,:], self.hLevelsCell, label=r"$<w'w'>$", **kwargs)
-        ax.set_xlabel('Variance [m^2/s^2]')
-        ax.set_ylabel('Height [m]')
+        ax.set_xlabel(r'Variance [m$^2$/s$^2$]')
+        ax.set_ylabel(r'Height [m]')
         ax.legend(loc='best')
         if savefig is not None:
-            fig.savefig(savefig)
+            fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
     def plot_covariance_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
@@ -743,11 +760,11 @@ class PlanarAverages(object):
         ax.plot(self.uw_mean[itime,:], self.hLevelsCell, label=r"$<u'w'>$", **kwargs)
         ax.plot(self.vw_mean[itime,:], self.hLevelsCell, label=r"$<v'w'>$", **kwargs)
         ax.plot(self.Tw_mean[itime,:], self.hLevelsCell, label=r"$<T'w'>$", **kwargs)
-        ax.set_xlabel('Covariance [m^2/s^2], [K-m/s]')
-        ax.set_ylabel('Height [m]')
+        ax.set_xlabel(r'Covariance [m$^2$/s$^2$], [K-m/s]')
+        ax.set_ylabel(r'Height [m]')
         ax.legend(loc='best')
         if savefig is not None:
-            fig.savefig(savefig)
+            fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
     def plot_SFS_normalstress_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
@@ -763,11 +780,11 @@ class PlanarAverages(object):
         ax.plot(self.R11_mean[itime,:], self.hLevelsCell, label=r"$R_{11}$", **kwargs)
         ax.plot(self.R22_mean[itime,:], self.hLevelsCell, label=r"$R_{22}$", **kwargs)
         ax.plot(self.R33_mean[itime,:], self.hLevelsCell, label=r"$R_{33}$", **kwargs)
-        ax.set_xlabel('SFS Normal Stresses [m^2/s^2]')
-        ax.set_ylabel('Height [m]')
+        ax.set_xlabel(r'SFS Normal Stresses [m$^2$/s$^2$]')
+        ax.set_ylabel(r'Height [m]')
         ax.legend(loc='best')
         if savefig is not None:
-            fig.savefig(savefig)
+            fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
     def plot_SFS_shearstress_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
@@ -783,11 +800,11 @@ class PlanarAverages(object):
         ax.plot(self.R12_mean[itime,:], self.hLevelsCell, label=r"$R_{12}$", **kwargs)
         ax.plot(self.R13_mean[itime,:], self.hLevelsCell, label=r"$R_{13}$", **kwargs)
         ax.plot(self.R23_mean[itime,:], self.hLevelsCell, label=r"$R_{23}$", **kwargs)
-        ax.set_xlabel('SFS Shear Stresses [m^2/s^2]')
-        ax.set_ylabel('Height [m]')
+        ax.set_xlabel(r'SFS Shear Stresses [m$^2$/s$^2$]')
+        ax.set_ylabel(r'Height [m]')
         ax.legend(loc='best')
         if savefig is not None:
-            fig.savefig(savefig)
+            fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
     #==========================================================================
@@ -796,13 +813,17 @@ class PlanarAverages(object):
     #
     #==========================================================================
 
-    def save_TI_history(self,prefix='TIhist'):
+    def save_TI_history(self,prefix='TIhist',writeTKE=True):
         """Writes out one csv file per height at which TI was calculated"""
         for ih,z in enumerate(self.TI_heights):
             fname = '{:s}_z{:.1f}.csv'.format(prefix,z)
+            if writeTKE:
+                TIdata = (self.tavg, self.TIdir[:,ih], self.TKE[:,ih])
+            else:
+                TIdata = (self.tavg, self.TIdir[:,ih])
             try:
                 np.savetxt(fname,
-                           np.vstack((self.tavg, self.TIdir[:,ih])).T,
+                           np.vstack(TIdata).T,
                            delimiter=',',
                            header='Time,TI')
                 print('wrote',fname)

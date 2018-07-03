@@ -10,27 +10,32 @@ import matplotlib.pyplot as plt
 
 from datatools.SOWFA.postProcessing.averaging import PlanarAverages
 
-heights = [90.,200, 400, 600, 800]
-tavg_window = 600.0
+heights = [90.,200, 400, 600, 800] # to sample TI history
+tavg_window = 600.0 # for statistics
 dt = 1.0 # for data resampling
 include_SFS = True # include stresses from SGS model in TI calculation
 
-# read avg.hLevelsCell with shape (NZ)
-# read avg.U_mean, ... with shape (NT, NZ)
+# reads avg.hLevelsCell with shape (NZ)
+# reads avg.U_mean, ... with shape (NT, NZ)
 avg = PlanarAverages( *sys.argv[1:] )
 
 #------------------------------------------------------------------------------
+#
+# Histories of turbulence intensity, turbulent kinetic energy
+#
 avg.calculate_TI(heights, tavg_window=tavg_window, dt=dt, SFS=include_SFS)
 fig,ax = avg.plot_TI_history(savefig='TIhist.png')
+fig,ax = avg.plot_TKE_history(savefig='TKEhist.png')
 
 avg.save_TI_history(prefix='TIhist')
 
 print('last averaging time:',avg.tavg[-1])
 for i,h in enumerate(heights):
-    print('z=',h,':')
-    print('  TIx/y/z =',avg.TIx[-1,i],avg.TIy[-1,i],avg.TIz[-1,i])
-    print('  TIdir   =',avg.TIdir[-1,i])
-    print('  TIxyz   =',avg.TIxyz[-1,i],' ( TKE=',avg.TKE[-1,i],')')
+    print('z= {:.1f}:'.format(h))
+    print('  TIx/y/z = {:g} {:g} {:g}'.format(avg.TIx[-1,i],avg.TIy[-1,i],avg.TIz[-1,i]))
+    print('  TIdir   = {:g}'.format(avg.TIdir[-1,i]))
+    print('  TIxyz   = {:g}'.format(avg.TIxyz[-1,i]))
+    print('  TKE     = {:g}'.format(avg.TKE[-1,i]))
 
 #------------------------------------------------------------------------------
 #
@@ -85,13 +90,15 @@ avg.calculate_TI_profile(tavg_window=tavg_window, dt=dt, SFS=include_SFS)
 fig,ax = plt.subplots(ncols=2)
 ax[0].plot(100*avg.TI_profile, avg.hLevelsCell, 'k-')
 ax[1].plot(avg.TKE_profile, avg.hLevelsCell, 'k-')
-ax[0].set_xlabel('turbulence intensity [%]')
-ax[1].set_xlabel('turbulence kinetic energy [m^2/s^2]')
-ax[1].set_ylabel('')
+ax[0].set_xlabel(r'Turbulence Intensity [%]')
+ax[1].set_xlabel(r'Turbulence Kinetic Energy [m$^2$/$s^2$]')
+ax[0].set_ylabel(r'Height [m]')
 fig.savefig('Profiles_TI.png')
 
 #------------------------------------------------------------------------------
-
+#
+# Save averaging data to CSV file
+#
 avg.save_profile(fname='averagingProfiles.csv')
 
 plt.show()
