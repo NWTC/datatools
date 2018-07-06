@@ -101,5 +101,5 @@ fig.savefig('Profiles_TI.png')
 #
 avg.save_profile(fname='averagingProfiles.csv')
 
-plt.show()
+#plt.show()
 
