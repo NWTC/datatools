@@ -142,7 +142,7 @@ def write_data(fname,
                    header=headerstr, footer=')',
                    comments='')
 
-def _getPointsFromList(ylist,zlist):
+def _get_unique_points_from_list(ylist,zlist,NY=None,NZ=None,order='F'):
     """Detects y and z (1-D arrays) from a list of points on a
     structured grid. Makes no assumptions about the point
     ordering
@@ -151,7 +151,11 @@ def _getPointsFromList(ylist,zlist):
     zlist = np.array(zlist)
     N = len(zlist)
     assert(N == len(ylist))
-    if zlist[1]==zlist[0]:
+    if (NY is not None) and (NZ is not None):
+        # use specified plane dimensions
+        assert(NY*NZ == N)
+        y = ylist.reshape((NY,NZ))[:,0]
+    elif zlist[1]==zlist[0]:
         # y changes faster, F-ordering
         NY = np.nonzero(zlist > zlist[0])[0][0]
         NZ = int(N / NY)
@@ -165,9 +169,14 @@ def _getPointsFromList(ylist,zlist):
         assert(NY*NZ == N)
         z = zlist[:NZ]
         y = ylist.reshape((NY,NZ),order='C')[:,0]
-    return y,z
+    else:
+        print('Unrecognized point distribution')
+        print('"y" :',len(ylist),ylist)
+        print('"z" :',len(zlist),zlist)
+        return ylist,zlist,False
+    return y,z,True
 
-def read_boundary_points(fname,checkConst=True,tol=1e-6):
+def read_boundary_points(fname,checkConst=True,tol=1e-6,**kwargs):
     """Returns a 2D set of points if one of the coordinates is constant
     otherwise returns a 3D set of points.
     Assumes that the points are on a structured grid.
@@ -176,15 +185,19 @@ def read_boundary_points(fname,checkConst=True,tol=1e-6):
     points = None
     iread = 0
     with open(fname,'r') as f:
+        while N is None:
+            try:
+                N = int(f.readline())
+            except ValueError: pass
+            else:
+                points = np.zeros((N,3))
+                print('Reading',N,'points from',fname)
         for line in f:
-            if N is None:
-                try:
-                    N = int(line)
-                    points = np.zeros((N,3))
-                    print('Reading',N,'points from',fname)
-                except ValueError: pass
-            elif not line.strip() in ['','(',')']:
-                points[iread,:] = [ float(val) for val in line.strip().strip('()').split() ]
+            line = line[:line.find('\\')].strip()
+            try:
+                points[iread,:] = [ float(val) for val in line[1:-1].split() ]
+            except (ValueError, IndexError): pass
+            else:
                 iread += 1
     assert(iread == N)
 
@@ -195,7 +208,8 @@ def read_boundary_points(fname,checkConst=True,tol=1e-6):
     constY = np.max(points[:,1]) - np.min(points[0,1]) < tol
     constZ = np.max(points[:,2]) - np.min(points[0,2]) < tol
     print('Constant in x/y/z :',constX,constY,constZ)
-    assert(constX or constY)
+    if not (constX or constY):
+        print('Warning: boundary is not constant in X or Y?')
 
     if constX:
         ylist = points[:,1]
@@ -203,8 +217,14 @@ def read_boundary_points(fname,checkConst=True,tol=1e-6):
     elif constY:
         ylist = points[:,0]
         zlist = points[:,2]
+    elif constZ:
+        ylist = points[:,0]
+        zlist = points[:,1]
+    else:
+        print('Unexpected boundary orientation, returning full list of points')
+        return points
 
-    return _getPointsFromList(ylist,zlist)
+    return _get_unique_points_from_list(ylist,zlist,**kwargs)
 
 def read_vector_data(fname,NY=None,NZ=None,order='F'):
     N = None
@@ -222,7 +242,8 @@ def read_vector_data(fname,NY=None,NZ=None,order='F'):
                     data = np.zeros((N,3))
                     print('Reading',N,'vectors from',fname)
                 except ValueError: pass
-            elif not line.strip() in ['','(',')']:
+            elif not line.strip() in ['','(',')',';'] \
+                    and not line.strip().startswith('//'):
                 data[iread,:] = [ float(val) for val in line.strip().strip('()').split() ]
                 iread += 1
     assert(iread == N)
@@ -258,7 +279,8 @@ def read_scalar_data(fname,NY=None,NZ=None,order='F'):
                         data = np.zeros(N)
                         print('Reading',N,'scalars from',fname)
                 except ValueError: pass
-            elif not line.strip() in ['','(',')']:
+            elif not line.strip() in ['','(',')',';'] \
+                    and not line.strip().startswith('//'):
                 data[iread] = float(line)
                 iread += 1
     assert(iread == N)
