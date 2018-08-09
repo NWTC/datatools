@@ -818,14 +818,16 @@ class PlanarAverages(object):
         for ih,z in enumerate(self.TI_heights):
             fname = '{:s}_z{:.1f}.csv'.format(prefix,z)
             if writeTKE:
+                header = 'Time,TI,TKE'
                 TIdata = (self.tavg, self.TIdir[:,ih], self.TKE[:,ih])
             else:
+                header = 'Time,TI'
                 TIdata = (self.tavg, self.TIdir[:,ih])
             try:
                 np.savetxt(fname,
                            np.vstack(TIdata).T,
                            delimiter=',',
-                           header='Time,TI')
+                           header=header)
                 print('wrote',fname)
             except IOError:
                 print('Error:',fname,'could not be written')

@@ -134,7 +134,7 @@ def plot_wind(df,
         wdir[:,k] = dfsub.loc[dfsub[height_name]==h,direction_name]
 
     # make plot
-    fig,ax = plt.subplots(nrows=2,sharex=True,figsize=(10,6))
+    fig,ax = plt.subplots(nrows=2,sharex=True,sharey=True,figsize=(10,6))
     cont = ax[0].contourf(X,Y,wspd, levels=np.arange(26), cmap=windspeed_colormap)
     cbar = fig.colorbar(cont, ax=ax[0], ticks=np.arange(0,26,2), label='wind speed [m/s]')
     cont = ax[1].contourf(X,Y,wdir, levels=np.arange(0,361,15), cmap=winddirection_colormap)
