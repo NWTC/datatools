@@ -20,6 +20,7 @@ Sample usage:
 """
 from __future__ import print_function
 import os
+import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -37,7 +38,7 @@ winddirection_colormap = plt.cm.hsv
 
 def read_dir(dpath='.',
              reader=pd.read_csv,
-             prefix='',
+             file_filter='*',
              ext='csv',
              verbose=False,
              **kwargs):
@@ -50,11 +51,13 @@ def read_dir(dpath='.',
     Additional keyword arguments are passed to the data reader.
     """
     dataframes = []
-    for fname in os.listdir(dpath):
-        fpath = os.path.join(dpath,fname)
-        if (not fname.startswith(prefix)) or (not fname.endswith(ext)):
+    for fpath in glob.glob(os.path.join(dpath,file_filter)):
+        if not os.path.isfile(fpath): continue
+        if not fpath.endswith(ext):
             continue
-        if verbose: print('Reading '+fname)
+        #fname = os.path.split(fpath)[-1]
+        #if verbose: print('Reading '+fname)
+        if verbose: print('Reading '+fpath)
         df = reader(fpath,**kwargs)
         dataframes.append(df)
     return pd.concat(dataframes)

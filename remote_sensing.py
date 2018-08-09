@@ -212,18 +212,20 @@ def ARL_wind_profiler(fname,
     return pd.concat(dataframes)
 
 
-def scintec_profiler(fname,
-                     bad_speed_value=99.99,
-                     bad_direction_value=999.9):
+def scintec_profiler(fname):
     """Scintec MFAS Flat Array Sodar
     
     Reads files in the APRun file format:
-    https://a2e.energy.gov/data/wfip2/attach/sodar-aprun-software-manual-1-27.pdf
+    https://a2e.energy.gov/data/wfip2/attach/sodar-aprun-software-manual-1-27.pdf (p.20)
+
+    Returned timestamps correspond to the BEGINNING of each measurement
+    interval
     """
+    dflist = []
     with open(fname,'r') as f:
         f.readline() # FORMAT-1
         dateline = f.readline() # YYYY-MM-DD HH:MM:SS file_count
-        date_time = pd.to_datetime(' '.join(dateline.split()[:2]))
+        datetime0 = pd.to_datetime(' '.join(dateline.split()[:2]))
         f.readline() # type of instrument
         number_of = f.readline().split() # comment lines, variables, height levels
         Ncomments,Nvar,Nz = [ int(val) for val in number_of ]
@@ -234,17 +236,37 @@ def scintec_profiler(fname,
         assert(f.readline().strip() == 'Main Data')
         for _ in range(3): f.readline() # variable defintions section
         columns = []
+        na_values = {}
         for _ in range(Nvar+1):
-            defn = f.readline().split('#') # e.g. "wind speed # speed # m/s # G1 # 0 # 99.99"
-            columns.append(defn[0].strip())
+            defn = f.readline().strip().split('#') # e.g. "wind speed # speed # m/s # G1 # 0 # 99.99"
+            col = defn[0].strip()
+            columns.append(col)
+            try:
+                na_values[col] = float(defn[-1])
+            except ValueError: pass
         for _ in range(3): f.readline() # beginning of data block
+        firstread = True
         f.readline()
-        f.readline() # time stamp (corresponding to the end of the measurement period)
-        data = np.loadtxt(f)
-    df = pd.DataFrame(data=data,columns=columns)
-    df['date_time'] = date_time
-    df.loc[df['wind speed']==bad_speed_value,'wind speed'] = np.nan # flag bad values
-    df.loc[df['wind direction']==bad_direction_value,'wind direction'] = np.nan # flag bad values
+        # read profiles
+        while True:
+            timedata = f.readline().split() #  [YYYY-MM-DD, day] [HH:MM:SS, end time of interval] [HH:MM:SS, interval duration]
+            if len(timedata) < 3: break
+            datetime_end = pd.to_datetime(timedata[0]+' '+timedata[1])
+            duration = pd.to_timedelta(timedata[2])
+            datetime_start = datetime_end - duration
+            if firstread:
+                assert(datetime_end == datetime0)
+                firstread = False
+            data = []
+            f.readline() # skip column names
+            for _ in range(Nz): data.append(f.readline().split())
+            df = pd.DataFrame(data=data,columns=columns)
+            df['datetime'] = datetime_start
+            dflist.append(df)
+            f.readline()
+    df = pd.concat(dflist)
+    for col,nan in na_values.items():
+        df.loc[df[col]==nan,col] = np.nan # flag bad values
     return df
 
 
