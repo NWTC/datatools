@@ -265,6 +265,7 @@ def scintec_profiler(fname):
             dflist.append(df)
             f.readline()
     df = pd.concat(dflist)
+    df['height'] = pd.to_numeric(df['height'])
     for col,nan in na_values.items():
         df.loc[df[col]==nan,col] = np.nan # flag bad values
     return df
