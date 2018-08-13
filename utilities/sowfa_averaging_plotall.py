@@ -40,6 +40,10 @@ for i,h in enumerate(heights):
     print('  TIxyz   = {:g}'.format(avg.TIxyz[-1,i]))
     print('  TKE     = {:g}'.format(avg.TKE[-1,i]))
 
+# calculate rotated tensors for all times -- this is slow
+#if wind_aligned:
+#    avg.rotate_tensors()
+
 #------------------------------------------------------------------------------
 #
 # Wind and Temperature Profiles 
@@ -64,8 +68,8 @@ fig.suptitle('Resolved Mean Quantities')
 # Resolved Fluctuating Quantities
 #
 fig,ax = plt.subplots(ncols=2)
-avg.plot_variance_profile(ax=ax[0])
-avg.plot_covariance_profile(ax=ax[1])
+avg.plot_variance_profile(ax=ax[0],rotated=wind_aligned)
+avg.plot_covariance_profile(ax=ax[1],rotated=wind_aligned)
 ax[1].set_ylabel('')
 fig.savefig('Profiles_Fluc.png',bbox_inches='tight')
 fig.suptitle('Resolved Fluctuating Quantities')
@@ -75,8 +79,8 @@ fig.suptitle('Resolved Fluctuating Quantities')
 # Modeled SFS Quantities
 #
 fig,ax = plt.subplots(ncols=2)
-avg.plot_SFS_normalstress_profile(ax=ax[0])
-avg.plot_SFS_shearstress_profile(ax=ax[1])
+avg.plot_SFS_normalstress_profile(ax=ax[0],rotated=wind_aligned)
+avg.plot_SFS_shearstress_profile(ax=ax[1],rotated=wind_aligned)
 ax[1].set_ylabel('')
 fig.savefig('Profiles_SFS.png',bbox_inches='tight')
 fig.suptitle('Sub-Filter Scale Quantities')
