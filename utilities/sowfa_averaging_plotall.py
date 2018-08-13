@@ -102,9 +102,11 @@ fig.savefig('Profiles_TI.png',bbox_inches='tight')
 
 #------------------------------------------------------------------------------
 #
-# Save averaging data to CSV file
+# Save averaging data
 #
-avg.save_profile(fname='averagingProfiles.csv')
+avg.save_profile(fname='averagingProfiles.csv') # latest time
+
+avg.to_pandas('averaging.csv') # all times
 
 plt.show()
 

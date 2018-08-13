@@ -82,7 +82,9 @@ class PlanarAverages(object):
                         if 'hLevelsCell' in os.listdir(arg+os.sep+dirname):
                             self.simTimeDirs.append( arg+os.sep+dirname )
                             self.simStartTimes.append( startTime )
-                    except ValueError: pass # dirname is not a number
+                    except ValueError:
+                        # dirname is not a number
+                        pass
 
         # sort results
         self.simTimeDirs = [ x[1] for x in sorted(zip(self.simStartTimes,self.simTimeDirs)) ]
@@ -965,3 +967,33 @@ class PlanarAverages(object):
             print('wrote',fname)
         except IOError:
             print('Error:',fname,'could not be written')
+
+    def to_pandas(self,fname,itime=None,dtype=None):
+        """Write out specified range of times in a pandas dataframe"""
+        import pandas as pd
+        # select time range
+        if itime is None:
+            tindices = range(len(self.t))
+        else:
+            try:
+                iter(itime)
+            except TypeError:
+                tindices = [itime]
+            else:
+                tindices = itime
+        print('Creating dataframe for',self.t[itime])
+        dflist = []
+        for i in tindices:
+            data = { var: getattr(self,var)[i,:] for var in self._processed }
+            data['z'] = self.hLevelsCell
+            df = pd.DataFrame(data=data,dtype=dtype)
+            df['t'] = self.t[i]
+            dflist.append(df)
+        df = pd.concat(dflist)
+        df = df.set_index('t')
+        # reorder columns of output dataframe
+        varlist = ['z']
+        varlist += [ var for var in all_vars if var in self._processed]
+        print('Dumping dataframe to',fname)
+        df[varlist].to_csv(fname)
+
