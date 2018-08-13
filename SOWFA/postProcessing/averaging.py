@@ -26,6 +26,7 @@ from __future__ import print_function
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import cm
 
 all_vars = [
         'U_mean','V_mean','W_mean','T_mean',
@@ -623,8 +624,12 @@ class PlanarAverages(object):
             fig,ax = plt.subplots()
         else:
             fig = plt.gcf()
+        cmap = cm.get_cmap('viridis')
         for ih,z in enumerate(self.TI_heights):
-            ax.plot(self.tavg, 100.0*self.TIdir[:,ih], label='z={:.1f} m'.format(z))
+            f = (z-self.TI_heights[0]) / self.TI_heights[-1]
+            ax.plot(self.tavg, 100.0*self.TIdir[:,ih],
+                    color=cmap(f),
+                    label='z={:.1f} m'.format(z))
         ax.set_xlabel(r'Time [s]')
         ax.set_ylabel(r'Turbulence Intensity [%]')
         ax.legend(loc='best',fontsize='small')
@@ -640,8 +645,12 @@ class PlanarAverages(object):
             fig,ax = plt.subplots()
         else:
             fig = plt.gcf()
+        cmap = cm.get_cmap('viridis')
         for ih,z in enumerate(self.TI_heights):
-            ax.plot(self.tavg, self.TKE[:,ih], label='z={:.1f} m'.format(z))
+            f = (z-self.TI_heights[0]) / self.TI_heights[-1]
+            ax.plot(self.tavg, self.TKE[:,ih],
+                    color=cmap(f),
+                    label='z={:.1f} m'.format(z))
         ax.set_xlabel(r'Time [s]')
         ax.set_ylabel(r'Turbulent Kinetic Energy [m$^2$/s$^2$]')
         ax.legend(loc='best',fontsize='small')
