@@ -10,10 +10,13 @@ import matplotlib.pyplot as plt
 
 from datatools.SOWFA.postProcessing.averaging import PlanarAverages
 
+plt.style.use('seaborn-darkgrid')
+
 heights = [90.,200, 400, 600, 800] # to sample TI history
 tavg_window = 600.0 # for statistics
 dt = 1.0 # for data resampling
 include_SFS = True # include stresses from SGS model in TI calculation
+wind_aligned = True
 
 # reads avg.hLevelsCell with shape (NZ)
 # reads avg.U_mean, ... with shape (NT, NZ)
@@ -39,25 +42,22 @@ for i,h in enumerate(heights):
 
 #------------------------------------------------------------------------------
 #
-# Velocity and Temperature Profiles 
+# Wind and Temperature Profiles 
 #
-fig,ax = plt.subplots(ncols=2)
-avg.plot_UVW_profile(ax=ax[0])
-avg.plot_T_profile(ax=ax[1])
-ax[1].set_ylabel('')
+if wind_aligned:
+    fig,ax = plt.subplots(ncols=3)
+    avg.plot_windspeed_profile(ax=ax[0])
+    avg.plot_winddirection_profile(ax=ax[1])
+    avg.plot_T_profile(ax=ax[2])
+    ax[1].set_ylabel('')
+    ax[2].set_ylabel('')
+else:
+    fig,ax = plt.subplots(ncols=2)
+    avg.plot_UVW_profile(ax=ax[0])
+    avg.plot_T_profile(ax=ax[1])
+    ax[1].set_ylabel('')
+fig.savefig('Profiles_Mean.png',bbox_inches='tight')
 fig.suptitle('Resolved Mean Quantities')
-fig.savefig('Profiles_Mean.png')
-
-#------------------------------------------------------------------------------
-#
-# Wind speed and direction
-#
-fig,ax = plt.subplots(ncols=2)
-avg.plot_windspeed_profile(ax=ax[0])
-avg.plot_winddirection_profile(ax=ax[1])
-ax[1].set_ylabel('')
-fig.suptitle('Resolved Mean Wind Profiles')
-fig.savefig('Profiles_MeanUdir.png')
 
 #------------------------------------------------------------------------------
 #
@@ -67,8 +67,8 @@ fig,ax = plt.subplots(ncols=2)
 avg.plot_variance_profile(ax=ax[0])
 avg.plot_covariance_profile(ax=ax[1])
 ax[1].set_ylabel('')
+fig.savefig('Profiles_Fluc.png',bbox_inches='tight')
 fig.suptitle('Resolved Fluctuating Quantities')
-fig.savefig('Profiles_Fluc.png')
 
 #------------------------------------------------------------------------------
 #
@@ -78,8 +78,8 @@ fig,ax = plt.subplots(ncols=2)
 avg.plot_SFS_normalstress_profile(ax=ax[0])
 avg.plot_SFS_shearstress_profile(ax=ax[1])
 ax[1].set_ylabel('')
+fig.savefig('Profiles_SFS.png',bbox_inches='tight')
 fig.suptitle('Sub-Filter Scale Quantities')
-fig.savefig('Profiles_SFS.png')
 
 #------------------------------------------------------------------------------
 #
@@ -93,7 +93,8 @@ ax[1].plot(avg.TKE_profile, avg.hLevelsCell, 'k-')
 ax[0].set_xlabel(r'Turbulence Intensity [%]')
 ax[1].set_xlabel(r'Turbulence Kinetic Energy [m$^2$/$s^2$]')
 ax[0].set_ylabel(r'Height [m]')
-fig.savefig('Profiles_TI.png')
+ax[1].set_ylabel('')
+fig.savefig('Profiles_TI.png',bbox_inches='tight')
 
 #------------------------------------------------------------------------------
 #
