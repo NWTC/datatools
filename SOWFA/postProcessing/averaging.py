@@ -101,6 +101,8 @@ class PlanarAverages(object):
         else:
             print('No averaging time directories found!')
     
+        self._trim_series_if_needed()
+
 
     def __repr__(self):
         s = 'SOWFA postProcessing: averaging data'
@@ -191,8 +193,10 @@ class PlanarAverages(object):
         
         return None
 
-    def _trim_series_if_needed(self,fields_to_check=all_vars):
+    def _trim_series_if_needed(self,fields_to_check=None):
         """check for inconsistent array lengths and trim if needed"""
+        if fields_to_check is None:
+            fields_to_check = self._processed
         Nt0 = len(self.t)
         for field in fields_to_check:
             try:
@@ -968,8 +972,24 @@ class PlanarAverages(object):
         except IOError:
             print('Error:',fname,'could not be written')
 
-    def to_pandas(self,fname,itime=None,dtype=None):
-        """Write out specified range of times in a pandas dataframe"""
+    def to_csv(self,fname,itime=None,fields=None,dtype=None):
+        """Write out specified range of times in a pandas dataframe
+
+        Inputs
+        ------
+        fname: str
+            CSV file to write out
+        itime: integer, list
+            Time indice(s) to write out; if None, all times are output
+        fields: list, dict
+            Name of field variables to write out; if None, all variables
+            that have been processed are written out (including
+            variables that have been implicitly read through calls to 
+            calculate_* routines). If a dictionary is provided, the keys
+            will be the output column names.
+        dtype: type
+            Single datatype to which to cast all fields
+        """
         import pandas as pd
         # select time range
         if itime is None:
@@ -984,16 +1004,21 @@ class PlanarAverages(object):
         print('Creating dataframe for',self.t[itime])
         dflist = []
         for i in tindices:
-            data = { var: getattr(self,var)[i,:] for var in self._processed }
+            if fields is None:
+                # write out all fields that have been processed
+                data = { var: getattr(self,var)[i,:] for var in self._processed }
+            elif isinstance(fields, dict):
+                # write out specified fields with custom column names
+                data = { col: getattr(self,var)[i,:] for col,var in fields.items() }
+            else:
+                # write out specified fields
+                data = { var: getattr(self,var)[i,:] for var in fields }
             data['z'] = self.hLevelsCell
             df = pd.DataFrame(data=data,dtype=dtype)
             df['t'] = self.t[i]
             dflist.append(df)
         df = pd.concat(dflist)
-        df = df.set_index('t')
-        # reorder columns of output dataframe
-        varlist = ['z']
-        varlist += [ var for var in all_vars if var in self._processed]
+        df = df.set_index(['t','z'])
         print('Dumping dataframe to',fname)
-        df[varlist].to_csv(fname)
+        df.to_csv(fname)
 

@@ -106,7 +106,8 @@ fig.savefig('Profiles_TI.png',bbox_inches='tight')
 #
 avg.save_profile(fname='averagingProfiles.csv') # latest time
 
-avg.to_pandas('averaging.csv') # all times
+# pandas dataframe
+avg.to_csv('averaging.csv') # all times
 
 plt.show()
 
