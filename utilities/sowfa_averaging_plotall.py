@@ -107,6 +107,7 @@ fig.savefig('Profiles_TI.png',bbox_inches='tight')
 avg.save_profile(fname='averagingProfiles.csv') # latest time
 
 # pandas dataframe
+avg.get_vars_if_needed('q3_mean') # SFS component of T'w'
 avg.to_csv('averaging.csv') # all times
 
 plt.show()
