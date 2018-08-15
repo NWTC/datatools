@@ -33,6 +33,7 @@ all_vars = [
         'uu_mean', 'vv_mean', 'ww_mean', 'uv_mean', 'uw_mean', 'vw_mean',
         'Tw_mean',
         'R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean',
+        'q1_mean','q2_mean','q3_mean',
         ]
 
 class PlanarAverages(object):
@@ -1004,9 +1005,13 @@ class PlanarAverages(object):
         print('Creating dataframe for',self.t[itime])
         dflist = []
         for i in tindices:
-            if fields is None:
+            if (fields is None) or (fields.lower() == 'all'):
+                if fields.lower() == 'all':
+                    print('All fields requested')
+                    self.get_vars_if_needed(*all_vars)
                 # write out all fields that have been processed
                 data = { var: getattr(self,var)[i,:] for var in self._processed }
+
             elif isinstance(fields, dict):
                 # write out specified fields with custom column names
                 data = { col: getattr(self,var)[i,:] for col,var in fields.items() }

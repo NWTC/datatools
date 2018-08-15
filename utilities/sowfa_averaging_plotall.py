@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Script to check precursor convergence
+# Script to check precursor convergence and plot profiles
 # written by Eliot Quon (eliot.quon@nrel.gov)
 #
 from __future__ import print_function
