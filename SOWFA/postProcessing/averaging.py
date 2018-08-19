@@ -1003,11 +1003,12 @@ class PlanarAverages(object):
             else:
                 tindices = itime
         print('Creating dataframe for',self.t[itime])
+        if fields.lower() == 'all':
+            print('All fields requested')
         dflist = []
         for i in tindices:
             if (fields is None) or (fields.lower() == 'all'):
                 if fields.lower() == 'all':
-                    print('All fields requested')
                     self.get_vars_if_needed(*all_vars)
                 # write out all fields that have been processed
                 data = { var: getattr(self,var)[i,:] for var in self._processed }
