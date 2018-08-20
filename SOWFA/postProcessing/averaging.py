@@ -647,15 +647,17 @@ class PlanarAverages(object):
 
         for iz in range(len(self.hLevelsCell)):
             for it in tindices:
+                # resolved stress tensor
                 S = np.array([[ self.uu_mean[it,iz],  self.uv_mean[it,iz],  self.uw_mean[it,iz]],
                               [ self.uv_mean[it,iz],  self.vv_mean[it,iz],  self.vw_mean[it,iz]],
                               [ self.uw_mean[it,iz],  self.vw_mean[it,iz],  self.ww_mean[it,iz]]])
+                # Reynolds stress tensor
                 R = np.array([[self.R11_mean[it,iz], self.R12_mean[it,iz], self.R13_mean[it,iz]],
                               [self.R12_mean[it,iz], self.R22_mean[it,iz], self.R23_mean[it,iz]],
                               [self.R13_mean[it,iz], self.R23_mean[it,iz], self.R33_mean[it,iz]]])
 
-                S = self._rotate(ang[it,iz], S)
-                R = self._rotate(ang[it,iz], R)
+                S = rotate_tensor_z(S, ang[it,iz])
+                R = rotate_tensor_z(R, ang[it,iz])
 
                 self.uu_meanR[it,iz] = S[0,0]
                 self.uv_meanR[it,iz] = S[0,1]
@@ -671,13 +673,6 @@ class PlanarAverages(object):
                 self.R33_meanR[it,iz] = R[2,2]
 
         self.rotated = True
-
-    def _rotate(self,ang,S):
-        # rotate tensor S by ang [rad]
-        R = np.array([[ np.cos(ang), np.sin(ang), 0.],
-                      [-np.sin(ang), np.cos(ang), 0.],
-                      [          0.,          0., 1.]])
-        return np.matmul(np.matmul(R,S), R.T)
 
     #==========================================================================
     #
@@ -1027,4 +1022,14 @@ class PlanarAverages(object):
         df = df.set_index(['t','z'])
         print('Dumping dataframe to',fname)
         df.to_csv(fname)
+
+"""end of class PlanarAverages"""
+
+
+def rotate_tensor_z(S,angle):
+    """Rotate tensor S about z axis by angle [rad]"""
+    R = np.array([[ np.cos(angle), np.sin(angle), 0.],
+                  [-np.sin(angle), np.cos(angle), 0.],
+                  [            0.,            0., 1.]])
+    return np.matmul(np.matmul(R,S), R.T)
 
