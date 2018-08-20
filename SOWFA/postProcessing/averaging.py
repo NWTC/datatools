@@ -998,22 +998,20 @@ class PlanarAverages(object):
             else:
                 tindices = itime
         print('Creating dataframe for',self.t[itime])
-        if fields.lower() == 'all':
+        if (fields is not None) and (fields.lower() == 'all'):
             print('All fields requested')
+            self.get_vars_if_needed(*all_vars)
         dflist = []
         for i in tindices:
-            if (fields is None) or (fields.lower() == 'all'):
-                if fields.lower() == 'all':
-                    self.get_vars_if_needed(*all_vars)
-                # write out all fields that have been processed
-                data = { var: getattr(self,var)[i,:] for var in self._processed }
-
+            if hasattr(fields, '__iter__') and  not isinstance(fields, str):
+                # have an iterable object, write out specified fields
+                data = { var: getattr(self,var)[i,:] for var in fields }
             elif isinstance(fields, dict):
                 # write out specified fields with custom column names
                 data = { col: getattr(self,var)[i,:] for col,var in fields.items() }
             else:
-                # write out specified fields
-                data = { var: getattr(self,var)[i,:] for var in fields }
+                # write out all fields that have been processed
+                data = { var: getattr(self,var)[i,:] for var in self._processed }
             data['z'] = self.hLevelsCell
             df = pd.DataFrame(data=data,dtype=dtype)
             df['t'] = self.t[i]
