@@ -14,7 +14,8 @@ g = 9.81
 class WRFSolution(object):
     """Object to hold a single WRF solution snapshot"""
 
-    def __init__(self,*args,verbose=True):
+    def __init__(self,*args,**kwargs):
+        verbose = kwargs.get('verbose',True)
         nclist = []
         Nfiles = len(args)
         self.filelist = args
