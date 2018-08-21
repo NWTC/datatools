@@ -30,6 +30,9 @@ class WRFSolution(object):
                 if verbose:
                     print('Loaded {:s} ({:d}/{:d})'.format(fpath,i+1,Nfiles))
 
+        if len(nclist) == 0:
+            raise IOError('No WRF solution files found!')
+
         self.varlist = list(nc.variables)
         if verbose:
             print('  variables : ',self.varlist)
