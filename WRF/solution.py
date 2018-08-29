@@ -4,10 +4,17 @@
 # written by Eliot Quon (eliot.quon@nrel.gov)
 #
 from __future__ import print_function
-import sys
+import sys, os
 import numpy as np
 
 from netCDF4 import Dataset
+try:
+   import xarray
+except ImportError:
+    have_xarray = False
+else:
+    print('xarray reader available')
+    have_xarray = True
 
 g = 9.81
 
@@ -16,19 +23,27 @@ class WRFSolution(object):
 
     def __init__(self,*args,**kwargs):
         verbose = kwargs.get('verbose',True)
+        use_xarray = kwargs.get('use_xarray',have_xarray)
+        if use_xarray:
+            desc = 'with xarray'
+        else:
+            desc = 'with netcdf'
         nclist = []
         Nfiles = len(args)
-        self.filelist = args
+        self.filelist = [ fpath for fpath in args if os.path.isfile(fpath) ]
         for i,fpath in enumerate(args):
             try:
-                nc = Dataset(fpath)
-            except OSError: # NetCDF: Unknown file format
+                if use_xarray:
+                    nc = xarray.open_dataset(fpath)
+                else:
+                    nc = Dataset(fpath)
+            except (IOError,OSError): # NetCDF: Unknown file format
                 if verbose:
                     print('Skipped {:s} ({:d}/{:d})'.format(fpath,i+1,Nfiles))
-            else:
-                nclist.append(nc)
-                if verbose:
-                    print('Loaded {:s} ({:d}/{:d})'.format(fpath,i+1,Nfiles))
+                continue
+            nclist.append(nc)
+            if verbose:
+                print('Loaded {:s} {:s} ({:d}/{:d})'.format(fpath,desc,i+1,Nfiles))
 
         if len(nclist) == 0:
             raise IOError('No WRF solution files found!')
@@ -38,10 +53,14 @@ class WRFSolution(object):
             print('  variables : ',self.varlist)
 
         # dimensions (unstaggered, i.e., face/cell-centered)
-        self.Nt = nc.dimensions['time'].size
-        self.Nx = nc.dimensions['west_east'].size 
-        self.Ny = nc.dimensions['south_north'].size
-        self.Nz = nc.dimensions['bottom_top'].size
+        if use_xarray:
+            self.Nt, self.Nz, self.Ny, self.Nx = nc.variables['U'].shape
+            self.Nx -= 1 # U is staggered in x
+        else:
+            self.Nt = nc.dimensions['time'].size
+            self.Nx = nc.dimensions['west_east'].size 
+            self.Ny = nc.dimensions['south_north'].size
+            self.Nz = nc.dimensions['bottom_top'].size
         if verbose:
             print('  dimensions : ',self.Nt,self.Nx,self.Ny,self.Nz)
 
@@ -73,6 +92,7 @@ class WRFSolution(object):
             # calculate z == (ph + phb)/g
             zlist.append( 0.5*( PH[:,:-1,:,:] +  PH[:,1:,:,:] +
                                PHB[:,:-1,:,:] + PHB[:,1:,:,:] ) / g )
+        sys.stderr.write('\n')
 
         print('Concatenating data arrays')
         self.U = np.concatenate(Ulist, axis=0)
