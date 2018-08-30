@@ -13,10 +13,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 g = 9.81
+cmap = 'bwr'
 
 def _reorient(M):
-    #return np.fliplr(M).T
-    return np.fliplr(M)
+    # for M.shape==(NY,NX)
+    return np.flipud(M)
 
 class Visualization2D(object):
 
@@ -80,6 +81,7 @@ class Visualization2D(object):
                       PHB[:,:-1,:,:] + PHB[:,1:,:,:] ) / g
         # other variables
         #self.Umag = np.sqrt(self.U**2 + self.V**2 + self.W**2) # can cause a memory error
+        self.z_est = np.mean(self.z.values, axis=(2,3))
         
     def __repr__(self):
         s = str(self.Ntimes) + ' times read:\n'
@@ -94,22 +96,30 @@ class Visualization2D(object):
                                                      self.Nz)
         return s
 
-    def plot(self,field='Umag',time=0,index=0):
+    def plot(self,field='U',time=0,index=0,xrange=(0,-1),yrange=(0,-1),plot_mean_profile=False):
         """Jupyter notebook usage:
             iplot = interactive(viz.plot,
-                                plane=['z','y','x'],
                                 field=['U','V','W','T'],
-                                time=(0,viz.Ntimes-1),
-                                index=(0,viz.N-1))
+                                time=(0, viz.Ntimes-1),
+                                index=(0, viz.N-1),
+                                xrange=widgets.IntRangeSlider(min=0, max=viz.Nx-1, value=[0,viz.Nx-1]),
+                                yrange=widgets.IntRangeSlider(min=0, max=viz.Ny-1, value=[0,viz.Ny-1]),
+                                plot_mean_profile=False
+                               )
             iplot
         """
         assert((time >= 0) and (time < self.Ntimes))
-        plt.figure(1)
+        plt.figure(1,figsize=(10,6))
         if self.plane == 'z':
             assert((index >= 0) and (index < self.Nz))
             U = getattr(self,field)
             U = U[time,index,:,:]
-            cont = plt.imshow(_reorient(U))
+            #cont = plt.imshow(_reorient(U),cmap=cmap)
+            #plt.title('z ~= {:.1f} m'.format(np.mean(self.z[time,index,:,:].values))) # this slows the update considerably
+            cont = plt.imshow(U,cmap=cmap)
+            plt.gca().invert_yaxis()
+            plt.title('z ~= {:.1f} m'.format(self.z_est[time,index]))
+            #print(U)
         else:
             print(self.plane,'not supported')
         cbar = plt.colorbar(cont)
