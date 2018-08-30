@@ -11,6 +11,7 @@ import ipywidgets as widgets
 import xarray
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 
 g = 9.81
 cmap = 'bwr'
@@ -109,21 +110,29 @@ class Visualization2D(object):
             iplot
         """
         assert((time >= 0) and (time < self.Ntimes))
-        plt.figure(1,figsize=(10,6))
         if self.plane == 'z':
             assert((index >= 0) and (index < self.Nz))
+            plt.figure(1,figsize=(10,6))
             U = getattr(self,field)
-            U = U[time,index,:,:]
-            #cont = plt.imshow(_reorient(U),cmap=cmap)
-            #plt.title('z ~= {:.1f} m'.format(np.mean(self.z[time,index,:,:].values))) # this slows the update considerably
-            cont = plt.imshow(U,cmap=cmap)
+            U = U[time,:,:,:]
+            cont = plt.imshow(U[index,:,:],cmap=cmap)
             plt.gca().invert_yaxis()
             plt.title('z ~= {:.1f} m'.format(self.z_est[time,index]))
-            #print(U)
+            if (xrange[0] > 0) or (xrange[1] < self.Nx-1) \
+                    or (yrange[0] > 0) or (yrange[1] < self.Ny-1):
+                rect = Rectangle((xrange[0],yrange[0]), np.diff(xrange), np.diff(yrange),
+                                 fill=False, color='k', linestyle='--')
+                plt.gca().add_patch(rect)
+            cbar = plt.colorbar(cont)
+            cbar.set_label(field)
+            if plot_mean_profile:
+                plt.figure(2, figsize=(4,6))
+                Umean = np.mean(U[:,yrange[0]:yrange[1]+1,xrange[0]:xrange[1]+1], axis=(1,2))
+                plt.plot(Umean, self.z_est[time,:])
+                plt.xlabel(field)
+                plt.ylabel('z (approx) [m]')
         else:
             print(self.plane,'not supported')
-        cbar = plt.colorbar(cont)
-        cbar.set_label(field)
         plt.show()
         
 
