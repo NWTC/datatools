@@ -7,6 +7,7 @@ from __future__ import print_function
 import os
 from ipywidgets import interactive #interact, interactive, fixed, interact_manual
 import ipywidgets as widgets
+from IPython.display import display
 
 import xarray
 import numpy as np
@@ -97,42 +98,79 @@ class Visualization2D(object):
                                                      self.Nz)
         return s
 
-    def plot(self,field='U',time=0,index=0,xrange=(0,-1),yrange=(0,-1),plot_mean_profile=False):
-        """Jupyter notebook usage:
-            iplot = interactive(viz.plot,
-                                field=['U','V','W','T'],
-                                time=(0, viz.Ntimes-1),
-                                index=(0, viz.N-1),
-                                xrange=widgets.IntRangeSlider(min=0, max=viz.Nx-1, value=[0,viz.Nx-1]),
-                                yrange=widgets.IntRangeSlider(min=0, max=viz.Ny-1, value=[0,viz.Ny-1]),
-                                plot_mean_profile=False
-                               )
-            iplot
-        """
-        assert((time >= 0) and (time < self.Ntimes))
+    def interactive(self):
+        """Create an interactive plot"""
+        xlim_slider = widgets.IntRangeSlider(min=0, max=self.Nx-1, value=[0,self.Nx-1])
+        ylim_slider = widgets.IntRangeSlider(min=0, max=self.Ny-1, value=[0,self.Ny-1])
+        self.iplot = interactive(self.plot,
+                                 field=['U','V','W','T'],
+                                 time=(0, self.Ntimes-1),
+                                 index=(0, self.N-1),
+                                 xlim=xlim_slider,
+                                 ylim=ylim_slider)
+        display(self.iplot)
+
+    def plot(self,field='U',ds='90.0',time=0,index=0,xlim=(0,-1),ylim=(0,-1)):
+        """Callback for Visualization2D.interactive()"""
+        try:
+            ds = float(ds)
+        except ValueError:
+            ds = 1.0
+        length_units = 'm'
         if self.plane == 'z':
             assert((index >= 0) and (index < self.Nz))
+            # make contour plot
             plt.figure(1,figsize=(10,6))
             U = getattr(self,field)
             U = U[time,:,:,:]
-            cont = plt.imshow(U[index,:,:],cmap=cmap)
+            extent = np.array((0.0, (self.Nx-1)*ds, (self.Ny-1)*ds, 0.0)) # left, right, bottom, top -- note top/bottom flipped when using imshow
+            if np.max(extent) > 10000:
+                rescale = True
+                extent /= 1000.
+                length_units = 'km'
+            cont = plt.imshow(U[index,:,:],cmap=cmap,extent=extent)
+            # format plot
+            plt.xlabel('x [{:s}]'.format(length_units))
+            plt.ylabel('y [{:s}]'.format(length_units))
             plt.gca().invert_yaxis()
             plt.title('z ~= {:.1f} m'.format(self.z_est[time,index]))
-            if (xrange[0] > 0) or (xrange[1] < self.Nx-1) \
-                    or (yrange[0] > 0) or (yrange[1] < self.Ny-1):
-                rect = Rectangle((xrange[0],yrange[0]), np.diff(xrange), np.diff(yrange),
+            if (xlim[0] > 0) or (xlim[1] < self.Nx-1) \
+                    or (ylim[0] > 0) or (ylim[1] < self.Ny-1):
+                xr = np.array(xlim) * ds
+                yr = np.array(ylim) * ds
+                if rescale:
+                    xr /= 1000.
+                    yr /= 1000.
+                rect = Rectangle((xr[0],yr[0]), np.diff(xr), np.diff(yr),
                                  fill=False, color='k', linestyle='--')
                 plt.gca().add_patch(rect)
-            cbar = plt.colorbar(cont)
-            cbar.set_label(field)
-            if plot_mean_profile:
-                plt.figure(2, figsize=(4,6))
-                Umean = np.mean(U[:,yrange[0]:yrange[1]+1,xrange[0]:xrange[1]+1], axis=(1,2))
-                plt.plot(Umean, self.z_est[time,:])
-                plt.xlabel(field)
-                plt.ylabel('z (approx) [m]')
+            #cbar = plt.colorbar(cont)
+            #cbar.set_label(field)
         else:
             print(self.plane,'not supported')
         plt.show()
-        
+
+    def write_profiles(self):
+        print('blerg')
+
+    def plot_mean_profile(self):
+        """Plot the mean profile averaged over the xlim and ylim 
+        specified by the interactive widgets.
+        """
+        params = self.iplot.kwargs
+        itime = params['time']
+        xr = params['xlim']
+        yr = params['ylim']
+        ds = float(params['ds'])
+        print('mean over x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
+        print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
+        z = self.z
+        U = getattr(self,params['field'])
+        zmean = np.mean(z[itime,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(1,2))
+        Umean = np.mean(U[itime,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(1,2))
+        plt.figure(2, figsize=(4,6))
+        plt.plot(Umean, zmean)
+        plt.xlabel(params['field'])
+        plt.ylabel('z [m]')
+        plt.title('itime={:d}'.format(itime))
 
