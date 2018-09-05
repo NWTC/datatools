@@ -26,11 +26,14 @@ def _reorient(M):
 class Visualization2D(object):
 
     def __init__(self,*args,**kwargs):
+        plane = kwargs.get('plane','z') # 2D plane normal direction
+        if not plane=='z':
+            raise NotImplementedError('Only z planes for now') 
+
         tdim = kwargs.get('tdim','time') # time / file aggregation dimension ("aggdim")
         xdim = kwargs.get('xdim','west_east') # unstaggered by default
         ydim = kwargs.get('ydim','south_north') # unstaggered by default
         zdim = kwargs.get('zdim','bottom_top') # unstaggered by default
-        plane = kwargs.get('plane','z') # 2D plane normal direction
 
         """Load a series of netcdf files provided by args"""
         if len(args) > 0:
