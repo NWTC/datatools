@@ -26,6 +26,18 @@ series_colormap = 'viridis'
 class Visualization2D(object):
 
     def __init__(self,*args,**kwargs):
+        """Create visualization object
+        
+        Keyword arguments
+        =================
+        ds : float, optional
+            Grid spacing (assumed uniform)
+        parse_datetime : str, optional
+            Specified strftime string to parse filenames into datetimes
+        """
+        self.ds = kwargs.get('ds',1.0)
+        parse_datetime = kwargs.get('parse_datetime',None)
+
         plane = kwargs.get('plane','z') # 2D plane normal direction
         if not plane=='z':
             raise NotImplementedError('Only z planes for now') 
@@ -34,8 +46,6 @@ class Visualization2D(object):
         xdim = kwargs.get('xdim','west_east') # unstaggered by default
         ydim = kwargs.get('ydim','south_north') # unstaggered by default
         zdim = kwargs.get('zdim','bottom_top') # unstaggered by default
-
-        parse_datetime = kwargs.get('parse_datetime',None)
 
         """Load a series of netcdf files provided by args"""
         if len(args) > 0:
@@ -124,40 +134,42 @@ class Visualization2D(object):
                                  ylim=ylim_slider)
         display(self.iplot)
 
-    def plot(self,field='U',ds='90.0',time=0,index=0,xlim=(0,-1),ylim=(0,-1)):
-        """Callback for Visualization2D.interactive()"""
-        try:
-            ds = float(ds)
-        except ValueError:
-            ds = 1.0
+    def plot(self,field='U',time=0,index=0,xlim=(0,-1),ylim=(0,-1)):
+        """Callback for Visualization2D.interactive() to make contour plot"""
         length_units = 'm'
+        # TODO: Only z-planes handled for now
         if self.plane == 'z':
             assert((index >= 0) and (index < self.Nz))
-            # make contour plot
             plt.figure(1,figsize=(10,6))
             U = getattr(self,field)
             U = U[time,:,:,:]
-            extent = np.array((0.0, (self.Nx-1)*ds, (self.Ny-1)*ds, 0.0)) # left, right, bottom, top -- note top/bottom flipped when using imshow
+            # set image left, right, bottom, top
+            extent = np.array((0.0, (self.Nx-1)*self.ds,
+                              (self.Ny-1)*self.ds, 0.0)
+                             ) # note top/bottom flipped when using imshow
             if np.max(extent) > 10000:
                 rescale = True
                 extent /= 1000.
                 length_units = 'km'
+            # use imshow (fastest)
             cont = plt.imshow(U[index,:,:],cmap=contour_colormap,extent=extent)
             # format plot
             plt.xlabel('x [{:s}]'.format(length_units))
             plt.ylabel('y [{:s}]'.format(length_units))
             plt.gca().invert_yaxis()
             plt.title('z ~= {:.1f} m'.format(self.z_est[time,index]))
+            # add bounding box for averaging region
             if (xlim[0] > 0) or (xlim[1] < self.Nx-1) \
                     or (ylim[0] > 0) or (ylim[1] < self.Ny-1):
-                xr = np.array(xlim) * ds
-                yr = np.array(ylim) * ds
+                xr = np.array(xlim) * self.ds
+                yr = np.array(ylim) * self.ds
                 if rescale:
                     xr /= 1000.
                     yr /= 1000.
                 rect = Rectangle((xr[0],yr[0]), np.diff(xr), np.diff(yr),
                                  fill=False, color='k', linestyle='--')
                 plt.gca().add_patch(rect)
+            # add colorbar
             cbar = plt.colorbar(cont)
             cbar.set_label(field)
         else:
@@ -167,20 +179,22 @@ class Visualization2D(object):
     def _print_mean_info(self):
         xr = self.iplot.kwargs['xlim']
         yr = self.iplot.kwargs['ylim']
-        ds = float(self.iplot.kwargs['ds'])
-        print('mean over i in [{:d} {:d}], j in [{:d} {:d}]'.format(xr[0],xr[1],yr[0],yr[1]))
-        print('  x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
-        print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
+        print('mean over i in [{:d} {:d}], j in [{:d} {:d}]'.format(xr[0],xr[1],
+                                                                    yr[0],yr[1]))
+        print('  x:{}, y:{}'.format(self.ds*np.array(xr),
+                                    self.ds*np.array(yr)))
+        print('  area is {:.1f} by {:.1f} m^2'.format(self.ds*np.diff(xr)[0],
+                                                      self.ds*np.diff(yr)[0]))
 
-    def plot_mean_profile(self,field=None):
+    def plot_mean_profile(self,itime=None,field=None):
         """Plot the mean profile averaged over the xlim and ylim 
         specified by the interactive widgets.
         """
         params = self.iplot.kwargs
-        itime = params['time']
+        if itime is None:
+            itime = params['time']
         xr = params['xlim']
         yr = params['ylim']
-        ds = float(params['ds'])
         self._print_mean_info()
         z = self.z
         if field is None:
@@ -202,7 +216,6 @@ class Visualization2D(object):
         params = self.iplot.kwargs
         xr = params['xlim']
         yr = params['ylim']
-        ds = float(params['ds'])
         self._print_mean_info()
         z = self.z
         if field is None:
@@ -232,7 +245,6 @@ class Visualization2D(object):
         params = self.iplot.kwargs
         xr = params['xlim']
         yr = params['ylim']
-        ds = float(params['ds'])
         self._print_mean_info()
         z = self.z
         if field is None:
@@ -253,7 +265,6 @@ class Visualization2D(object):
         params = self.iplot.kwargs
         xr = params['xlim']
         yr = params['ylim']
-        ds = float(params['ds'])
         self._print_mean_info()
         print('averaging over {:d} times, could take a while...'.format(self.Ntimes))
         zmean = np.mean(self.z[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
