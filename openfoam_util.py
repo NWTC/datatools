@@ -33,7 +33,7 @@ def _read(f,line=None,debug=False):
     #   ['(', '2561.5', ')']
     # and 2-D data looks something like this:
     #   ['(', '(', '0.0', '5.26897', ')', '(', '90000.0', '5.26897', ')', ')']
-    data = parse_list(line[1:])
+    data = of_parse_list(line[1:])
     # at this point 1-D data looks something like this:
     #   [2561.5]
     # and 2-D data looks something like this:
@@ -42,7 +42,7 @@ def _read(f,line=None,debug=False):
         data = np.array(data)
     return name, data
 
-def parse_list(L,cast=float,debug=False):
+def of_parse_list(L,cast=float,debug=False):
     """Strip out '(' and ')' and replace with list(s)"""
     # single value
     if len(L) == 1:
@@ -120,4 +120,25 @@ def read_all_defs(fname,verbose=True):
             # read next line 
             line = f.readline()
     return data
+
+def of_list(name,L):
+    """Return string with a 1-D list/table/array in the OpenFOAM style"""
+    s = name + '\n(\n'
+    for val in L:
+        s += '\t' + str(val) + '\n'
+    s += ');\n'
+    return s
+
+def of_listlist(name,arr):
+    """Return string with a 2-D list/table/array in the OpenFOAM style
+    Assume input is a numpy.ndarray
+    """
+    L = list(arr)
+    s = name + '\n(\n'
+    for itime,row in enumerate(L):
+        s += '\t( '
+        s += ' '.join([str(val) for val in row])
+        s += ' )\n'
+    s += ');\n'
+    return s
 

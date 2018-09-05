@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import pandas as pd
 
-from datatools import openfoam_util
+from datatools.openfoam_util import read_all_defs, of_list, of_listlist
 
 series_colormap = 'viridis'
 
@@ -191,7 +191,7 @@ class ForcingTable(object):
         """
         data = None    
         for fname in args:
-            newdata = openfoam_util.read_all_defs(fname,verbose=False)
+            newdata = read_all_defs(fname,verbose=False)
             if data is None:
                 data = newdata
             else:
@@ -214,5 +214,29 @@ class ForcingTable(object):
 
         self._validate()
         
-    #def to_openfoam(self,fname):
+    def write(self,fname='forcingTable',
+            z='sourceHeightsMomentum',
+            U='sourceTableMomentumX',
+            V='sourceTableMomentumY',
+            W='sourceTableMomentumZ',
+            zT='sourceHeightsTemperature',
+            T='sourceTableTemperature',
+            ):
+        """Write out forcingTable to be included in a SOWFA simulation
+        (e.g., within constant/ABLProperties). The specified variable
+        names are the data arrays expected by ABLSolver
+        """
+        # prepend the time for each row of source terms
+        timeU = np.concatenate((self.t[:,np.newaxis], self.U), axis=1)
+        timeV = np.concatenate((self.t[:,np.newaxis], self.V), axis=1)
+        timeW = np.concatenate((self.t[:,np.newaxis], self.W), axis=1)
+        timeT = np.concatenate((self.t[:,np.newaxis], self.T), axis=1)
+        # now dump everything out
+        with open(fname,'w') as f:
+            f.write(of_list(z,self.z))
+            f.write(of_listlist(U,timeU))
+            f.write(of_listlist(V,timeV))
+            f.write(of_listlist(W,timeW))
+            f.write(of_list(zT,self.zT))
+            f.write(of_listlist(T,timeT))
 
