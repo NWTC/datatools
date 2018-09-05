@@ -146,8 +146,8 @@ class Visualization2D(object):
                 rect = Rectangle((xr[0],yr[0]), np.diff(xr), np.diff(yr),
                                  fill=False, color='k', linestyle='--')
                 plt.gca().add_patch(rect)
-            #cbar = plt.colorbar(cont)
-            #cbar.set_label(field)
+            cbar = plt.colorbar(cont)
+            cbar.set_label(field)
         else:
             print(self.plane,'not supported')
         plt.show()
