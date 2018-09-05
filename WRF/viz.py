@@ -164,8 +164,13 @@ class Visualization2D(object):
             print(self.plane,'not supported')
         plt.show()
 
-    def write_profiles(self):
-        print('blerg')
+    def _print_mean_info(self):
+        xr = self.iplot.kwargs['xlim']
+        yr = self.iplot.kwargs['ylim']
+        ds = float(self.iplot.kwargs['ds'])
+        print('mean over i in [{:d} {:d}], j in [{:d} {:d}]'.format(xr[0],xr[1],yr[0],yr[1]))
+        print('  x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
+        print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
 
     def plot_mean_profile(self,field=None):
         """Plot the mean profile averaged over the xlim and ylim 
@@ -176,8 +181,7 @@ class Visualization2D(object):
         xr = params['xlim']
         yr = params['ylim']
         ds = float(params['ds'])
-        print('mean over x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
-        print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
+        self._print_mean_info()
         z = self.z
         if field is None:
             field = params['field']
@@ -199,8 +203,7 @@ class Visualization2D(object):
         xr = params['xlim']
         yr = params['ylim']
         ds = float(params['ds'])
-        print('mean over x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
-        print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
+        self._print_mean_info()
         z = self.z
         if field is None:
             field = params['field']
@@ -230,8 +233,7 @@ class Visualization2D(object):
         xr = params['xlim']
         yr = params['ylim']
         ds = float(params['ds'])
-        print('mean over x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
-        print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
+        self._print_mean_info()
         z = self.z
         if field is None:
             field = params['field']
@@ -252,8 +254,7 @@ class Visualization2D(object):
         xr = params['xlim']
         yr = params['ylim']
         ds = float(params['ds'])
-        print('mean over x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
-        print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
+        self._print_mean_info()
         print('averaging over {:d} times, could take a while...'.format(self.Ntimes))
         zmean = np.mean(self.z[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         Umean = np.mean(self.U[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
