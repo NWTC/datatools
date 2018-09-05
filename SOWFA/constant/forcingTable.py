@@ -12,7 +12,11 @@
 from __future__ import print_function
 from datetime import datetime
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib import cm
 import pandas as pd
+
+series_colormap = 'viridis'
 
 class ForcingTable(object):
     def __init__(self,heights=None,times=None,U=None,V=None,W=None,T=None):
@@ -85,6 +89,33 @@ class ForcingTable(object):
             self.V = np.tile(self.V,[2,1])
             self.W = np.tile(self.W,[2,1])
             self.T = np.tile(self.T,[2,1])
+
+    def plot(self, itime=-1, ax=None, **kwargs):
+        if ax is None:
+            fig,ax = plt.subplots(ncols=4,figsize=(10,4))
+            fig.suptitle('t = {:.1f} s'.format(self.t[itime]))
+        ax[0].plot(self.U[itime,:], self.z, **kwargs)
+        ax[1].plot(self.V[itime,:], self.z, **kwargs)
+        ax[2].plot(self.W[itime,:], self.z, **kwargs)
+        ax[3].plot(self.T[itime,:], self.z, **kwargs)
+        ax[0].set_xlabel(r'$U$ [m/s]')
+        ax[1].set_xlabel(r'$V$ [m/s]')
+        ax[2].set_xlabel(r'$W$ [m/s]')
+        ax[3].set_xlabel(r'$\theta$ [K]')
+        ax[0].set_ylabel(r'$z$ [m]')
+
+    def plot_over_time(self, **kwargs):
+        fig,ax = plt.subplots(ncols=4,figsize=(10,4))
+        colors = cm.get_cmap(series_colormap)
+        for itime, ti in enumerate(self.t):
+            col = colors(float(itime)/(self.Nt-1))
+            label = ''
+            if (itime == 0) or (itime == self.Nt-1):
+                label = 't = {:.1f} s'.format(ti)
+            kwargs['color'] = col
+            kwargs['label'] = label
+            self.plot(itime=itime, ax=ax, **kwargs)
+        ax[0].legend(loc='best')
 
     def to_csv(self,fname):
         alltimes = [ ti for ti in self.t for _ in range(self.Nz) ]
