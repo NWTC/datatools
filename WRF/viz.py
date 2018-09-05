@@ -221,7 +221,7 @@ class Visualization2D(object):
         if field is None:
             field = params['field']
         U = getattr(self,field)
-        print('averaging {:s} over {:d} times, could take a while...'.format(field,self.Ntimes))
+        print('averaging {:s} over {:d} times, could take a minute...'.format(field,self.Ntimes))
         zmean = np.mean(z[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         Umean = np.mean(U[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         plt.figure(3, figsize=(4,6))
@@ -250,7 +250,7 @@ class Visualization2D(object):
         if field is None:
             field = params['field']
         U = getattr(self,field)
-        print('averaging {:s} over {:d} times, could take a while...'.format(field,self.Ntimes))
+        print('averaging {:s} over {:d} times, could take a minute...'.format(field,self.Ntimes))
         zmean = np.mean(z[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         Umean = np.mean(U[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         plt.figure(4, figsize=(10,4))
@@ -266,7 +266,7 @@ class Visualization2D(object):
         xr = params['xlim']
         yr = params['ylim']
         self._print_mean_info()
-        print('averaging over {:d} times, could take a while...'.format(self.Ntimes))
+        print('averaging over {:d} times, could take a minute...'.format(self.Ntimes))
         zmean = np.mean(self.z[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         Umean = np.mean(self.U[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         Vmean = np.mean(self.V[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
