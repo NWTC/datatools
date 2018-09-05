@@ -18,12 +18,8 @@ from matplotlib.patches import Rectangle
 from matplotlib import cm
 
 g = 9.81
-contour_colormap = 'bwr'
+contour_colormap = 'bwr' # closest to what's available in ncview
 series_colormap = 'viridis'
-
-def _reorient(M):
-    # for M.shape==(NY,NX)
-    return np.flipud(M)
 
 class Visualization2D(object):
 
