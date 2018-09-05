@@ -13,9 +13,11 @@ import xarray
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
+from matplotlib import cm
 
 g = 9.81
-cmap = 'bwr'
+contour_colormap = 'bwr'
+series_colormap = 'viridis'
 
 def _reorient(M):
     # for M.shape==(NY,NX)
@@ -128,7 +130,7 @@ class Visualization2D(object):
                 rescale = True
                 extent /= 1000.
                 length_units = 'km'
-            cont = plt.imshow(U[index,:,:],cmap=cmap,extent=extent)
+            cont = plt.imshow(U[index,:,:],cmap=contour_colormap,extent=extent)
             # format plot
             plt.xlabel('x [{:s}]'.format(length_units))
             plt.ylabel('y [{:s}]'.format(length_units))
@@ -173,4 +175,32 @@ class Visualization2D(object):
         plt.xlabel(params['field'])
         plt.ylabel('z [m]')
         plt.title('itime={:d}'.format(itime))
+
+    def plot_all_mean_profiles(self):
+        """Plot mean profiles for all times loaded. Averaging is
+        performed over xlim and ylim specified by the interactive
+        widgets.
+        """
+        params = self.iplot.kwargs
+        xr = params['xlim']
+        yr = params['ylim']
+        ds = float(params['ds'])
+        print('mean over x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
+        print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
+        z = self.z
+        U = getattr(self,params['field'])
+        print('averaging over {} times, could take a while...'.format(self.Ntimes))
+        zmean = np.mean(z[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
+        Umean = np.mean(U[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
+        plt.figure(2, figsize=(4,6))
+        colfun = cm.get_cmap(series_colormap)
+        for itime in range(self.Ntimes):
+            color = colfun(float(itime)/(self.Ntimes-1))
+            label = ''
+            if (itime == 0) or (itime == self.Ntimes-1):
+                label = 'time'+str(itime)
+            plt.plot(Umean[itime,:], zmean[itime,:], color=color, label=label)
+        plt.xlabel(params['field'])
+        plt.ylabel('z [m]')
+        plt.legend(loc='best')
 
