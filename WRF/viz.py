@@ -7,15 +7,17 @@ from __future__ import print_function
 import os
 from datetime import datetime
 
-from ipywidgets import interactive #interact, interactive, fixed, interact_manual
-import ipywidgets as widgets
-from IPython.display import display
-
 import xarray
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from matplotlib import cm
+
+from ipywidgets import interactive #interact, interactive, fixed, interact_manual
+import ipywidgets as widgets
+from IPython.display import display
+
+from datatools.SOWFA.constant.forcingTable import ForcingTable
 
 g = 9.81
 contour_colormap = 'bwr' # closest to what's available in ncview
@@ -244,3 +246,22 @@ class Visualization2D(object):
         cbar.set_label(params['field'])
         plt.ylabel('z [m]')
 
+    def save_forcing_table(self,z,name='forcingTable'):
+        """Save forcingTable with specified fname at specified heights z"""
+        params = self.iplot.kwargs
+        xr = params['xlim']
+        yr = params['ylim']
+        ds = float(params['ds'])
+        print('mean over x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
+        print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
+        print('averaging over {:d} times, could take a while...'.format(self.Ntimes))
+        zmean = np.mean(self.z[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
+        Umean = np.mean(self.U[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
+        Vmean = np.mean(self.V[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
+        Wmean = np.mean(self.W[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
+        Tmean = np.mean(self.T[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
+        tab = ForcingTable(heights=zmean, times=self.times,
+                           U=Umean, V=Vmean, W=Wmean, T=Tmean)
+        tab.regularize_heights(z)
+        tab.to_csv(name+'.csv')
+        #tab.to_openfoam(name)
