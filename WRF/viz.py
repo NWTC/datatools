@@ -5,6 +5,8 @@
 #
 from __future__ import print_function
 import os
+from datetime import datetime
+
 from ipywidgets import interactive #interact, interactive, fixed, interact_manual
 import ipywidgets as widgets
 from IPython.display import display
@@ -34,6 +36,8 @@ class Visualization2D(object):
         xdim = kwargs.get('xdim','west_east') # unstaggered by default
         ydim = kwargs.get('ydim','south_north') # unstaggered by default
         zdim = kwargs.get('zdim','bottom_top') # unstaggered by default
+
+        parse_datetime = kwargs.get('parse_datetime',None)
 
         """Load a series of netcdf files provided by args"""
         if len(args) > 0:
@@ -68,6 +72,13 @@ class Visualization2D(object):
             self.N = self.Ny
         elif plane == 'z':
             self.N = self.Nz
+
+        if parse_datetime is not None:
+            # parse_datetime is the datetime format
+            self.times = np.array([datetime.strptime(fname, parse_datetime)
+                                   for fname in self.filelist])
+        else:
+            self.times = np.arange(self.Ntimes)
 
         """Set up field variables"""
         # unstaggered
@@ -199,15 +210,41 @@ class Visualization2D(object):
         print('averaging {:s} over {:d} times, could take a while...'.format(field,self.Ntimes))
         zmean = np.mean(z[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         Umean = np.mean(U[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
-        plt.figure(2, figsize=(4,6))
+        plt.figure(3, figsize=(4,6))
         colfun = cm.get_cmap(series_colormap)
         for itime in range(self.Ntimes):
             color = colfun(float(itime)/(self.Ntimes-1))
             label = ''
             if (itime == 0) or (itime == self.Ntimes-1):
-                label = 'time'+str(itime)
+                #label = 'time'+str(itime)
+                label = self.times[itime]
             plt.plot(Umean[itime,:], zmean[itime,:], color=color, label=label)
         plt.xlabel(params['field'])
         plt.ylabel('z [m]')
         plt.legend(loc='best')
+
+    def timeheight_plot_mean(self,field=None):
+        """Plot mean profiles for all times loaded in the time-height
+        contour format. Averaging is performed over xlim and ylim
+        specified by the interactive widgets.
+        """
+        params = self.iplot.kwargs
+        xr = params['xlim']
+        yr = params['ylim']
+        ds = float(params['ds'])
+        print('mean over x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
+        print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
+        z = self.z
+        if field is None:
+            field = params['field']
+        U = getattr(self,field)
+        print('averaging {:s} over {:d} times, could take a while...'.format(field,self.Ntimes))
+        zmean = np.mean(z[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
+        Umean = np.mean(U[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
+        plt.figure(4, figsize=(10,4))
+        alltimes = np.tile(self.times,[self.Nz,1]).T
+        cont = plt.contourf(alltimes, zmean, Umean, cmap=contour_colormap)
+        cbar = plt.colorbar(cont)
+        cbar.set_label(params['field'])
+        plt.ylabel('z [m]')
 
