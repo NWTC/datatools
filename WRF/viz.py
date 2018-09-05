@@ -155,7 +155,7 @@ class Visualization2D(object):
     def write_profiles(self):
         print('blerg')
 
-    def plot_mean_profile(self):
+    def plot_mean_profile(self,field=None):
         """Plot the mean profile averaged over the xlim and ylim 
         specified by the interactive widgets.
         """
@@ -167,7 +167,9 @@ class Visualization2D(object):
         print('mean over x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
         print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
         z = self.z
-        U = getattr(self,params['field'])
+        if field is None:
+            field = params['field']
+        U = getattr(self,field)
         zmean = np.mean(z[itime,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(1,2))
         Umean = np.mean(U[itime,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(1,2))
         plt.figure(2, figsize=(4,6))
@@ -176,7 +178,7 @@ class Visualization2D(object):
         plt.ylabel('z [m]')
         plt.title('itime={:d}'.format(itime))
 
-    def plot_all_mean_profiles(self):
+    def plot_mean_profiles_over_time(self,field=None):
         """Plot mean profiles for all times loaded. Averaging is
         performed over xlim and ylim specified by the interactive
         widgets.
@@ -188,8 +190,10 @@ class Visualization2D(object):
         print('mean over x:{}, y:{}'.format(ds*np.array(xr),ds*np.array(yr)))
         print('  area is {:.1f} by {:.1f} m^2'.format(ds*np.diff(xr)[0],ds*np.diff(yr)[0]))
         z = self.z
-        U = getattr(self,params['field'])
-        print('averaging over {} times, could take a while...'.format(self.Ntimes))
+        if field is None:
+            field = params['field']
+        U = getattr(self,field)
+        print('averaging {:s} over {:d} times, could take a while...'.format(field,self.Ntimes))
         zmean = np.mean(z[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         Umean = np.mean(U[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         plt.figure(2, figsize=(4,6))
