@@ -191,7 +191,7 @@ class ForcingTable(object):
         """
         data = None    
         for fname in args:
-            newdata = openfoam_util.read_all_tables(fname)
+            newdata = openfoam_util.read_all_defs(fname,verbose=False)
             if data is None:
                 data = newdata
             else:

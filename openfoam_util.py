@@ -5,19 +5,19 @@
 #
 import numpy as np
 
-def read_general(f,line=None,verbose=False):
+def _read(f,line=None,debug=False):
     """Read scalar, list, or list of lists from currently open file and
     cast resulting lists as arrays where appropriate
     """
     # get a string with a complete definition in one line
     if line is None:
         line = f.readline()
-    while (not line.rstrip().endswith(';')) \
+    while (not ';' in line) \
             or (not line.count('(') == line.count(')')):
         line += f.readline()
     # clean up the string
     line = line.strip()
-    line = line.rstrip(';')
+    line = line[:line.index(';')]
     line = line.replace('(',' ( ') # guarantee parentheses are separated out
     line = line.replace(')',' ) ') # guarantee parentheses are separated out
     line = line.replace('\n',' ')
@@ -26,7 +26,7 @@ def read_general(f,line=None,verbose=False):
     line = list(filter(None, line.split(' '))) # filter removes empty strings
     name = line[0]
     data = []
-    if verbose:
+    if debug:
         print('key:',name)
         print('raw data (split):',line[1:])
     # at this point, 1-D data looks something like this:
@@ -42,13 +42,16 @@ def read_general(f,line=None,verbose=False):
         data = np.array(data)
     return name, data
 
-def parse_list(L,cast=float,verbose=False):
+def parse_list(L,cast=float,debug=False):
     """Strip out '(' and ')' and replace with list(s)"""
-    # single value--do we need to handle this?
+    # single value
     if len(L) == 1:
         L = L[0]
         if cast is not None:
-            L = cast(L)
+            try:
+                L = cast(L)
+            except ValueError:
+                L = L.strip("'").strip('"')
         return L
 
     # strip first level of list parentheses
@@ -62,7 +65,7 @@ def parse_list(L,cast=float,verbose=False):
 
     # process general arrays
     while '(' in L:
-        if verbose: print(L)
+        if debug: print(L)
         # find floats to combine into a list
         for i in range(len(L)):
             if isinstance(L[i], list) or L[i] in ['(',')']:
@@ -70,6 +73,7 @@ def parse_list(L,cast=float,verbose=False):
             try:
                 float(L[i])
             except ValueError:
+                # assume arrays/lists only contain numeric items
                 continue
             else:
                 break
@@ -78,20 +82,20 @@ def parse_list(L,cast=float,verbose=False):
         newdata = L[i:iend]
         if cast is not None:
             newdata = [ cast(val) for val in newdata ]
-        if verbose: print('new data',newdata)
+        if debug: print('new data',newdata)
         # get rid of old list items
         for _ in range(i,iend+1):
             L.pop(i)
         # replace '(' with the new list
         L[i-1] = newdata
-        if verbose: print('current list',L)
+        if debug: print('current list',L)
 
     return L
 
-def read_all_tables(fname,verbose=True):
-    """Read all N-D arrays from the specified file, which is assumed
-    to be a basic included input file. Results are returned in a
-    dictionary.
+def read_all_defs(fname,verbose=True):
+    """Read all definitions, including N-D arrays from the specified
+    file, which may be read on the fly during runtime. Results are
+    returned in a dictionary.
     """
     data = {}
     with open(fname,'r') as f:
@@ -105,11 +109,14 @@ def read_all_tables(fname,verbose=True):
             elif line.lstrip().startswith('//'):
                 # ignore single line comments
                 if verbose: print(line.rstrip())
+            elif line.lstrip().startswith('#'):
+                # ignore directives
+                if verbose: print(line.rstrip())
             elif not line.strip() == '':
                 # parse line(s)
-                key, val = read_general(f,line)
+                key, val = _read(f,line)
                 data[key] = val
-                if verbose: print('read',key)
+                if verbose: print('read',key,val)
             # read next line 
             line = f.readline()
     return data
