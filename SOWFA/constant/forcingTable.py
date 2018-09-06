@@ -18,6 +18,10 @@ import pandas as pd
 
 from datatools.openfoam_util import read_all_defs, of_list, of_listlist
 
+from ipywidgets import interactive #interact, interactive, fixed, interact_manual
+import ipywidgets as widgets
+from IPython.display import display
+
 series_colormap = 'viridis'
 
 class ForcingTable(object):
@@ -40,6 +44,7 @@ class ForcingTable(object):
                 if profile is not None:
                     break
             Nt, Nz = profile.shape
+            self.Nt = Nt
             assert(Nt == len(self.t))
             if U is None:
                 self.U = np.zeros((Nt,Nz))
@@ -57,7 +62,7 @@ class ForcingTable(object):
         interpolates all field variables to the specified z
         """
         Nz = len(z)
-        Nt = len(self.t)
+        Nt = self.Nt
         Unew = np.zeros((Nt,Nz))
         Vnew = np.zeros((Nt,Nz))
         Wnew = np.zeros((Nt,Nz))
@@ -97,7 +102,7 @@ class ForcingTable(object):
                 dt = ti - self.t[0]
                 t.append(dt.total_seconds())
             self.t = t
-        if len(self.t) == 1:
+        if self.Nt == 1:
             # duplicate profile for t=TLARGE so that we have constant source terms
             print('duplicating time 0 for constant profile')
             self.t = [self.t[0], self.t[0] + 999999.0]
@@ -129,22 +134,146 @@ class ForcingTable(object):
         ax[0].set_ylabel(r'$z$ [m]')
 
     def plot_over_time(self, **kwargs):
+        try:
+            tconv = kwargs.pop('convert_time')
+        except KeyError:
+            tconv = {'s': 1.0}
+        tunit = list(tconv.keys())[0]
+        tfac = tconv[tunit]
+
         fig,ax = plt.subplots(ncols=4,figsize=(10,4))
         colors = cm.get_cmap(series_colormap)
+        frac = (self.t - self.t[0]) / (self.t[-1] - self.t[0])
         for itime, ti in enumerate(self.t):
-            col = colors(float(itime)/(len(self.t)-1))
+            col = colors(frac[itime])
             label = ''
             if (itime == 0) or (itime == len(self.t)-1):
-                label = 't = {:.1f} s'.format(ti)
+                label = '{:.1f} {:s}'.format(ti*tfac,tunit)
             kwargs['color'] = col
             kwargs['label'] = label
             self.plot(itime=itime, ax=ax, **kwargs)
         ax[0].legend(loc='best')
 
+    def extrapolate(self,field,time,order=1):
+        from scipy.interpolate import InterpolatedUnivariateSpline
+        U = getattr(self,field)
+        _,Nz = U.shape
+        interpname = '_' + field + 'interp'
+        try:
+            Ufn = getattr(self, interpname)
+        except AttributeError:
+            Ufn = []
+            for iz in range(Nz):
+                Ufn.append(InterpolatedUnivariateSpline(self.t, U[:,iz], k=order))
+            setattr(self, interpname, Ufn)
+        Uextrap = np.zeros((Nz))
+        for iz in range(Nz):
+            Uextrap[iz] = Ufn[iz](time)
+        return Uextrap
+
+    def editor_plot(self,**kwargs):
+        edits = self.editor.kwargs
+        conv = 3600.0
+        if not hasattr(self, '_Uext'):
+            _,Nz = self.U.shape
+            _,NzT = self.T.shape
+            self._text = np.zeros((self.Nt+2))
+            self._Uext = np.zeros((self.Nt+2,Nz))
+            self._Vext = np.zeros((self.Nt+2,Nz))
+            self._Wext = np.zeros((self.Nt+2,Nz))
+            self._Text = np.zeros((self.Nt+2,NzT))
+            self._text[1:-1] = self.t
+            self._Uext[1:-1,:] = self.U
+            self._Vext[1:-1,:] = self.V
+            self._Wext[1:-1,:] = self.W
+            self._Text[1:-1,:] = self.T
+            self._tsave = self.t.copy()
+            self._Usave = self.U.copy()
+            self._Vsave = self.V.copy()
+            self._Wsave = self.W.copy()
+            self._Tsave = self.T.copy()
+        # get updated times
+        t0 = self.t[0] + edits['back_hrs'] * conv
+        t1 = self.t[-1] + edits['fwd_hrs'] * conv
+        self._text[0] = t0
+        self._text[-1] = t1
+        # extrapolate
+        if edits['mom_back'] == 'extrapolate':
+            self._Uext[0,:] = self.extrapolate('U',t0)
+            self._Vext[0,:] = self.extrapolate('V',t0)
+            self._Wext[0,:] = self.extrapolate('W',t0)
+        else:
+            self._Uext[0,:] = self._Usave[0,:]
+            self._Vext[0,:] = self._Vsave[0,:]
+            self._Wext[0,:] = self._Wsave[0,:]
+        if edits['temp_back'] == 'extrapolate':
+            self._Text[0,:] = self.extrapolate('T',t0)
+        else:
+            self._Text[0,:] = self._Tsave[0,:]
+        if edits['mom_fwd'] == 'extrapolate':
+            self._Uext[-1,:] = self.extrapolate('U',t1)
+            self._Vext[-1,:] = self.extrapolate('V',t1)
+            self._Wext[-1,:] = self.extrapolate('W',t1)
+        else:
+            self._Uext[-1,:] = self._Usave[-1,:]
+            self._Vext[-1,:] = self._Vsave[-1,:]
+            self._Wext[-1,:] = self._Wsave[-1,:]
+        if edits['temp_fwd'] == 'extrapolate':
+            self._Text[-1,:] = self.extrapolate('T',t1)
+        else:
+            self._Text[-1,:] = self._Tsave[-1,:]
+        # plot extrapolated values
+        self.t = self._text
+        self.U = self._Uext
+        self.V = self._Vext
+        self.W = self._Wext
+        self.T = self._Text
+        self.plot_over_time(convert_time={'h':1.0/conv})
+        # restore actual values
+        self.t = self._tsave
+        self.U = self._Usave
+        self.V = self._Vsave
+        self.W = self._Wsave
+        self.T = self._Tsave
+
+    def edit(self):
+        """Basic controls for manipulating the source terms"""
+        back_hrs = widgets.BoundedFloatText(value=0.0,min=-999,max=0.0,step=0.25,
+                                            description='hours')
+        fwd_hrs = widgets.BoundedFloatText(value=0.0,min=0.0,max=999,step=0.25,
+                                            description='hours')
+        self.editor = interactive(self.editor_plot,
+                                  mom_back=['constant','extrapolate'],
+                                  temp_back=['constant','extrapolate'],
+                                  back_hrs=back_hrs,
+                                  mom_fwd=['constant','extrapolate'],
+                                  temp_fwd=['constant','extrapolate'],
+                                  fwd_hrs=fwd_hrs)
+        display(self.editor)
+
+    def save_edits(self):
+        edits = self.editor.kwargs
+        istart, iend = None, None
+        if edits['back_hrs'] == 0:
+            istart = 1
+        if edits['fwd_hrs'] == 0:
+            iend = -1
+        inrange = slice(istart,iend)
+        self.U = self._Uext[inrange]
+        self.V = self._Vext[inrange]
+        self.W = self._Wext[inrange]
+        self.T = self._Text[inrange]
+        self.t = self._text[inrange]
+        toffset = -self.t[0]
+        print('shifting time by {:.1f} s'.format(toffset))
+        self.t += toffset
+        self.Nt = len(self.t)
+        delattr(self, '_Uext') # flag for update
+
     def to_csv(self,fname):
         alltimesM = [ ti for ti in self.t for _ in range(len(self.z)) ]
         df = pd.DataFrame(index=alltimesM)
-        df['z'] = np.tile(self.z, len(self.t))
+        df['z'] = np.tile(self.z, self.Nt)
         df['U'] = self.U.ravel()
         df['V'] = self.V.ravel()
         df['W'] = self.W.ravel()
@@ -153,7 +282,7 @@ class ForcingTable(object):
         else:
             alltimesT = [ ti for ti in self.t for _ in range(len(self.zT)) ]
             dfT = pd.DataFrame(index=alltimesT)
-            dfT['z'] = np.tile(self.zT, len(self.t))
+            dfT['z'] = np.tile(self.zT, self.Nt)
             dfT['T'] = self.T.ravel()
             df = pd.concat([df,dfT],sort=False) # suppress warning, don't sort columns
         df.to_csv(fname)
@@ -164,17 +293,17 @@ class ForcingTable(object):
         self.t = df.index.unique()
         self.z = df.loc[~pd.isna(df['U']),'z'].unique()
         self.zT = df.loc[~pd.isna(df['T']),'z'].unique()
-        Nt = len(self.t)
+        self.Nt = len(self.t)
         Nz = len(self.z)
         NzT = len(self.zT)
         U = df.loc[~pd.isna(df['U']),'U']
         V = df.loc[~pd.isna(df['V']),'V']
         W = df.loc[~pd.isna(df['W']),'W']
         T = df.loc[~pd.isna(df['T']),'T']
-        self.U = U.values.reshape((Nt,Nz))
-        self.V = V.values.reshape((Nt,Nz))
-        self.W = W.values.reshape((Nt,Nz))
-        self.T = T.values.reshape((Nt,NzT))
+        self.U = U.values.reshape((self.Nt,Nz))
+        self.V = V.values.reshape((self.Nt,Nz))
+        self.W = W.values.reshape((self.Nt,Nz))
+        self.T = T.values.reshape((self.Nt,NzT))
         self._validate()
 
     def read_openfoam_ascii(self,*args,
@@ -201,6 +330,7 @@ class ForcingTable(object):
         assert(np.all(self.t==data[V][:,0]))
         assert(np.all(self.t==data[W][:,0]))
         assert(np.all(self.t==data[T][:,0]))
+        self.Nt = len(self.t)
 
         self.z = data[z]
         self.U = data[U][:,1:]
