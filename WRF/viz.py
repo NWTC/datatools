@@ -5,6 +5,7 @@
 #
 from __future__ import print_function
 import os
+from glob import glob
 from datetime import datetime
 
 import xarray
@@ -49,7 +50,12 @@ class Visualization2D(object):
 
         """Load a series of netcdf files provided by args"""
         if len(args) > 0:
-            inputfiles = args
+            inputfiles = []
+            for fpath in args:
+                if os.path.isfile(fpath):
+                    inputfiles.append(fpath)
+                else:
+                    inputfiles += glob(fpath)
         else:
             inputfiles = os.listdir('.')
         filelist = []
@@ -83,7 +89,7 @@ class Visualization2D(object):
 
         if parse_datetime is not None:
             # parse_datetime is the datetime format
-            self.times = np.array([datetime.strptime(fname, parse_datetime)
+            self.times = np.array([datetime.strptime(os.path.split(fname)[-1], parse_datetime)
                                    for fname in self.filelist])
         else:
             self.times = np.arange(self.Ntimes)
