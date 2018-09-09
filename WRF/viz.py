@@ -280,10 +280,10 @@ class Visualization2D(object):
         return ForcingTable(heights=zmean, times=self.times,
                             U=Umean, V=Vmean, W=Wmean, T=Tmean)
 
-    def save_forcing_table(self,z,name='forcingTable'):
+    def save_forcing_table(self,z,dpath='.',name='forcingTable'):
         """Save forcingTable with specified fname at specified heights z"""
         tab = self.get_forcing_table()
         tab.regularize_heights(z)
-        tab.to_csv(name+'.csv')
-        #tab.to_openfoam(name)
+        tab.to_csv(os.path.join(dpath,name+'.csv'))
+        tab.write(os.path.join(dpath,name))
         return tab
