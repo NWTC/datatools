@@ -35,9 +35,9 @@ class ForcingTable(object):
         self.W = W
         self.T = T
         self.separate_heights = False
-        self.z = heights
+        self.z = np.array(heights)
         self.zT = self.z
-        self.t = times
+        self.t = np.array(times)
         if any([ profile is not None for profile in [U,V,W,T]]):
             # if specified this way, assume all profiles have the same heights
             for profile in [U,V,W,T]:
@@ -101,7 +101,7 @@ class ForcingTable(object):
             for ti in self.t:
                 dt = ti - self.t[0]
                 t.append(dt.total_seconds())
-            self.t = t
+            self.t = np.array(t)
         if self.Nt == 1:
             # duplicate profile for t=TLARGE so that we have constant source terms
             print('duplicating time 0 for constant profile')
