@@ -5,6 +5,7 @@
 #
 from __future__ import print_function
 import os
+from glob import glob
 from datetime import datetime
 
 import xarray
@@ -49,7 +50,12 @@ class Visualization2D(object):
 
         """Load a series of netcdf files provided by args"""
         if len(args) > 0:
-            inputfiles = args
+            inputfiles = []
+            for fpath in args:
+                if os.path.isfile(fpath):
+                    inputfiles.append(fpath)
+                else:
+                    inputfiles += glob(fpath)
         else:
             inputfiles = os.listdir('.')
         filelist = []
@@ -83,7 +89,7 @@ class Visualization2D(object):
 
         if parse_datetime is not None:
             # parse_datetime is the datetime format
-            self.times = np.array([datetime.strptime(fname, parse_datetime)
+            self.times = np.array([datetime.strptime(os.path.split(fname)[-1], parse_datetime)
                                    for fname in self.filelist])
         else:
             self.times = np.arange(self.Ntimes)
@@ -204,7 +210,7 @@ class Visualization2D(object):
         Umean = np.mean(U[itime,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(1,2))
         plt.figure(2, figsize=(4,6))
         plt.plot(Umean, zmean)
-        plt.xlabel(params['field'])
+        plt.xlabel(field)
         plt.ylabel('z [m]')
         plt.title('itime={:d}'.format(itime))
 
@@ -233,7 +239,7 @@ class Visualization2D(object):
                 #label = 'time'+str(itime)
                 label = self.times[itime]
             plt.plot(Umean[itime,:], zmean[itime,:], color=color, label=label)
-        plt.xlabel(params['field'])
+        plt.xlabel(field)
         plt.ylabel('z [m]')
         plt.legend(loc='best')
 
@@ -257,11 +263,10 @@ class Visualization2D(object):
         alltimes = np.tile(self.times,[self.Nz,1]).T
         cont = plt.contourf(alltimes, zmean, Umean, cmap=contour_colormap)
         cbar = plt.colorbar(cont)
-        cbar.set_label(params['field'])
+        cbar.set_label(field)
         plt.ylabel('z [m]')
 
-    def save_forcing_table(self,z,name='forcingTable'):
-        """Save forcingTable with specified fname at specified heights z"""
+    def get_forcing_table(self):
         params = self.iplot.kwargs
         xr = params['xlim']
         yr = params['ylim']
@@ -272,8 +277,13 @@ class Visualization2D(object):
         Vmean = np.mean(self.V[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         Wmean = np.mean(self.W[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
         Tmean = np.mean(self.T[:,:,yr[0]:yr[1]+1,xr[0]:xr[1]+1], axis=(2,3))
-        tab = ForcingTable(heights=zmean, times=self.times,
-                           U=Umean, V=Vmean, W=Wmean, T=Tmean)
+        return ForcingTable(heights=zmean, times=self.times,
+                            U=Umean, V=Vmean, W=Wmean, T=Tmean)
+
+    def save_forcing_table(self,z,name='forcingTable'):
+        """Save forcingTable with specified fname at specified heights z"""
+        tab = self.get_forcing_table()
         tab.regularize_heights(z)
         tab.to_csv(name+'.csv')
         #tab.to_openfoam(name)
+        return tab

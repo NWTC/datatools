@@ -35,9 +35,9 @@ class ForcingTable(object):
         self.W = W
         self.T = T
         self.separate_heights = False
-        self.z = heights
+        self.z = np.array(heights)
         self.zT = self.z
-        self.t = times
+        self.t = np.array(times)
         if any([ profile is not None for profile in [U,V,W,T]]):
             # if specified this way, assume all profiles have the same heights
             for profile in [U,V,W,T]:
@@ -101,7 +101,7 @@ class ForcingTable(object):
             for ti in self.t:
                 dt = ti - self.t[0]
                 t.append(dt.total_seconds())
-            self.t = t
+            self.t = np.array(t)
         if self.Nt == 1:
             # duplicate profile for t=TLARGE so that we have constant source terms
             print('duplicating time 0 for constant profile')
@@ -193,12 +193,12 @@ class ForcingTable(object):
             self._Wsave = self.W.copy()
             self._Tsave = self.T.copy()
         # get updated times
-        t0 = self.t[0] + edits['back_hrs'] * conv
-        t1 = self.t[-1] + edits['fwd_hrs'] * conv
+        t0 = self.t[0] + edits['start_hrs'] * conv
+        t1 = self.t[-1] + edits['end_hrs'] * conv
         self._text[0] = t0
         self._text[-1] = t1
         # extrapolate
-        if edits['mom_back'] == 'extrapolate':
+        if edits['mom_start'] == 'extrapolate':
             self._Uext[0,:] = self.extrapolate('U',t0)
             self._Vext[0,:] = self.extrapolate('V',t0)
             self._Wext[0,:] = self.extrapolate('W',t0)
@@ -206,11 +206,11 @@ class ForcingTable(object):
             self._Uext[0,:] = self._Usave[0,:]
             self._Vext[0,:] = self._Vsave[0,:]
             self._Wext[0,:] = self._Wsave[0,:]
-        if edits['temp_back'] == 'extrapolate':
+        if edits['temp_start'] == 'extrapolate':
             self._Text[0,:] = self.extrapolate('T',t0)
         else:
             self._Text[0,:] = self._Tsave[0,:]
-        if edits['mom_fwd'] == 'extrapolate':
+        if edits['mom_end'] == 'extrapolate':
             self._Uext[-1,:] = self.extrapolate('U',t1)
             self._Vext[-1,:] = self.extrapolate('V',t1)
             self._Wext[-1,:] = self.extrapolate('W',t1)
@@ -218,7 +218,7 @@ class ForcingTable(object):
             self._Uext[-1,:] = self._Usave[-1,:]
             self._Vext[-1,:] = self._Vsave[-1,:]
             self._Wext[-1,:] = self._Wsave[-1,:]
-        if edits['temp_fwd'] == 'extrapolate':
+        if edits['temp_end'] == 'extrapolate':
             self._Text[-1,:] = self.extrapolate('T',t1)
         else:
             self._Text[-1,:] = self._Tsave[-1,:]
@@ -238,25 +238,25 @@ class ForcingTable(object):
 
     def edit(self):
         """Basic controls for manipulating the source terms"""
-        back_hrs = widgets.BoundedFloatText(value=0.0,min=-999,max=0.0,step=0.25,
-                                            description='hours')
-        fwd_hrs = widgets.BoundedFloatText(value=0.0,min=0.0,max=999,step=0.25,
-                                            description='hours')
+        self.start_hrs = widgets.BoundedFloatText(value=0.0,min=-999,max=0.0,step=0.25,
+                                                  description='hours')
+        self.end_hrs = widgets.BoundedFloatText(value=0.0,min=0.0,max=999,step=0.25,
+                                                description='hours')
         self.editor = interactive(self.editor_plot,
-                                  mom_back=['constant','extrapolate'],
-                                  temp_back=['constant','extrapolate'],
-                                  back_hrs=back_hrs,
-                                  mom_fwd=['constant','extrapolate'],
-                                  temp_fwd=['constant','extrapolate'],
-                                  fwd_hrs=fwd_hrs)
+                                  mom_start=['extend constant','extrapolate'],
+                                  temp_start=['extend constant','extrapolate'],
+                                  start_hrs=self.start_hrs,
+                                  mom_end=['extend constant','extrapolate'],
+                                  temp_end=['extend constant','extrapolate'],
+                                  end_hrs=self.end_hrs)
         display(self.editor)
 
     def save_edits(self):
         edits = self.editor.kwargs
         istart, iend = None, None
-        if edits['back_hrs'] == 0:
+        if edits['start_hrs'] == 0:
             istart = 1
-        if edits['fwd_hrs'] == 0:
+        if edits['end_hrs'] == 0:
             iend = -1
         inrange = slice(istart,iend)
         self.U = self._Uext[inrange]
