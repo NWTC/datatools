@@ -163,7 +163,8 @@ class Visualization2D(object):
             plt.xlabel('x [{:s}]'.format(length_units))
             plt.ylabel('y [{:s}]'.format(length_units))
             plt.gca().invert_yaxis()
-            plt.title('z ~= {:.1f} m'.format(self.z_est[time,index]))
+            plt.title('{:s}, z ~= {:.1f} m'.format(str(self.times[time]),
+                                                   self.z_est[time,index]))
             # add bounding box for averaging region
             if (xlim[0] > 0) or (xlim[1] < self.Nx-1) \
                     or (ylim[0] > 0) or (ylim[1] < self.Ny-1):
