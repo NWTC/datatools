@@ -1,4 +1,4 @@
-#
+
 # Module for read/writing SOWFA source terms, e.g.:
 #   constant/forcingTable
 # stored in OpenFOAM's table format, referenced by:
@@ -134,25 +134,60 @@ class ForcingTable(object):
         ax[0].set_ylabel(r'$z$ [m]')
 
     def plot_over_time(self, **kwargs):
+        """Plot profiles over time
+
+        Keyword arguments
+        -----------------
+        convert_time: tuple, optional
+            A single key/value pair where there key is the new time
+            unit and the value is the time scaling factor
+        time_range: tuple, optional
+            Start/end times to plot (in converted time units); set to
+            None for the beginning/end of the forcing data
+        max_lines: int, optional
+            Automatically calculate plotting interval if the number of
+            snapshots to plot is greater than this number
+        **kwargs: optional
+            Passed to matplotlib.pyplot.plot
+        """
         try:
             tconv = kwargs.pop('convert_time')
         except KeyError:
-            tconv = {'s': 1.0}
-        tunit = list(tconv.keys())[0]
-        tfac = tconv[tunit]
+            tconv = ('s', 1.0)
+        tunit = tconv[0]
+        tfac = tconv[1]
+
+        try:
+            trange = kwargs.pop('time_range')
+        except KeyError:
+            trange = (None,None)
+        i0, i1 = 0, len(self.t)-1
+        if trange[0] is not None:
+            i0 = np.nonzero(self.t >= trange[0]/tfac)[0][0]
+        if trange[1] is not None:
+            i1 = np.nonzero(self.t <= trange[1]/tfac)[0][-1]
+        tsubset = self.t[i0:i1+1]
+
+        try:
+            Nmax = kwargs.pop('max_lines')
+        except KeyError:
+            Nmax = 999999
+        if len(tsubset) > Nmax:
+            iskip = int(len(tsubset) / Nmax)
+            tsubset = self.t[i0:i1+1:iskip]
 
         fig,ax = plt.subplots(ncols=4,figsize=(10,4))
         colors = cm.get_cmap(series_colormap)
-        frac = (self.t - self.t[0]) / (self.t[-1] - self.t[0])
-        for itime, ti in enumerate(self.t):
+        frac = (tsubset - self.t[i0]) / (self.t[i1] - self.t[i0])
+        for itime, ti in enumerate(tsubset):
             col = colors(frac[itime])
             label = ''
-            if (itime == 0) or (itime == len(self.t)-1):
+            if (itime == 0) or (itime == len(tsubset)-1):
                 label = '{:.1f} {:s}'.format(ti*tfac,tunit)
             kwargs['color'] = col
             kwargs['label'] = label
             self.plot(itime=itime, ax=ax, **kwargs)
-        ax[0].legend(loc='best')
+        ax[-1].legend(loc='upper left',bbox_to_anchor=(1.05,1.0))
 
     def extrapolate(self,field,time,order=1):
         from scipy.interpolate import InterpolatedUnivariateSpline
@@ -242,13 +277,19 @@ class ForcingTable(object):
                                                   description='hours')
         self.end_hrs = widgets.BoundedFloatText(value=0.0,min=0.0,max=999,step=0.25,
                                                 description='hours')
+        self.lapse_rate = widgets.FloatRangeSlider(min=0.003, max=0.003, value=0.003)
+        #self.inversion_top = widgets.FloatRangeSlider
         self.editor = interactive(self.editor_plot,
                                   mom_start=['extend constant','extrapolate'],
                                   temp_start=['extend constant','extrapolate'],
                                   start_hrs=self.start_hrs,
                                   mom_end=['extend constant','extrapolate'],
                                   temp_end=['extend constant','extrapolate'],
-                                  end_hrs=self.end_hrs)
+                                  end_hrs=self.end_hrs,
+                                  enforce_lapse_rate=False,
+                                  lapse_rate=self.lapse_rate,
+                                  #inversion_top=
+                                  )
         display(self.editor)
 
     def save_edits(self):
