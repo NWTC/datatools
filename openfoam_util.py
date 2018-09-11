@@ -142,3 +142,13 @@ def of_listlist(name,arr):
     s += ');\n'
     return s
 
+def seconds_to_datetime(tarray,starttime):
+    """Convert an array of times in seconds to an array of datetime
+    objects. Start time is a datetime string that can be converted using
+    pd.to_datetime().
+    """
+    import pandas as pd
+    tarray = pd.to_timedelta(tarray,unit='s')
+    t0 = pd.to_datetime(starttime)
+    return tarray + t0
+
