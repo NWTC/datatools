@@ -231,7 +231,8 @@ class ForcingTable(object):
         iz = np.nonzero(self.z >= self.inversion_top.value)[0][0]
         dz = self.z[-1] - self.z[iz]
         assert(dz > 0)
-        return (self.T[:,-1] - self.T[:,iz]) / dz
+        self.dT_dz = (self.T[:,-1] - self.T[:,iz]) / dz
+        return self.dT_dz
 
     def editor_plot(self,**kwargs):
         edits = self.editor.kwargs
