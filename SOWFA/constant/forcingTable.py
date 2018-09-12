@@ -206,9 +206,29 @@ class ForcingTable(object):
             Uextrap[iz] = Ufn[iz](time)
         return Uextrap
 
+    def _calculate_Tgrad_upper(self):
+        iz = np.nonzero(self.z >= self.inversion_top.value)[0][0]
+        dz = self.z[-1] - self.z[iz]
+        assert(dz > 0)
+        return (self.T[:,-1] - self.T[:,iz]) / dz
+
     def editor_plot(self,**kwargs):
         edits = self.editor.kwargs
         conv = 3600.0
+        TGradUpper = None
+
+        # update controls
+        if edits['enforce_lapse_rate']:
+            self.lapse_rate.disabled = False
+            self.inversion_top.disabled = False
+            TGradUpper = self._calculate_Tgrad_upper()
+            self.lapse_rate.min = np.min(TGradUpper)
+            self.lapse_rate.max = np.max(TGradUpper)
+        else:
+            self.lapse_rate.disabled = True
+            self.inversion_top.disabled = True
+
+        # first time setup
         if not hasattr(self, '_Uext'):
             _,Nz = self.U.shape
             _,NzT = self.T.shape
@@ -227,11 +247,13 @@ class ForcingTable(object):
             self._Vsave = self.V.copy()
             self._Wsave = self.W.copy()
             self._Tsave = self.T.copy()
+
         # get updated times
         t0 = self.t[0] + edits['start_hrs'] * conv
         t1 = self.t[-1] + edits['end_hrs'] * conv
         self._text[0] = t0
         self._text[-1] = t1
+
         # extrapolate
         if edits['mom_start'] == 'extrapolate':
             self._Uext[0,:] = self.extrapolate('U',t0)
@@ -257,13 +279,23 @@ class ForcingTable(object):
             self._Text[-1,:] = self.extrapolate('T',t1)
         else:
             self._Text[-1,:] = self._Tsave[-1,:]
-        # plot extrapolated values
+
+        # extrapolate temperature profile
+        #if edits['enforce_lapse_rate']:
+            
+
+        # plot extended values
         self.t = self._text
         self.U = self._Uext
         self.V = self._Vext
         self.W = self._Wext
         self.T = self._Text
-        self.plot_over_time(convert_time={'h':1.0/conv})
+        self.plot_over_time(convert_time=('h',1.0/conv),max_lines=20)
+
+        if edits['enforce_lapse_rate']:
+            plt.gcf().get_axes()[3].axhline(edits['inversion_top'],
+                                            ls='--',color='k')
+
         # restore actual values
         self.t = self._tsave
         self.U = self._Usave
@@ -277,8 +309,19 @@ class ForcingTable(object):
                                                   description='hours')
         self.end_hrs = widgets.BoundedFloatText(value=0.0,min=0.0,max=999,step=0.25,
                                                 description='hours')
-        self.lapse_rate = widgets.FloatRangeSlider(min=0.003, max=0.003, value=0.003)
-        #self.inversion_top = widgets.FloatRangeSlider
+
+        self.inversion_top = widgets.FloatSlider(min=self.z[0], max=self.z[-2],
+                                                 value=self.z[-2],
+                                                 step=self.z[1]-self.z[0],
+                                                 readout_format='.1f',
+                                                 disabled=True)
+        TGradUpper = self._calculate_Tgrad_upper()
+        self.lapse_rate = widgets.FloatSlider(min=np.min(TGradUpper),
+                                              max=np.max(TGradUpper),
+                                              step=0.0001,
+                                              value=np.mean(TGradUpper),
+                                              readout_format='.3g',
+                                              disabled=True)
         self.editor = interactive(self.editor_plot,
                                   mom_start=['extend constant','extrapolate'],
                                   temp_start=['extend constant','extrapolate'],
@@ -288,7 +331,7 @@ class ForcingTable(object):
                                   end_hrs=self.end_hrs,
                                   enforce_lapse_rate=False,
                                   lapse_rate=self.lapse_rate,
-                                  #inversion_top=
+                                  inversion_top=self.inversion_top
                                   )
         display(self.editor)
 
