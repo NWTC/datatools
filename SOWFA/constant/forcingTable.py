@@ -237,6 +237,7 @@ class ForcingTable(object):
             self._Vext = np.zeros((self.Nt+2,Nz))
             self._Wext = np.zeros((self.Nt+2,Nz))
             self._Text = np.zeros((self.Nt+2,NzT))
+            self._lapse_correction = np.zeros((self.Nt+2,NzT))
             self._text[1:-1] = self.t
             self._Uext[1:-1,:] = self.U
             self._Vext[1:-1,:] = self.V
@@ -281,15 +282,25 @@ class ForcingTable(object):
             self._Text[-1,:] = self._Tsave[-1,:]
 
         # extrapolate temperature profile
-        #if edits['enforce_lapse_rate']:
-            
+        if edits['enforce_lapse_rate']:
+            iz = np.nonzero(self.z >= self.inversion_top.value)[0][0]
+            self._lapse_correction[:,:] = 0.0
+            delta = self.z[iz:] - self.z[iz]
+            for it in range(len(self._text)):
+                self._lapse_correction[it,iz:] = -self._Text[it,iz:] \
+                                                + self._Text[it,iz] \
+                                                + delta*self.lapse_rate.value
 
         # plot extended values
         self.t = self._text
         self.U = self._Uext
         self.V = self._Vext
         self.W = self._Wext
-        self.T = self._Text
+        if edits['enforce_lapse_rate']:
+            self.T = self._Text + self._lapse_correction
+        else:
+            self.T = self._Text
+
         self.plot_over_time(convert_time=('h',1.0/conv),max_lines=20)
 
         if edits['enforce_lapse_rate']:
@@ -310,9 +321,9 @@ class ForcingTable(object):
         self.end_hrs = widgets.BoundedFloatText(value=0.0,min=0.0,max=999,step=0.25,
                                                 description='hours')
 
-        self.inversion_top = widgets.FloatSlider(min=self.z[0], max=self.z[-2],
+        self.inversion_top = widgets.FloatSlider(min=self.z[1], max=self.z[-2],
                                                  value=self.z[-2],
-                                                 step=self.z[1]-self.z[0],
+                                                 step=self.z[2]-self.z[0],
                                                  readout_format='.1f',
                                                  disabled=True)
         TGradUpper = self._calculate_Tgrad_upper()
@@ -335,6 +346,19 @@ class ForcingTable(object):
                                   )
         display(self.editor)
 
+    def reset(self):
+        delattr(self, '_Uext') # flag for update
+        delattr(self, '_Vext')
+        delattr(self, '_Wext')
+        delattr(self, '_Text')
+        delattr(self, '_text')
+        delattr(self, '_lapse_correction')
+        delattr(self, '_tsave')
+        delattr(self, '_Usave')
+        delattr(self, '_Vsave')
+        delattr(self, '_Wsave')
+        delattr(self, '_Tsave')
+
     def save_edits(self):
         edits = self.editor.kwargs
         istart, iend = None, None
@@ -343,16 +367,18 @@ class ForcingTable(object):
         if edits['end_hrs'] == 0:
             iend = -1
         inrange = slice(istart,iend)
-        self.U = self._Uext[inrange]
-        self.V = self._Vext[inrange]
-        self.W = self._Wext[inrange]
-        self.T = self._Text[inrange]
+        self.U = self._Uext[inrange,:]
+        self.V = self._Vext[inrange,:]
+        self.W = self._Wext[inrange,:]
+        self.T = self._Text[inrange,:]
+        if edits['enforce_lapse_rate']:
+            self.T += self._lapse_correction[inrange,:]
         self.t = self._text[inrange]
         toffset = -self.t[0]
         print('shifting time by {:.1f} s'.format(toffset))
         self.t += toffset
         self.Nt = len(self.t)
-        delattr(self, '_Uext') # flag for update
+        self.reset()
 
     def to_csv(self,fname):
         alltimesM = [ ti for ti in self.t for _ in range(len(self.z)) ]
