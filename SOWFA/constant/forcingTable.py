@@ -18,7 +18,7 @@ import pandas as pd
 
 from datatools.openfoam_util import read_all_defs, of_list, of_listlist
 
-from ipywidgets import interactive #interact, interactive, fixed, interact_manual
+from ipywidgets import interactive, fixed #interact, interactive, fixed, interact_manual
 import ipywidgets as widgets
 from IPython.display import display
 
@@ -214,6 +214,10 @@ class ForcingTable(object):
 
     def editor_plot(self,**kwargs):
         edits = self.editor.kwargs
+        plot_kwargs = kwargs.get('plot_kwargs',{})
+        if 'max_lines' not in plot_kwargs.keys():
+            plot_kwargs['max_lines'] = int((self.t[-1]-self.t[0])/3600.0) + 1
+
         conv = 3600.0
         TGradUpper = None
 
@@ -301,7 +305,7 @@ class ForcingTable(object):
         else:
             self.T = self._Text
 
-        self.plot_over_time(convert_time=('h',1.0/conv),max_lines=20)
+        self.plot_over_time(**plot_kwargs)
 
         if edits['enforce_lapse_rate']:
             plt.gcf().get_axes()[3].axhline(edits['inversion_top'],
@@ -314,7 +318,7 @@ class ForcingTable(object):
         self.W = self._Wsave
         self.T = self._Tsave
 
-    def edit(self):
+    def edit(self,**kwargs):
         """Basic controls for manipulating the source terms"""
         self.start_hrs = widgets.BoundedFloatText(value=0.0,min=-999,max=0.0,step=0.25,
                                                   description='hours')
@@ -334,6 +338,7 @@ class ForcingTable(object):
                                               readout_format='.3g',
                                               disabled=True)
         self.editor = interactive(self.editor_plot,
+                                  plot_kwargs=fixed(kwargs),
                                   mom_start=['extend constant','extrapolate'],
                                   temp_start=['extend constant','extrapolate'],
                                   start_hrs=self.start_hrs,
