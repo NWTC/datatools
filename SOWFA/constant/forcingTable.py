@@ -111,24 +111,35 @@ class ForcingTable(object):
             self.W = np.tile(self.W,[2,1])
             self.T = np.tile(self.T,[2,1])
 
-    def plot(self, itime=-1, ax=None, **kwargs):
+    def plot(self, itime=-1, ax=None, speed_direction=False, **kwargs):
+        if speed_direction:
+            Uplot = np.sqrt(self.U[itime,:]**2 + self.V[itime,:]**2)
+            Vplot = 180.0/np.pi * np.arctan2(-self.U[itime,:],-self.V[itime,:])
+            Vplot[Vplot < 0] += 360.0
+        else:
+            Uplot = self.U[itime,:]
+            Vplot = self.V[itime,:]
         if ax is None:
             fig,ax = plt.subplots(ncols=4,figsize=(10,4))
             fig.suptitle('t = {:.1f} s'.format(self.t[itime]))
         if len(self.z) > 1:
-            ax[0].plot(self.U[itime,:], self.z, **kwargs)
-            ax[1].plot(self.V[itime,:], self.z, **kwargs)
+            ax[0].plot(Uplot, self.z, **kwargs)
+            ax[1].plot(Vplot, self.z, **kwargs)
             ax[2].plot(self.W[itime,:], self.z, **kwargs)
         else:
-            ax[0].axvline(self.U[itime,:], ls='--', **kwargs)
-            ax[1].axvline(self.V[itime,:], ls='--', **kwargs)
+            ax[0].axvline(Uplot, ls='--', **kwargs)
+            ax[1].axvline(Vplot, ls='--', **kwargs)
             ax[2].axvline(self.W[itime,:], ls='--', **kwargs)
         if len(self.zT) > 1:
             ax[3].plot(self.T[itime,:], self.zT, **kwargs)
         else:
             ax[3].advline(self.T[itime,:], ls='--', **kwargs)
-        ax[0].set_xlabel(r'$U$ [m/s]')
-        ax[1].set_xlabel(r'$V$ [m/s]')
+        if speed_direction:
+            ax[0].set_xlabel(r'wind speed [m/s]')
+            ax[1].set_xlabel(r'wind direction [deg]')
+        else:
+            ax[0].set_xlabel(r'$U$ [m/s]')
+            ax[1].set_xlabel(r'$V$ [m/s]')
         ax[2].set_xlabel(r'$W$ [m/s]')
         ax[3].set_xlabel(r'$\theta$ [K]')
         ax[0].set_ylabel(r'$z$ [m]')
@@ -138,6 +149,9 @@ class ForcingTable(object):
 
         Keyword arguments
         -----------------
+        speed_direction: bool, optional
+            If True, plot wind speed and direction instead of U and V
+            velocity components (default: False)
         convert_time: tuple, optional
             A single key/value pair where there key is the new time
             unit and the value is the time scaling factor
@@ -151,6 +165,11 @@ class ForcingTable(object):
             Passed to matplotlib.pyplot.plot
         """
         try:
+            speeddir = kwargs.pop('speed_direction')
+        except KeyError:
+            speeddir = False
+
+        try:
             tconv = kwargs.pop('convert_time')
         except KeyError:
             tconv = ('s', 1.0)
@@ -161,32 +180,34 @@ class ForcingTable(object):
             trange = kwargs.pop('time_range')
         except KeyError:
             trange = (None,None)
-        i0, i1 = 0, len(self.t)-1
+        i0 = 0
+        i1 = len(self.t)-1
         if trange[0] is not None:
             i0 = np.nonzero(self.t >= trange[0]/tfac)[0][0]
         if trange[1] is not None:
             i1 = np.nonzero(self.t <= trange[1]/tfac)[0][-1]
-        tsubset = self.t[i0:i1+1]
+        subset = range(i0,i1+1)
 
         try:
             Nmax = kwargs.pop('max_lines')
         except KeyError:
             Nmax = 999999
-        if len(tsubset) > Nmax:
-            iskip = int(len(tsubset) / Nmax)
-            tsubset = self.t[i0:i1+1:iskip]
+        if len(subset) > Nmax:
+            iskip = int(len(subset) / Nmax)
+            subset = range(i0,i1+1,iskip)
 
         fig,ax = plt.subplots(ncols=4,figsize=(10,4))
         colors = cm.get_cmap(series_colormap)
-        frac = (tsubset - self.t[i0]) / (self.t[i1] - self.t[i0])
-        for itime, ti in enumerate(tsubset):
-            col = colors(frac[itime])
+        frac = (subset - i0) / (i1 - i0)
+        for i, itime in enumerate(subset):
+            ti = self.t[itime]
+            col = colors(frac[i])
             label = ''
-            if (itime == 0) or (itime == len(tsubset)-1):
+            if (i == 0) or (i == len(subset)-1):
                 label = '{:.1f} {:s}'.format(ti*tfac,tunit)
             kwargs['color'] = col
             kwargs['label'] = label
-            self.plot(itime=itime, ax=ax, **kwargs)
+            self.plot(itime=itime, ax=ax, speed_direction=speeddir, **kwargs)
         ax[-1].legend(loc='upper left',bbox_to_anchor=(1.05,1.0))
 
     def extrapolate(self,field,time,order=1):
