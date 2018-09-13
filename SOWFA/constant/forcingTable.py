@@ -111,7 +111,10 @@ class ForcingTable(object):
             self.W = np.tile(self.W,[2,1])
             self.T = np.tile(self.T,[2,1])
 
-    def plot(self, itime=-1, ax=None, speed_direction=False, **kwargs):
+    def plot(self, itime=-1, t=None, ax=None, speed_direction=False, **kwargs):
+        """Plot profile at specified time index or time"""
+        if t is not None:
+            itime = np.argmin(np.abs(self.t - t))
         if speed_direction:
             Uplot = np.sqrt(self.U[itime,:]**2 + self.V[itime,:]**2)
             Vplot = 180.0/np.pi * np.arctan2(-self.U[itime,:],-self.V[itime,:])
