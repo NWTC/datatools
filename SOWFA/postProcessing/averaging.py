@@ -994,10 +994,12 @@ class PlanarAverages(object):
             try:
                 iter(itime)
             except TypeError:
+                # provide single tim index
                 tindices = [itime]
             else:
+                # provided list of indices
                 tindices = itime
-        print('Creating dataframe for',self.t[itime])
+        print('Creating dataframe for',self.t[tindices])
         if (fields is not None) and (fields.lower() == 'all'):
             print('All fields requested')
             self.get_vars_if_needed(*all_vars)

@@ -3,6 +3,10 @@
 # Script to check precursor convergence and plot profiles
 # written by Eliot Quon (eliot.quon@nrel.gov)
 #
+# Additional features:
+# - stress tensor rotation
+# - dataframe csv output
+#
 from __future__ import print_function
 import sys
 import numpy as np
@@ -104,11 +108,11 @@ fig.savefig('Profiles_TI.png',bbox_inches='tight')
 #
 # Save averaging data
 #
-avg.save_profile(fname='averagingProfiles.csv') # latest time
+avg.save_profile(fname='averagingProfiles.csv') # latest time only
 
 # pandas dataframe
 avg.get_vars_if_needed('q3_mean') # SFS component of T'w'
-avg.to_csv('averaging.csv') # all times
+avg.to_csv('averaging.csv') # write out all times
 
 plt.show()
 
