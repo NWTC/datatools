@@ -40,6 +40,7 @@ def read_dir(dpath='.',
              reader=pd.read_csv,
              file_filter='*',
              ext='csv',
+             sort=True,
              verbose=False,
              **kwargs):
     """Wrapper around pandas read_csv() or a custom remote_sensing.*
@@ -51,7 +52,10 @@ def read_dir(dpath='.',
     Additional keyword arguments are passed to the data reader.
     """
     dataframes = []
-    for fpath in glob.glob(os.path.join(dpath,file_filter)):
+    fpathlist = glob.glob(os.path.join(dpath,file_filter))
+    if sort:
+        fpathlist.sort()
+    for fpath in fpathlist:
         if not os.path.isfile(fpath): continue
         if not fpath.endswith(ext):
             continue
