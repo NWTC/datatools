@@ -7,47 +7,7 @@
 from __future__ import print_function
 import numpy as np
 
-pointsheader = """/*--------------------------------*- C++ -*----------------------------------*\\
-| =========                 |                                                 |
-| \\\\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\\\    /   O peration     | Version:  2.4.x                                 |
-|   \\\\  /    A nd           | Web:      www.OpenFOAM.org                      |
-|    \\\\/     M anipulation  |                                                 |
-\\*---------------------------------------------------------------------------*/
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       vectorField;
-    location    "constant/boundaryData/{patchName}";
-    object      points;
-}}
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-{N}
-("""
-
-dataheader = """/*--------------------------------*- C++ -*----------------------------------*\\
-| =========                 |                                                 |
-| \\\\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\\\    /   O peration     | Version:  2.4.x                                 |
-|   \\\\  /    A nd           | Web:      www.OpenFOAM.org                      |
-|    \\\\/     M anipulation  |                                                 |
-\\*---------------------------------------------------------------------------*/
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       {patchType}AverageField;
-    location    "constant/boundaryData/{patchName}/{timeName}";
-    object      values;
-}}
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-// Average
-{avgValue}
-
-{N}
-("""
+import datatools.SOWFA.constant.boundaryData as bd
 
 def write_points(fname,x,y,z,patchName='patch'):
     """Write out a points file which should be stored in
@@ -55,15 +15,9 @@ def write_points(fname,x,y,z,patchName='patch'):
     """
     N = len(x)
     assert(N == len(y) == len(z))
-#    with open(fname,'w') as f:
-#        f.write(pointsheader.format(patchName=patchName,N=N))
-#        f.write('{:d}\n(\n'.format(N))
-#        for i in range(N):
-#            f.write('({:f} {:f} {:f})\n'.format(x[i],y[i],z[i]))
-#        f.write(')\n')
     np.savetxt(fname,
                np.stack((x,y,z)).T, fmt='(%f %f %f)',
-               header=pointsheader.format(patchName=patchName,N=N),
+               header=bd.pointsheader.format(patchName=patchName,N=N),
                footer=')',
                comments='')
 
@@ -111,26 +65,11 @@ def write_data(fname,
         print('ERROR: Unexpected number of dimensions! No data written.')
         return
 
-#    with open(fname,'w') as f:
-#        f.write(dataheader.format(patchType=patchType,
-#                                  patchName=patchName,
-#                                  timeName=timeName,
-#                                  avgValue=avgValueStr,
-#                                  N=N))
-#        f.write('{:d}\n(\n'.format(N))
-#        if patchType == 'vector':
-#            for i in range(N):
-#                f.write('({v[0]:g} {v[1]:g} {v[2]:g})\n'.format(v=data[:,i]))
-#        elif patchType == 'scalar':
-#            for i in range(N):
-#                f.write('{v:g}\n'.format(v=data[i]))
-#        f.write(')\n')
-
-    headerstr = dataheader.format(patchType=patchType,
-                                  patchName=patchName,
-                                  timeName=timeName,
-                                  avgValue=avgValueStr,
-                                  N=N)
+    headerstr = bd.dataheader.format(patchType=patchType,
+                                     patchName=patchName,
+                                     timeName=timeName,
+                                     avgValue=avgValueStr,
+                                     N=N)
     if patchType == 'vector':
         np.savetxt(fname,
                    data.T, fmt='(%g %g %g)',
