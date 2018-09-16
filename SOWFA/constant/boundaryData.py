@@ -57,6 +57,11 @@ def write_points(fname,x,y,z,patchName='patch'):
     """
     N = len(x)
     assert(N == len(y) == len(z))
+    if len(x.shape) > 1:
+        x = x.ravel()
+        y = y.ravel()
+        z = z.ravel()
+        N = len(x)
     np.savetxt(fname,
                np.stack((x,y,z)).T, fmt='(%f %f %f)',
                header=pointsheader.format(patchName=patchName,N=N),
