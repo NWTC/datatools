@@ -180,9 +180,10 @@ class CartesianPatch(object):
         write_points(fpath,self.X,self.Y,self.Z,patchName=self.name)
         print('Wrote points to '+fpath)
 
-    def write_profiles(self, t, z, U=None, V=None, W=None, T=None,
-                        time_range=(None,None),
-                        verbose=True):
+    def write_profiles(self, t, z,
+                       U=None, V=None, W=None, T=None, k=None,
+                       time_range=(None,None),
+                       verbose=True):
         """Write out constant/boundaryData/patchName/*/{U,T} given a
         set of time-height profiles. Outputs will be interpolated to 
         the patch heights.
@@ -227,6 +228,9 @@ class CartesianPatch(object):
             W = U[:,:,2]
             U = U[:,:,0]
 
+        if k is not None:
+            assert(np.all(k.shape == (Nt,Nz)))
+
         if time_range[0] is None:
             time_range[0] = 0.0
         if time_range[1] is None:
@@ -242,6 +246,7 @@ class CartesianPatch(object):
         Vpatch = np.zeros((self.Nx,self.Ny,self.Nz))
         Wpatch = np.zeros((self.Nx,self.Ny,self.Nz))
         Tpatch = np.zeros((self.Nx,self.Ny,self.Nz))
+        kpatch = np.zeros((self.Nx,self.Ny,self.Nz))
         for it,ti in enumerate(t):
             if (ti < time_range[0]) or (ti > time_range[1]):
                 if verbose:
@@ -257,6 +262,7 @@ class CartesianPatch(object):
             Vpatch[:,:,:] = 0.0
             Wpatch[:,:,:] = 0.0
             Tpatch[:,:,:] = 0.0
+            kpatch[:,:,:] = 0.0
             if interpolate:
                 if verbose:
                     print('interpolating data at t = {:s} s'.format(tname)) 
@@ -267,6 +273,8 @@ class CartesianPatch(object):
                     Vpatch[:,:,iz] = V[it,i-1] + f*(V[it,i]-V[it,i-1])
                     Wpatch[:,:,iz] = W[it,i-1] + f*(W[it,i]-W[it,i-1])
                     Tpatch[:,:,iz] = T[it,i-1] + f*(T[it,i]-T[it,i-1])
+                    if k is not None:
+                        kpatch[:,:,iz] = k[it,i-1] + f*(k[it,i]-k[it,i-1])
             else:
                 if verbose:
                     print('mapping data at t = {:s} s'.format(tname)) 
@@ -275,12 +283,21 @@ class CartesianPatch(object):
                     Vpatch[:,:,iz] = V[it,iz]
                     Wpatch[:,:,iz] = W[it,iz]
                     Tpatch[:,:,iz] = T[it,iz]
+                    if k is not None:
+                        kpatch[:,:,iz] = k[it,iz]
         
             Upath = os.path.join(timepath,'U')
             Udata = np.stack((Upatch.ravel(), Vpatch.ravel(), Wpatch.ravel()))
             if verbose: print('writing data to {:s}'.format(Upath)) 
             write_data(Upath, Udata, patchName=self.name, timeName=ti)
+
             Tpath = os.path.join(timepath,'T')
             if verbose: print('writing data to {:s}'.format(Tpath)) 
             write_data(Tpath, Tpatch.ravel(), patchName=self.name, timeName=ti)
+
+            if k is not None:
+                kpath = os.path.join(timepath,'k')
+                if verbose: print('writing data to {:s}'.format(kpath)) 
+                write_data(kpath, kpatch.ravel(), patchName=self.name, timeName=ti)
+
 
