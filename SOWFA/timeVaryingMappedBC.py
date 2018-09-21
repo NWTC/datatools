@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 #
-# Module for in and outputting data in the OpenFOAM timeVaryingMappedFixedValue format.
+# Module for in and outputting data in the OpenFOAM timeVaryingMappedFixedValue
+# format. This module is DEPRECATED
 #
 # Written by Eliot Quon (eliot.quon@nrel.gov) -- 2017-10/18
 #
 from __future__ import print_function
 import numpy as np
+
+from datatools.openfoam_util import read_vector_field_2d, read_scalar_field_2d
 
 def _get_unique_points_from_list(ylist,zlist,NY=None,NZ=None,order='F'):
     """Detects y and z (1-D arrays) from a list of points on a

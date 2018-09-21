@@ -142,6 +142,7 @@ def of_listlist(name,arr):
     s += ');\n'
     return s
 
+
 def seconds_to_datetime(tarray,starttime):
     """Convert an array of times in seconds to an array of datetime
     objects. Start time is a datetime string that can be converted using
@@ -151,4 +152,41 @@ def seconds_to_datetime(tarray,starttime):
     tarray = pd.to_timedelta(tarray,unit='s')
     t0 = pd.to_datetime(starttime)
     return tarray + t0
+
+
+def _get_unique_points_from_list(ylist,zlist,NY=None,NZ=None,order='F'):
+    """Detects y and z (1-D arrays) from a list of points on a
+    structured grid. Makes no assumptions about the point
+    ordering
+    """
+    ylist = np.array(ylist)
+    zlist = np.array(zlist)
+    N = len(zlist)
+    assert(N == len(ylist))
+    if (NY is not None) and (NZ is not None):
+        # use specified plane dimensions
+        assert(NY*NZ == N)
+        y = ylist.reshape((NY,NZ))[:,0]
+    elif zlist[1]==zlist[0]:
+        # y changes faster, F-ordering
+        NY = np.nonzero(zlist > zlist[0])[0][0]
+        NZ = int(N / NY)
+        assert(NY*NZ == N)
+        y = ylist[:NY]
+        z = zlist.reshape((NY,NZ),order='F')[0,:]
+    elif ylist[1]==ylist[0]:
+        # z changes faster, C-ordering
+        NZ = np.nonzero(ylist > ylist[0])[0][0]
+        NY = int(N / NZ)
+        assert(NY*NZ == N)
+        z = zlist[:NZ]
+        y = ylist.reshape((NY,NZ),order='C')[:,0]
+    else:
+        print('Unrecognized point distribution')
+        print('"y" :',len(ylist),ylist)
+        print('"z" :',len(zlist),zlist)
+        return ylist,zlist,False
+    return y,z,True
+
+
 

@@ -9,6 +9,7 @@ import os
 import numpy as np
 
 from datatools.series import TimeSeries
+import datatools.openfoam_util as of
 
 
 pointsheader = """/*--------------------------------*- C++ -*----------------------------------*\\
@@ -139,45 +140,10 @@ def write_data(fname,
                    comments='')
 
 
-def _get_unique_points_from_list(ylist,zlist,NY=None,NZ=None,order='F'):
-    """Detects y and z (1-D arrays) from a list of points on a
-    structured grid. Makes no assumptions about the point
-    ordering
-    """
-    ylist = np.array(ylist)
-    zlist = np.array(zlist)
-    N = len(zlist)
-    assert(N == len(ylist))
-    if (NY is not None) and (NZ is not None):
-        # use specified plane dimensions
-        assert(NY*NZ == N)
-        y = ylist.reshape((NY,NZ))[:,0]
-    elif zlist[1]==zlist[0]:
-        # y changes faster, F-ordering
-        NY = np.nonzero(zlist > zlist[0])[0][0]
-        NZ = int(N / NY)
-        assert(NY*NZ == N)
-        y = ylist[:NY]
-        z = zlist.reshape((NY,NZ),order='F')[0,:]
-    elif ylist[1]==ylist[0]:
-        # z changes faster, C-ordering
-        NZ = np.nonzero(ylist > ylist[0])[0][0]
-        NY = int(N / NZ)
-        assert(NY*NZ == N)
-        z = zlist[:NZ]
-        y = ylist.reshape((NY,NZ),order='C')[:,0]
-    else:
-        print('Unrecognized point distribution')
-        print('"y" :',len(ylist),ylist)
-        print('"z" :',len(zlist),zlist)
-        return ylist,zlist,False
-    return y,z,True
-
-
-def read_boundary_points(fname,tol=1e-6,**kwargs):
+def read_points(fname,tol=1e-6,**kwargs):
     """Returns a 2D set of points if one of the coordinates is constant
-    otherwise returns a 3D set of points.
-    Assumes that the points are on a structured grid.
+    otherwise returns a 3D set of points. Assumes that the points are on a
+    structured grid.
     """
     N = None
     points = None
@@ -222,20 +188,132 @@ def read_boundary_points(fname,tol=1e-6,**kwargs):
         print('Unexpected boundary orientation, returning full list of points')
         return points
 
-    return _get_unique_points_from_list(ylist,zlist,**kwargs)
+    y,z,is_structured = of._get_unique_points_from_list(ylist,zlist,**kwargs)
+    assert(is_structured)
+    return y,z
+
+
+def read_vector_data(fname,Ny=None,Nz=None,order='F',verbose=False):
+    """Read vector field data from a structured boundary data patch"""
+    N = None
+    data = None
+    iread = 0
+    with open(fname,'r') as f:
+        for line in f:
+            if N is None:
+                try:
+                    N = int(line)
+                    if (Ny is not None) and (Nz is not None):
+                        if not N == Ny*Nz:
+                            Ny = None
+                            Nz = None
+                    data = np.zeros((N,3))
+                    if verbose: print('Reading',N,'vectors from',fname)
+                except ValueError: pass
+            elif not line.strip() in ['','(',')',';'] \
+                    and not line.strip().startswith('//'):
+                data[iread,:] = [ float(val) for val in line.strip().strip('()').split() ]
+                iread += 1
+    assert(iread == N)
+
+    if (Ny is not None) and (Nz is not None):
+        vectorField = np.zeros((3,Ny,Nz))
+        for i in range(3):
+            vectorField[i,:,:] = data[:,i].reshape((Ny,Nz),order=order)
+    else:
+        vectorField = data.T
+
+    return vectorField
+
+
+def read_scalar_data(fname,Ny=None,Nz=None,order='F',verbose=False):
+    """Read scalar field data from a structured boundary data patch"""
+    N = None
+    data = None
+    iread = 0
+    with open(fname,'r') as f:
+        for line in f:
+            if (N is None) or N < 0:
+                try:
+                    if N is None: 
+                        avgval = float(line)
+                        N = -1 # skip first scalar, which is the average field value (not used)
+                    else:
+                        assert(N < 0)
+                        N = int(line) # now read the number of points
+                        if (Ny is not None) and (Nz is not None):
+                            if not N == Ny*Nz:
+                                Ny = None
+                                Nz = None
+                        data = np.zeros(N)
+                        if verbose: print('Reading',N,'scalars from',fname)
+                except ValueError: pass
+            elif not line.strip() in ['','(',')',';'] \
+                    and not line.strip().startswith('//'):
+                data[iread] = float(line)
+                iread += 1
+    assert(iread == N)
+
+    if (Ny is not None) and (Nz is not None):
+        scalarField = data.reshape((Ny,Nz),order=order)
+    else:
+        scalarField = data
+
+    return scalarField
 
 
 class BoundaryData(object):
     """Object to handle boundary data"""
 
-    def __init__(self,dpath):
+    def __init__(self,
+                 bdpath,Ny=None,Nz=None,order='F',
+                 fields=['U','T','k'],
+                 verbose=True):
         """Process timeVaryingMapped* boundary data located in in
             constant/boundaryData/<bcname>
         """
-        self.dpath = dpath
-        assert(os.path.isdir(dpath))
-        self.points = read_boundary_points(os.path.join(dpath,'points'))
+        self.dpath = bdpath
+        assert(os.path.isdir(bdpath))
 
+        self.ts = TimeSeries(bdpath,dirs=True,verbose=verbose)
+        self.Ntimes = self.ts.Ntimes
+
+        kwargs = {}
+        if (Ny is not None) and (Nz is not None):
+            kwargs = dict(Ny=Ny, Nz=Nz)
+        self.y, self.z = read_points(os.path.join(bdpath,'points'), **kwargs)
+        self.Ny = len(self.y)
+        self.Nz = len(self.z)
+        self.fields = fields
+        haveU, haveT, havek = False, False, False
+        if 'U' in fields:
+            haveU = True
+            self.U = np.zeros((self.Ntimes,self.Ny,self.Nz,3))
+        if 'T' in fields:
+            haveT = True
+            self.T = np.zeros((self.Ntimes,self.Ny,self.Nz))
+        if 'k' in fields:
+            havek = True
+            self.k = np.zeros((self.Ntimes,self.Ny,self.Nz))
+
+        for itime, dpath in enumerate(self.ts):
+            if verbose:
+                print('t={:f} {:s}'.format(self.ts.times[itime],dpath))
+            Ufield = read_vector_data(os.path.join(dpath, 'U'),
+                                      Ny=self.Ny, Nz=self.Nz)
+            for i in range(3):
+                self.U[itime,:,:,i] = Ufield[i,:,:]
+            Tfield = read_scalar_data(os.path.join(dpath, 'T'),
+                                      Ny=self.Ny, Nz=self.Nz)
+            self.T[itime,:,:] = Tfield
+            kfield = read_scalar_data(os.path.join(dpath, 'k'),
+                                      Ny=self.Ny, Nz=self.Nz)
+            self.k[itime,:,:] = kfield
+
+    
+    def to_npz(self,fpath='boundaryData.npz'):
+        output = { field:getattr(self,field) for field in self.fields }
+        np.savez_compressed(fpath,**output)
 
 class CartesianPatch(object):
     """Object to facilitate outputing boundary patches on a Cartesian

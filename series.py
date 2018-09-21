@@ -90,8 +90,9 @@ class TimeSeries(Series):
 
     def __init__(self,
                  datadir='.',
-                 prefix=None, suffix='',
+                 prefix='', suffix='',
                  dt=1.0, t0=0.0,
+                 dirs=False,
                  **kwargs):
         """Collect data from specified directory, for files with a
         given prefix and optional suffix. For series with integer time
@@ -102,11 +103,16 @@ class TimeSeries(Series):
         self.dt = dt
         self.t0 = t0
 
+        if dirs:
+            def check_path(f): return os.path.isdir(f)
+        else:
+            def check_path(f): return os.path.isfile(f)
+
         if self.verbose:
             print('Retrieving time series from',self.datadir)
 
         for f in os.listdir(self.datadir):
-            if (os.path.isfile(os.path.join(self.datadir,f))) \
+            if (check_path(os.path.join(self.datadir,f))) \
                     and f.startswith(prefix) \
                     and f.endswith(suffix):
                 fpath = os.path.join(self.datadir,f)
