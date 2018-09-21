@@ -63,6 +63,9 @@ def write_points(fname,x,y,z,patchName='patch'):
         y = y.ravel()
         z = z.ravel()
         N = len(x)
+    dpath = os.path.split(fname)[0]
+    if not os.path.isdir(dpath):
+        os.makedirs(dpath)
     np.savetxt(fname,
                np.stack((x,y,z)).T, fmt='(%f %f %f)',
                header=pointsheader.format(patchName=patchName,N=N),
@@ -113,6 +116,10 @@ def write_data(fname,
         print('ERROR: Unexpected number of dimensions! No data written.')
         return
 
+    dpath = os.path.split(fname)[0]
+    if not os.path.isdir(dpath):
+        os.makedirs(dpath)
+
     headerstr = dataheader.format(patchType=patchType,
                                   patchName=patchName,
                                   timeName=timeName,
@@ -139,24 +146,26 @@ class CartesianPatch(object):
         """For a Cartesian mesh, the grid is defined by 1-D coordinate
         vectors x,y,z
         """
-        self.x = x
-        self.y = y
-        self.z = z
         self.dpath = dpath
         self.name = name
-        self.Nx = len(x)
-        self.Ny = len(y)
-        self.Nz = len(z)
         # check for constant x/y
         if np.all(x==x[0]):
             self.desc = 'const x={:.1f}'.format(x[0])
+            x = [x[0]]
         elif np.all(y==y[0]):
             self.desc = 'const y={:.1f}'.format(y[0])
+            y = [y[0]]
         else:
-            print('WARNING: x and y not constant, domain is not Cartesian')
+            raise ValueError('x and y not constant, domain is not Cartesian')
         # set up points
+        self.x = x
+        self.y = y
+        self.z = z
+        self.Nx = len(x)
+        self.Ny = len(y)
+        self.Nz = len(z)
+        # set up mesh
         self.X, self.Y, self.Z = np.meshgrid(x,y,z,indexing='ij')
-        assert(np.all(self.X.shape == (self.Nx, self.Ny, self.Nz)))
 
     def __repr__(self):
         s = 'Cartesian patch "{:s}" : '.format(self.name)
