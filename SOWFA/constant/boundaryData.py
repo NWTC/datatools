@@ -7,10 +7,16 @@
 from __future__ import print_function
 import os
 import numpy as np
+import matplotlib.pyplot as plt
+
+from ipywidgets import interactive, fixed  #interact, interactive, fixed, interact_manual
+import ipywidgets as widgets
+from IPython.display import display
 
 from datatools.series import TimeSeries
 import datatools.openfoam_util as of
 
+contour_colormap = 'RdBu_r' # more soothing blues and reds
 
 pointsheader = """/*--------------------------------*- C++ -*----------------------------------*\\
 | =========                 |                                                 |
@@ -193,7 +199,7 @@ def read_points(fname,tol=1e-6,**kwargs):
     return y,z
 
 
-def read_vector_data(fname,Ny=None,Nz=None,order='F',verbose=False):
+def read_vector_data(fname,Ny=None,Nz=None,order='C',verbose=False):
     """Read vector field data from a structured boundary data patch"""
     N = None
     data = None
@@ -226,7 +232,7 @@ def read_vector_data(fname,Ny=None,Nz=None,order='F',verbose=False):
     return vectorField
 
 
-def read_scalar_data(fname,Ny=None,Nz=None,order='F',verbose=False):
+def read_scalar_data(fname,Ny=None,Nz=None,order='C',verbose=False):
     """Read scalar field data from a structured boundary data patch"""
     N = None
     data = None
@@ -270,12 +276,14 @@ class BoundaryData(object):
                  fields=['U','T','k'],
                  verbose=True):
         """Process timeVaryingMapped* boundary data located in in
-            constant/boundaryData/<bcname>
+            constant/boundaryData/<name>
         """
         self.dpath = bdpath
         assert(os.path.isdir(bdpath))
+        self.name = os.path.split(bdpath)[-1]
 
         self.ts = TimeSeries(bdpath,dirs=True,verbose=verbose)
+        self.t = np.array(self.ts.times)
         self.Ntimes = self.ts.Ntimes
 
         kwargs = {}
@@ -284,36 +292,129 @@ class BoundaryData(object):
         self.y, self.z = read_points(os.path.join(bdpath,'points'), **kwargs)
         self.Ny = len(self.y)
         self.Nz = len(self.z)
-        self.fields = fields
+
+        #self.yy, self.zz = np.meshgrid(self.y, self.z, indexing='ij')
+        dy = np.diff(self.y)
+        dz = np.diff(self.z)
+        assert(np.all(dy==dy[0])) # uniform spacing assumed
+        assert(np.all(dz==dz[0]))
+        dy = dy[0]
+        dz = dz[0]
+        self.yy, self.zz = np.meshgrid(np.arange(self.Ny+1)*dy + self.y[0]-dy/2,
+                                       np.arange(self.Nz+1)*dz + self.z[0]-dz/2,
+                                       indexing='ij')
+
+        # image left, right, bottom, top (for imshow)
+        self.extent = (self.y[0], self.y[-1],
+                       self.z[-1], self.z[0]) # note top/bottom flipped
+
+        self.field = {}
         haveU, haveT, havek = False, False, False
         if 'U' in fields:
             haveU = True
-            self.U = np.zeros((self.Ntimes,self.Ny,self.Nz,3))
+            self.field['U'] = np.zeros((self.Ntimes,self.Ny,self.Nz))
+            self.field['V'] = np.zeros((self.Ntimes,self.Ny,self.Nz))
+            self.field['W'] = np.zeros((self.Ntimes,self.Ny,self.Nz))
         if 'T' in fields:
             haveT = True
-            self.T = np.zeros((self.Ntimes,self.Ny,self.Nz))
+            self.field['T'] = np.zeros((self.Ntimes,self.Ny,self.Nz))
         if 'k' in fields:
             havek = True
-            self.k = np.zeros((self.Ntimes,self.Ny,self.Nz))
+            self.field['k'] = np.zeros((self.Ntimes,self.Ny,self.Nz))
 
         for itime, dpath in enumerate(self.ts):
             if verbose:
                 print('t={:f} {:s}'.format(self.ts.times[itime],dpath))
             Ufield = read_vector_data(os.path.join(dpath, 'U'),
                                       Ny=self.Ny, Nz=self.Nz)
-            for i in range(3):
-                self.U[itime,:,:,i] = Ufield[i,:,:]
+            self.field['U'][itime,:,:] = Ufield[0,:,:]
+            self.field['V'][itime,:,:] = Ufield[1,:,:]
+            self.field['W'][itime,:,:] = Ufield[2,:,:]
             Tfield = read_scalar_data(os.path.join(dpath, 'T'),
                                       Ny=self.Ny, Nz=self.Nz)
-            self.T[itime,:,:] = Tfield
+            self.field['T'][itime,:,:] = Tfield
             kfield = read_scalar_data(os.path.join(dpath, 'k'),
                                       Ny=self.Ny, Nz=self.Nz)
-            self.k[itime,:,:] = kfield
+            self.field['k'][itime,:,:] = kfield
+
+    def __getattr__(self,name):
+        if name in self.field.keys():
+            return self.field[name]
+        else:
+            raise AttributeError("Boundary data do not include field '{:s}'".format(name))
 
     
     def to_npz(self,fpath='boundaryData.npz'):
-        output = { field:getattr(self,field) for field in self.fields }
-        np.savez_compressed(fpath,**output)
+        np.savez_compressed(fpath,**self.field)
+
+
+    def create(self,name,field):
+        assert(np.all(field.shape == self.field['U'].shape))
+        self.field[name] = field
+
+
+    def _plot_patch(self,F,name,time,value_range):
+        fig = plt.figure(1,figsize=(8,6))
+        itime = np.argmin(np.abs(time - self.t))
+        #print(itime,time)
+#        F = self.field[field] #[itime,:,:]
+        if self._init_patch_plot:
+            # reset range controls
+            fieldmin = np.min(F)
+            fieldmax = np.max(F)
+            minval = fieldmin
+            maxval = fieldmax
+            self._update_vrange_minmax(fieldmin,fieldmax)
+            self.vrange.value = (fieldmin,fieldmax)
+            self._init_patch_plot = False
+        else:
+            minval, maxval = value_range
+        ax = plt.gca()
+        cmesh = ax.pcolormesh(self.yy, self.zz, F[itime,:,:],
+                              cmap='RdBu_r',
+                              vmin=minval, vmax=maxval)
+
+        ax.set_aspect('equal','box')
+        ax.set_title('{:s} (i={:d}: t={:g} s)'.format(name,itime,self.t[itime]))
+        cbar = plt.colorbar(cmesh,ax=ax,orientation='horizontal',fraction=0.04)
+        cbar.set_label(name)
+    
+    def _update_vrange_minmax(self,fieldmin,fieldmax):
+        if fieldmin < self.vrange.max:
+            self.vrange.min = fieldmin
+            self.vrange.max = fieldmax
+        else:
+            self.vrange.max = fieldmax
+            self.vrange.min = fieldmin
+
+    def iplot(self,name):
+#        allfields = list(self.field.keys())
+        F = self.field[name]
+        fieldmin = np.min(F)
+        fieldmax = np.max(F)
+        timeselector = widgets.FloatSlider(
+                            min=self.ts.times[0],
+                            max=self.ts.times[-1],
+                            step=(self.ts.times[1]-self.ts.times[0]),
+                            value=self.ts.times[0]
+                        )
+        self.vrange = widgets.FloatRangeSlider(
+                                min=fieldmin,
+                                max=fieldmax,
+                                step=(fieldmax-fieldmin)/10,
+                                value=(fieldmin,fieldmax)
+                            )
+
+        self._init_patch_plot = True
+        self.plotwidget = interactive(
+                                self._plot_patch,
+                                F=fixed(F),
+                                name=fixed(name),
+                                time=timeselector,
+                                value_range=self.vrange,
+                            )
+        display(self.plotwidget)
+
 
 class CartesianPatch(object):
     """Object to facilitate outputing boundary patches on a Cartesian
