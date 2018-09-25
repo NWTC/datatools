@@ -93,7 +93,7 @@ class FASToutput(object):
             print('Outputs for alias',name,'do not exist:',aliases)
 
     def printStats(self):
-        print('Output       Units    Mean         Min          Max          Stdev')
+        print('Output       Units    Min          Max          Mean         Stdev')
         print('------------ -------- ------------ ------------ ------------ ------------')
         for output,units in zip(self.outputs,self.units):
             data = getattr(self,output)
