@@ -5,6 +5,7 @@
 #
 # Written by Eliot Quon (eliot.quon@nrel.gov) 2017-07-31
 #
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -37,10 +38,10 @@ class FASToutput(object):
             raise KeyError('Requested key \'{:s}\' not in {}'.format(key,self.outputs))
 
     def _readFASToutput(self,fname,Nheaderlines=6):
-        if self.verbose: print 'Reading header info from',fname
+        if self.verbose: print('Reading header info from',fname)
         with open(fname,'r') as f:
             if self.verbose:
-                for _ in range(Nheaderlines): print f.readline().strip()
+                for _ in range(Nheaderlines): print(f.readline().strip())
             else:
                 for _ in range(Nheaderlines): f.readline()
             # read names of output quantities
@@ -52,7 +53,7 @@ class FASToutput(object):
             for iline,_ in enumerate(f): pass
         self.N = iline + 1
         # read data
-        if self.verbose: print 'Reading data...'
+        if self.verbose: print('Reading data...')
         data = np.loadtxt(fname,skiprows=Nheaderlines+2)
         for i,output in enumerate(self.outputs):
             setattr(self,output,data[:,i])
@@ -75,7 +76,7 @@ class FASToutput(object):
             setattr(self,name,data)
             if units is not None: self.output_units[name] = units
         else:
-            print 'Output',name,'already exists'
+            print('Output',name,'already exists')
 
     def _setAlias(self,name,*aliases):
         for alias in aliases:
@@ -85,24 +86,26 @@ class FASToutput(object):
                 continue
             else:
                 self.addOutput(name, data)
-                if self.verbose: print '  set',name,'-->',alias
+                if self.verbose:
+                    print('  set',name,'-->',alias)
                 return
-        if self.verbose: print 'Outputs for alias',name,'do not exist:',aliases
+        if self.verbose:
+            print('Outputs for alias',name,'do not exist:',aliases)
 
     def printStats(self):
-        print 'Output       Units    Mean         Min          Max          Stdev'
-        print '------------ -------- ------------ ------------ ------------ ------------'
+        print('Output       Units    Mean         Min          Max          Stdev')
+        print('------------ -------- ------------ ------------ ------------ ------------')
         for output,units in zip(self.outputs,self.units):
             data = getattr(self,output)
-            print '{:12s} {:8s} {:12g} {:12g} {:12g} {:12g}'.format(
+            print('{:12s} {:8s} {:12g} {:12g} {:12g} {:12g}'.format(
                         output,
                         units,
                         np.min(data),
                         np.max(data),
                         np.mean(data),
                         np.std(data)
-                    )
-        print ''
+                    ))
+        print('')
 
     def plot(self,outputName,*args,**kwargs):
         data = getattr(self,outputName)
@@ -122,7 +125,7 @@ class FASToutput(object):
         mean = np.convolve(data, np.ones((N,))/N, mode='valid')
         newname = outputName + '_mean'
         self.addOutput(newname,mean)
-        print 'Averaged {:s} with {:f} s window (N={:d})'.format(outputName,self.t[N+1]-self.t[0],N)
+        print('Averaged {:s} with {:f} s window (N={:d})'.format(outputName,self.t[N+1]-self.t[0],N))
         return mean
 
 
@@ -136,7 +139,7 @@ class FASToutput(object):
         filtered_data = lfilter(b, a, data)
         newname = outputName + '_mean'
         self.addOutput(newname,filtered_data)
-        print 'Filtered {:s} with cutoff freq={:f} Hz, order={:d}'.format(outputName,fc,order)
+        print('Filtered {:s} with cutoff freq={:f} Hz, order={:d}'.format(outputName,fc,order))
         return filtered_data
 
 
