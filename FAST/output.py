@@ -3,10 +3,20 @@
 # Helper module for postprocessing FAST outputs
 # Tested with OpenFAST v8.17.00a-bjj
 #
+# Mostly legacy code at this point. Original behavior can be recovered
+# with 'default_aliases' and 'verbose' set to True. Otherwise, typical
+# usage:
+#
+#   from datatools.FAST.outputs import read
+#   fst = read('Turbine.out')
+#   df = fst.to_pandas()
+#
 # Written by Eliot Quon (eliot.quon@nrel.gov) 2017-07-31
 #
+from __future__ import print_function
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 def read(outputFile,**kwargs):
     return FASToutput(outputFile,**kwargs)
@@ -14,7 +24,7 @@ def read(outputFile,**kwargs):
 class FASToutput(object):
     # TODO: override dict instead of generic object
 
-    def __init__(self,fname=None,verbose=True):
+    def __init__(self,fname,default_aliases=False,verbose=False):
         # inputs
         self.fname = fname
         self.verbose = verbose
@@ -25,10 +35,10 @@ class FASToutput(object):
         self.Noutputs = 0
         self.N = 0
         # read output file
-        if fname is not None:
-            self._readFASToutput(fname)
-            if verbose:
-                self.printStats()
+        self.default_aliases = default_aliases
+        self._readFASToutput(fname)
+        if verbose:
+            self.printStats()
 
     def __getitem__(self, key):
         if key in self.outputs:
@@ -37,10 +47,10 @@ class FASToutput(object):
             raise KeyError('Requested key \'{:s}\' not in {}'.format(key,self.outputs))
 
     def _readFASToutput(self,fname,Nheaderlines=6):
-        if self.verbose: print 'Reading header info from',fname
+        if self.verbose: print('Reading header info from',fname)
         with open(fname,'r') as f:
             if self.verbose:
-                for _ in range(Nheaderlines): print f.readline().strip()
+                for _ in range(Nheaderlines): print(f.readline().strip())
             else:
                 for _ in range(Nheaderlines): f.readline()
             # read names of output quantities
@@ -52,22 +62,23 @@ class FASToutput(object):
             for iline,_ in enumerate(f): pass
         self.N = iline + 1
         # read data
-        if self.verbose: print 'Reading data...'
+        if self.verbose: print('Reading data...')
         data = np.loadtxt(fname,skiprows=Nheaderlines+2)
         for i,output in enumerate(self.outputs):
             setattr(self,output,data[:,i])
             self.output_units[output] = self.units[i]
         assert(len(self.Time) == self.N)
-        # aliases
-        self._setAlias('t','Time')
-        self._setAlias('P','RotPwr')
-        self._setAlias('T','RotThrust','LSShftFxa','LSShftFxs','LSSGagFxa','LSSGagFxs')
-        self._setAlias('rpm','LSSTipVxa')
-        self._setAlias('genspd','HSShftV')
-        self._setAlias('pitch1','PtchPMzc1')
-        self._setAlias('pitch2','PtchPMzc2')
-        self._setAlias('pitch3','PtchPMzc3')
-        self._setAlias('pitch','pitch1')
+        # default aliases
+        if self.default_aliases:
+            self._setAlias('t','Time')
+            self._setAlias('P','RotPwr')
+            self._setAlias('T','RotThrust','LSShftFxa','LSShftFxs','LSSGagFxa','LSSGagFxs')
+            self._setAlias('rpm','LSSTipVxa')
+            self._setAlias('genspd','HSShftV')
+            self._setAlias('pitch1','PtchPMzc1')
+            self._setAlias('pitch2','PtchPMzc2')
+            self._setAlias('pitch3','PtchPMzc3')
+            self._setAlias('pitch','pitch1')
 
     def addOutput(self,name,data,units=None):
         if name not in self.outputs:
@@ -75,7 +86,7 @@ class FASToutput(object):
             setattr(self,name,data)
             if units is not None: self.output_units[name] = units
         else:
-            print 'Output',name,'already exists'
+            print('Output',name,'already exists')
 
     def _setAlias(self,name,*aliases):
         for alias in aliases:
@@ -85,24 +96,26 @@ class FASToutput(object):
                 continue
             else:
                 self.addOutput(name, data)
-                if self.verbose: print '  set',name,'-->',alias
+                if self.verbose:
+                    print('  set',name,'-->',alias)
                 return
-        if self.verbose: print 'Outputs for alias',name,'do not exist:',aliases
+        if self.verbose:
+            print('Outputs for alias',name,'do not exist:',aliases)
 
     def printStats(self):
-        print 'Output       Units    Mean         Min          Max          Stdev'
-        print '------------ -------- ------------ ------------ ------------ ------------'
+        print('Output       Units    Min          Max          Mean         Stdev')
+        print('------------ -------- ------------ ------------ ------------ ------------')
         for output,units in zip(self.outputs,self.units):
             data = getattr(self,output)
-            print '{:12s} {:8s} {:12g} {:12g} {:12g} {:12g}'.format(
+            print('{:12s} {:8s} {:12g} {:12g} {:12g} {:12g}'.format(
                         output,
                         units,
                         np.min(data),
                         np.max(data),
                         np.mean(data),
                         np.std(data)
-                    )
-        print ''
+                    ))
+        print('')
 
     def plot(self,outputName,*args,**kwargs):
         data = getattr(self,outputName)
@@ -122,7 +135,7 @@ class FASToutput(object):
         mean = np.convolve(data, np.ones((N,))/N, mode='valid')
         newname = outputName + '_mean'
         self.addOutput(newname,mean)
-        print 'Averaged {:s} with {:f} s window (N={:d})'.format(outputName,self.t[N+1]-self.t[0],N)
+        print('Averaged {:s} with {:f} s window (N={:d})'.format(outputName,self.t[N+1]-self.t[0],N))
         return mean
 
 
@@ -136,7 +149,7 @@ class FASToutput(object):
         filtered_data = lfilter(b, a, data)
         newname = outputName + '_mean'
         self.addOutput(newname,filtered_data)
-        print 'Filtered {:s} with cutoff freq={:f} Hz, order={:d}'.format(outputName,fc,order)
+        print('Filtered {:s} with cutoff freq={:f} Hz, order={:d}'.format(outputName,fc,order))
         return filtered_data
 
 
@@ -163,3 +176,10 @@ class FASToutput(object):
         units = self.output_units[components[0]]
         self.addOutput(outputname, mag_sq**0.5, units=units) 
 
+
+    def to_pandas(self):
+        """Return FAST output as a dataframe"""
+        df = pd.DataFrame()
+        for output in self.outputs:
+            df[output] = getattr(self, output)
+        return df.set_index('Time')

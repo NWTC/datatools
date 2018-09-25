@@ -1,7 +1,11 @@
 #!/usr/bin/env python
 #
-# Script to check precursor convergence
+# Script to check precursor convergence and plot profiles
 # written by Eliot Quon (eliot.quon@nrel.gov)
+#
+# Additional features:
+# - stress tensor rotation
+# - dataframe csv output
 #
 from __future__ import print_function
 import sys
@@ -10,14 +14,18 @@ import matplotlib.pyplot as plt
 
 from datatools.SOWFA.postProcessing.averaging import PlanarAverages
 
+plt.style.use('seaborn-darkgrid')
+
 heights = [90.,200, 400, 600, 800] # to sample TI history
 tavg_window = 600.0 # for statistics
 dt = 1.0 # for data resampling
 include_SFS = True # include stresses from SGS model in TI calculation
+wind_aligned = True
 
 # reads avg.hLevelsCell with shape (NZ)
 # reads avg.U_mean, ... with shape (NT, NZ)
 avg = PlanarAverages( *sys.argv[1:] )
+tmax = avg.t[-1]
 
 #------------------------------------------------------------------------------
 #
@@ -37,49 +45,50 @@ for i,h in enumerate(heights):
     print('  TIxyz   = {:g}'.format(avg.TIxyz[-1,i]))
     print('  TKE     = {:g}'.format(avg.TKE[-1,i]))
 
-#------------------------------------------------------------------------------
-#
-# Velocity and Temperature Profiles 
-#
-fig,ax = plt.subplots(ncols=2)
-avg.plot_UVW_profile(ax=ax[0])
-avg.plot_T_profile(ax=ax[1])
-ax[1].set_ylabel('')
-fig.suptitle('Resolved Mean Quantities')
-fig.savefig('Profiles_Mean.png')
+# calculate rotated tensors for all times -- this is slow
+#if wind_aligned:
+#    avg.rotate_tensors()
 
 #------------------------------------------------------------------------------
 #
-# Wind speed and direction
+# Wind and Temperature Profiles 
 #
-fig,ax = plt.subplots(ncols=2)
-avg.plot_windspeed_profile(ax=ax[0])
-avg.plot_winddirection_profile(ax=ax[1])
-ax[1].set_ylabel('')
-fig.suptitle('Resolved Mean Wind Profiles')
-fig.savefig('Profiles_MeanUdir.png')
+if wind_aligned:
+    fig,ax = plt.subplots(ncols=3)
+    avg.plot_windspeed_profile(time=tmax,ax=ax[0])
+    avg.plot_winddirection_profile(time=tmax,ax=ax[1])
+    avg.plot_T_profile(time=tmax,ax=ax[2])
+    ax[1].set_ylabel('')
+    ax[2].set_ylabel('')
+else:
+    fig,ax = plt.subplots(ncols=2)
+    avg.plot_UVW_profile(time=tmax,ax=ax[0])
+    avg.plot_T_profile(time=tmax,ax=ax[1])
+    ax[1].set_ylabel('')
+fig.savefig('Profiles_Mean.png',bbox_inches='tight')
+fig.suptitle('Resolved Mean Quantities')
 
 #------------------------------------------------------------------------------
 #
 # Resolved Fluctuating Quantities
 #
 fig,ax = plt.subplots(ncols=2)
-avg.plot_variance_profile(ax=ax[0])
-avg.plot_covariance_profile(ax=ax[1])
+avg.plot_variance_profile(time=tmax,ax=ax[0],rotated=wind_aligned)
+avg.plot_covariance_profile(time=tmax,ax=ax[1],rotated=wind_aligned)
 ax[1].set_ylabel('')
+fig.savefig('Profiles_Fluc.png',bbox_inches='tight')
 fig.suptitle('Resolved Fluctuating Quantities')
-fig.savefig('Profiles_Fluc.png')
 
 #------------------------------------------------------------------------------
 #
 # Modeled SFS Quantities
 #
 fig,ax = plt.subplots(ncols=2)
-avg.plot_SFS_normalstress_profile(ax=ax[0])
-avg.plot_SFS_shearstress_profile(ax=ax[1])
+avg.plot_SFS_normalstress_profile(time=tmax,ax=ax[0],rotated=wind_aligned)
+avg.plot_SFS_shearstress_profile(time=tmax,ax=ax[1],rotated=wind_aligned)
 ax[1].set_ylabel('')
+fig.savefig('Profiles_SFS.png',bbox_inches='tight')
 fig.suptitle('Sub-Filter Scale Quantities')
-fig.savefig('Profiles_SFS.png')
 
 #------------------------------------------------------------------------------
 #
@@ -93,13 +102,18 @@ ax[1].plot(avg.TKE_profile, avg.hLevelsCell, 'k-')
 ax[0].set_xlabel(r'Turbulence Intensity [%]')
 ax[1].set_xlabel(r'Turbulence Kinetic Energy [m$^2$/$s^2$]')
 ax[0].set_ylabel(r'Height [m]')
-fig.savefig('Profiles_TI.png')
+ax[1].set_ylabel('')
+fig.savefig('Profiles_TI.png',bbox_inches='tight')
 
 #------------------------------------------------------------------------------
 #
-# Save averaging data to CSV file
+# Save averaging data
 #
-avg.save_profile(fname='averagingProfiles.csv')
+avg.save_profile(fname='averagingProfiles.csv') # latest time only
+
+# pandas dataframe
+avg.get_vars_if_needed('q3_mean') # SFS component of T'w'
+avg.to_csv('averaging.csv') # write out all times
 
 plt.show()
 

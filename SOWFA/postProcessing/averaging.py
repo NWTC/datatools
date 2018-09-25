@@ -26,12 +26,14 @@ from __future__ import print_function
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib import cm
 
 all_vars = [
         'U_mean','V_mean','W_mean','T_mean',
         'uu_mean', 'vv_mean', 'ww_mean', 'uv_mean', 'uw_mean', 'vw_mean',
         'Tw_mean',
         'R11_mean','R22_mean','R33_mean','R12_mean','R13_mean','R23_mean',
+        'q1_mean','q2_mean','q3_mean',
         ]
 
 class PlanarAverages(object):
@@ -43,7 +45,8 @@ class PlanarAverages(object):
         self.simTimeDirs = [] # output time names
         self.simStartTimes = [] # start or restart simulation times
         self.imax = None # for truncating time series
-        
+        self.rotated = False
+
         if len(args)==0:
             args = os.listdir('.')
             if 'averaging' in args: args = ['averaging']
@@ -80,7 +83,9 @@ class PlanarAverages(object):
                         if 'hLevelsCell' in os.listdir(arg+os.sep+dirname):
                             self.simTimeDirs.append( arg+os.sep+dirname )
                             self.simStartTimes.append( startTime )
-                    except ValueError: pass # dirname is not a number
+                    except ValueError:
+                        # dirname is not a number
+                        pass
 
         # sort results
         self.simTimeDirs = [ x[1] for x in sorted(zip(self.simStartTimes,self.simTimeDirs)) ]
@@ -97,6 +102,8 @@ class PlanarAverages(object):
         else:
             print('No averaging time directories found!')
     
+        self._trim_series_if_needed()
+
 
     def __repr__(self):
         s = 'SOWFA postProcessing: averaging data'
@@ -187,8 +194,10 @@ class PlanarAverages(object):
         
         return None
 
-    def _trim_series_if_needed(self,fields_to_check=all_vars):
+    def _trim_series_if_needed(self,fields_to_check=None):
         """check for inconsistent array lengths and trim if needed"""
+        if fields_to_check is None:
+            fields_to_check = self._processed
         Nt0 = len(self.t)
         for field in fields_to_check:
             try:
@@ -608,6 +617,62 @@ class PlanarAverages(object):
 
         return self.Ri
 
+    def rotate_tensors(self,itime=None):
+        """Rotate the resolved and SFS stress tensors, using tensor
+        transformation rules, at the specified time index (otherwise
+        all times are calculated--this is slow).
+        """
+        if not self.rotated:
+            self.uu_meanR = np.zeros(self.uu_mean.shape)
+            self.vv_meanR = np.zeros(self.vv_mean.shape)
+            self.ww_meanR = np.zeros(self.ww_mean.shape)
+            self.uv_meanR = np.zeros(self.uv_mean.shape)
+            self.uw_meanR = np.zeros(self.uw_mean.shape)
+            self.vw_meanR = np.zeros(self.vw_mean.shape)
+            self.R11_meanR = np.zeros(self.R11_mean.shape)
+            self.R22_meanR = np.zeros(self.R22_mean.shape)
+            self.R33_meanR = np.zeros(self.R33_mean.shape)
+            self.R12_meanR = np.zeros(self.R12_mean.shape)
+            self.R13_meanR = np.zeros(self.R13_mean.shape)
+            self.R23_meanR = np.zeros(self.R23_mean.shape)
+
+        if itime is None:
+            print('Rotating stress tensors for all times...')
+            tindices = range(len(self.t))
+        else:
+            print('Rotating stress tensors at t={:f} s'.format(self.t[itime]))
+            tindices = [itime]
+
+        ang = np.arctan2(self.V_mean, self.U_mean) # NOT compass wind dir
+
+        for iz in range(len(self.hLevelsCell)):
+            for it in tindices:
+                # resolved stress tensor
+                S = np.array([[ self.uu_mean[it,iz],  self.uv_mean[it,iz],  self.uw_mean[it,iz]],
+                              [ self.uv_mean[it,iz],  self.vv_mean[it,iz],  self.vw_mean[it,iz]],
+                              [ self.uw_mean[it,iz],  self.vw_mean[it,iz],  self.ww_mean[it,iz]]])
+                # Reynolds stress tensor
+                R = np.array([[self.R11_mean[it,iz], self.R12_mean[it,iz], self.R13_mean[it,iz]],
+                              [self.R12_mean[it,iz], self.R22_mean[it,iz], self.R23_mean[it,iz]],
+                              [self.R13_mean[it,iz], self.R23_mean[it,iz], self.R33_mean[it,iz]]])
+
+                S = rotate_tensor_z(S, ang[it,iz])
+                R = rotate_tensor_z(R, ang[it,iz])
+
+                self.uu_meanR[it,iz] = S[0,0]
+                self.uv_meanR[it,iz] = S[0,1]
+                self.uw_meanR[it,iz] = S[0,2]
+                self.vv_meanR[it,iz] = S[1,1]
+                self.vw_meanR[it,iz] = S[1,2]
+                self.ww_meanR[it,iz] = S[2,2]
+                self.R11_meanR[it,iz] = R[0,0]
+                self.R12_meanR[it,iz] = R[0,1]
+                self.R13_meanR[it,iz] = R[0,2]
+                self.R22_meanR[it,iz] = R[1,1]
+                self.R23_meanR[it,iz] = R[1,2]
+                self.R33_meanR[it,iz] = R[2,2]
+
+        self.rotated = True
 
     #==========================================================================
     #
@@ -623,8 +688,12 @@ class PlanarAverages(object):
             fig,ax = plt.subplots()
         else:
             fig = plt.gcf()
+        cmap = cm.get_cmap('viridis')
         for ih,z in enumerate(self.TI_heights):
-            ax.plot(self.tavg, 100.0*self.TIdir[:,ih], label='z={:.1f} m'.format(z))
+            f = (z-self.TI_heights[0]) / self.TI_heights[-1]
+            ax.plot(self.tavg, 100.0*self.TIdir[:,ih],
+                    color=cmap(f),
+                    label='z={:.1f} m'.format(z))
         ax.set_xlabel(r'Time [s]')
         ax.set_ylabel(r'Turbulence Intensity [%]')
         ax.legend(loc='best',fontsize='small')
@@ -640,8 +709,12 @@ class PlanarAverages(object):
             fig,ax = plt.subplots()
         else:
             fig = plt.gcf()
+        cmap = cm.get_cmap('viridis')
         for ih,z in enumerate(self.TI_heights):
-            ax.plot(self.tavg, self.TKE[:,ih], label='z={:.1f} m'.format(z))
+            f = (z-self.TI_heights[0]) / self.TI_heights[-1]
+            ax.plot(self.tavg, self.TKE[:,ih],
+                    color=cmap(f),
+                    label='z={:.1f} m'.format(z))
         ax.set_xlabel(r'Time [s]')
         ax.set_ylabel(r'Turbulent Kinetic Energy [m$^2$/s$^2$]')
         ax.legend(loc='best',fontsize='small')
@@ -726,7 +799,7 @@ class PlanarAverages(object):
             fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
-    def plot_variance_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
+    def plot_variance_profile(self,time=9e9,rotated=False,ax=None,savefig=None,**kwargs):
         """Plot profiles of variance at the time instant nearest to the
         specified time
         """
@@ -736,17 +809,24 @@ class PlanarAverages(object):
             fig = plt.gcf()
         itime = np.argmin(np.abs(time - self.t))
         self.get_vars_if_needed('uu_mean','vv_mean','ww_mean')
-        ax.plot(self.uu_mean[itime,:], self.hLevelsCell, label=r"$<u'u'>$", **kwargs)
-        ax.plot(self.vv_mean[itime,:], self.hLevelsCell, label=r"$<v'v'>$", **kwargs)
-        ax.plot(self.ww_mean[itime,:], self.hLevelsCell, label=r"$<w'w'>$", **kwargs)
-        ax.set_xlabel(r'Variance [m$^2$/s$^2$]')
+        if rotated:
+            self.rotate_tensors(itime)
+            ax.plot(self.uu_meanR[itime,:], self.hLevelsCell, label=r"$<u'u'>$", **kwargs)
+            ax.plot(self.vv_meanR[itime,:], self.hLevelsCell, label=r"$<v'v'>$", **kwargs)
+            ax.plot(self.ww_meanR[itime,:], self.hLevelsCell, label=r"$<w'w'>$", **kwargs)
+            ax.set_xlabel(r'Variance (wind-aligned) [m$^2$/s$^2$]')
+        else:
+            ax.plot(self.uu_mean[itime,:], self.hLevelsCell, label=r"$<u'u'>$", **kwargs)
+            ax.plot(self.vv_mean[itime,:], self.hLevelsCell, label=r"$<v'v'>$", **kwargs)
+            ax.plot(self.ww_mean[itime,:], self.hLevelsCell, label=r"$<w'w'>$", **kwargs)
+            ax.set_xlabel(r'Variance [m$^2$/s$^2$]')
         ax.set_ylabel(r'Height [m]')
         ax.legend(loc='best')
         if savefig is not None:
             fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
-    def plot_covariance_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
+    def plot_covariance_profile(self,time=9e9,rotated=False,ax=None,savefig=None,**kwargs):
         """Plot profiles of covariance at the time instant nearest to the
         specified time
         """
@@ -756,18 +836,26 @@ class PlanarAverages(object):
             fig = plt.gcf()
         itime = np.argmin(np.abs(time - self.t))
         self.get_vars_if_needed('uv_mean','uw_mean','vw_mean','Tw_mean')
-        ax.plot(self.uv_mean[itime,:], self.hLevelsCell, label=r"$<u'v'>$", **kwargs)
-        ax.plot(self.uw_mean[itime,:], self.hLevelsCell, label=r"$<u'w'>$", **kwargs)
-        ax.plot(self.vw_mean[itime,:], self.hLevelsCell, label=r"$<v'w'>$", **kwargs)
-        ax.plot(self.Tw_mean[itime,:], self.hLevelsCell, label=r"$<T'w'>$", **kwargs)
-        ax.set_xlabel(r'Covariance [m$^2$/s$^2$], [K-m/s]')
+        if rotated:
+            self.rotate_tensors(itime)
+            ax.plot(self.uv_meanR[itime,:], self.hLevelsCell, label=r"$<u'v'>$", **kwargs)
+            ax.plot(self.uw_meanR[itime,:], self.hLevelsCell, label=r"$<u'w'>$", **kwargs)
+            ax.plot(self.vw_meanR[itime,:], self.hLevelsCell, label=r"$<v'w'>$", **kwargs)
+            ax.plot(self.Tw_mean[itime,:], self.hLevelsCell, label=r"$<T'w'>$", **kwargs)
+            ax.set_xlabel(r'Covariance (wind-aligned) [m$^2$/s$^2$], [K-m/s]')
+        else:
+            ax.plot(self.uv_mean[itime,:], self.hLevelsCell, label=r"$<u'v'>$", **kwargs)
+            ax.plot(self.uw_mean[itime,:], self.hLevelsCell, label=r"$<u'w'>$", **kwargs)
+            ax.plot(self.vw_mean[itime,:], self.hLevelsCell, label=r"$<v'w'>$", **kwargs)
+            ax.plot(self.Tw_mean[itime,:], self.hLevelsCell, label=r"$<T'w'>$", **kwargs)
+            ax.set_xlabel(r'Covariance [m$^2$/s$^2$], [K-m/s]')
         ax.set_ylabel(r'Height [m]')
         ax.legend(loc='best')
         if savefig is not None:
             fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
-    def plot_SFS_normalstress_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
+    def plot_SFS_normalstress_profile(self,time=9e9,rotated=False,ax=None,savefig=None,**kwargs):
         """Plot profiles of the modeled sub-filter normal stresses at
         the time instant nearest to the specified time
         """
@@ -777,17 +865,24 @@ class PlanarAverages(object):
             fig = plt.gcf()
         itime = np.argmin(np.abs(time - self.t))
         self.get_vars_if_needed('R11_mean','R22_mean','R33_mean')
-        ax.plot(self.R11_mean[itime,:], self.hLevelsCell, label=r"$R_{11}$", **kwargs)
-        ax.plot(self.R22_mean[itime,:], self.hLevelsCell, label=r"$R_{22}$", **kwargs)
-        ax.plot(self.R33_mean[itime,:], self.hLevelsCell, label=r"$R_{33}$", **kwargs)
-        ax.set_xlabel(r'SFS Normal Stresses [m$^2$/s$^2$]')
+        if rotated:
+            self.rotate_tensors(itime)
+            ax.plot(self.R11_meanR[itime,:], self.hLevelsCell, label=r"$R_{11}$", **kwargs)
+            ax.plot(self.R22_meanR[itime,:], self.hLevelsCell, label=r"$R_{22}$", **kwargs)
+            ax.plot(self.R33_meanR[itime,:], self.hLevelsCell, label=r"$R_{33}$", **kwargs)
+            ax.set_xlabel(r'SFS Normal Stresses (wind-aligned) [m$^2$/s$^2$]')
+        else:
+            ax.plot(self.R11_mean[itime,:], self.hLevelsCell, label=r"$R_{11}$", **kwargs)
+            ax.plot(self.R22_mean[itime,:], self.hLevelsCell, label=r"$R_{22}$", **kwargs)
+            ax.plot(self.R33_mean[itime,:], self.hLevelsCell, label=r"$R_{33}$", **kwargs)
+            ax.set_xlabel(r'SFS Normal Stresses [m$^2$/s$^2$]')
         ax.set_ylabel(r'Height [m]')
         ax.legend(loc='best')
         if savefig is not None:
             fig.savefig(savefig,bbox_inches='tight')
         return fig, ax
 
-    def plot_SFS_shearstress_profile(self,time=9e9,ax=None,savefig=None,**kwargs):
+    def plot_SFS_shearstress_profile(self,time=9e9,rotated=False,ax=None,savefig=None,**kwargs):
         """Plot profiles of the modeled sub-filter shear stresses at the
         time instant nearest to the specified time
         """
@@ -797,10 +892,17 @@ class PlanarAverages(object):
             fig = plt.gcf()
         itime = np.argmin(np.abs(time - self.t))
         self.get_vars_if_needed('R12_mean','R13_mean','R23_mean')
-        ax.plot(self.R12_mean[itime,:], self.hLevelsCell, label=r"$R_{12}$", **kwargs)
-        ax.plot(self.R13_mean[itime,:], self.hLevelsCell, label=r"$R_{13}$", **kwargs)
-        ax.plot(self.R23_mean[itime,:], self.hLevelsCell, label=r"$R_{23}$", **kwargs)
-        ax.set_xlabel(r'SFS Shear Stresses [m$^2$/s$^2$]')
+        if rotated:
+            self.rotate_tensors(itime)
+            ax.plot(self.R12_meanR[itime,:], self.hLevelsCell, label=r"$R_{12}$", **kwargs)
+            ax.plot(self.R13_meanR[itime,:], self.hLevelsCell, label=r"$R_{13}$", **kwargs)
+            ax.plot(self.R23_meanR[itime,:], self.hLevelsCell, label=r"$R_{23}$", **kwargs)
+            ax.set_xlabel(r'SFS Shear Stresses (wind-aligned) [m$^2$/s$^2$]')
+        else:
+            ax.plot(self.R12_mean[itime,:], self.hLevelsCell, label=r"$R_{12}$", **kwargs)
+            ax.plot(self.R13_mean[itime,:], self.hLevelsCell, label=r"$R_{13}$", **kwargs)
+            ax.plot(self.R23_mean[itime,:], self.hLevelsCell, label=r"$R_{23}$", **kwargs)
+            ax.set_xlabel(r'SFS Shear Stresses [m$^2$/s$^2$]')
         ax.set_ylabel(r'Height [m]')
         ax.legend(loc='best')
         if savefig is not None:
@@ -865,3 +967,69 @@ class PlanarAverages(object):
             print('wrote',fname)
         except IOError:
             print('Error:',fname,'could not be written')
+
+    def to_csv(self,fname,itime=None,fields=None,dtype=None):
+        """Write out specified range of times in a pandas dataframe
+
+        Inputs
+        ------
+        fname: str
+            CSV file to write out
+        itime: integer, list
+            Time indice(s) to write out; if None, all times are output
+        fields: list, dict
+            Name of field variables to write out; if None, all variables
+            that have been processed are written out (including
+            variables that have been implicitly read through calls to 
+            calculate_* routines). If a dictionary is provided, the keys
+            will be the output column names.
+        dtype: type
+            Single datatype to which to cast all fields
+        """
+        import pandas as pd
+        # select time range
+        if itime is None:
+            tindices = range(len(self.t))
+        else:
+            try:
+                iter(itime)
+            except TypeError:
+                # provide single tim index
+                tindices = [itime]
+            else:
+                # provided list of indices
+                tindices = itime
+        print('Creating dataframe for',self.t[tindices])
+        if (fields is not None) and (fields.lower() == 'all'):
+            print('All fields requested')
+            self.get_vars_if_needed(*all_vars)
+        dflist = []
+        for i in tindices:
+            if hasattr(fields, '__iter__') and  not isinstance(fields, str):
+                # have an iterable object, write out specified fields
+                data = { var: getattr(self,var)[i,:] for var in fields }
+            elif isinstance(fields, dict):
+                # write out specified fields with custom column names
+                data = { col: getattr(self,var)[i,:] for col,var in fields.items() }
+            else:
+                # write out all fields that have been processed
+                data = { var: getattr(self,var)[i,:] for var in self._processed }
+            data['z'] = self.hLevelsCell
+            df = pd.DataFrame(data=data,dtype=dtype)
+            df['t'] = self.t[i]
+            dflist.append(df)
+        df = pd.concat(dflist)
+        df = df.set_index(['t','z'])
+        print('Dumping dataframe to',fname)
+        df.to_csv(fname)
+
+"""end of class PlanarAverages"""
+
+
+def rotate_tensor_z(S,angle):
+    """Rotate tensor S about z axis by angle [rad]"""
+    R = np.array([[ np.cos(angle), np.sin(angle), 0.],
+                  [-np.sin(angle), np.cos(angle), 0.],
+                  [            0.,            0., 1.]])
+    return np.matmul(np.matmul(R,S), R.T)
+

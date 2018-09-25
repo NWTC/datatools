@@ -1,146 +1,14 @@
 #!/usr/bin/env python
 #
-# Module for in and outputting data in the OpenFOAM timeVaryingMappedFixedValue format.
+# Module for in and outputting data in the OpenFOAM timeVaryingMappedFixedValue
+# format. This module is DEPRECATED
 #
 # Written by Eliot Quon (eliot.quon@nrel.gov) -- 2017-10/18
 #
 from __future__ import print_function
 import numpy as np
 
-pointsheader = """/*--------------------------------*- C++ -*----------------------------------*\\
-| =========                 |                                                 |
-| \\\\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\\\    /   O peration     | Version:  2.4.x                                 |
-|   \\\\  /    A nd           | Web:      www.OpenFOAM.org                      |
-|    \\\\/     M anipulation  |                                                 |
-\\*---------------------------------------------------------------------------*/
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       vectorField;
-    location    "constant/boundaryData/{patchName}";
-    object      points;
-}}
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-{N}
-("""
-
-dataheader = """/*--------------------------------*- C++ -*----------------------------------*\\
-| =========                 |                                                 |
-| \\\\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
-|  \\\\    /   O peration     | Version:  2.4.x                                 |
-|   \\\\  /    A nd           | Web:      www.OpenFOAM.org                      |
-|    \\\\/     M anipulation  |                                                 |
-\\*---------------------------------------------------------------------------*/
-FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       {patchType}AverageField;
-    location    "constant/boundaryData/{patchName}/{timeName}";
-    object      values;
-}}
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-// Average
-{avgValue}
-
-{N}
-("""
-
-def write_points(fname,x,y,z,patchName='patch'):
-    """Write out a points file which should be stored in
-        constant/boundaryData/patchName/points
-    """
-    N = len(x)
-    assert(N == len(y) == len(z))
-#    with open(fname,'w') as f:
-#        f.write(pointsheader.format(patchName=patchName,N=N))
-#        f.write('{:d}\n(\n'.format(N))
-#        for i in range(N):
-#            f.write('({:f} {:f} {:f})\n'.format(x[i],y[i],z[i]))
-#        f.write(')\n')
-    np.savetxt(fname,
-               np.stack((x,y,z)).T, fmt='(%f %f %f)',
-               header=pointsheader.format(patchName=patchName,N=N),
-               footer=')',
-               comments='')
-
-def write_data(fname,
-               data,
-               patchName='patch',
-               timeName=0,
-               avgValue=None):
-    """Write out a boundaryData file which should be stored in
-        constant/boundarydata/patchName/timeName/fieldName
-
-    Parameters
-    ----------
-    fname : str
-        Output data file name
-    data : numpy.ndarray
-        Field data to be written out, with shape (3,N) for vectors
-        and shape (N) for scalars; 2-D or 3-D data should be flattened
-        beforehand.
-    patchName : str, optional
-        Name of the boundary patch
-    timeName : scalar or str, optional
-        Name of corresponding time directory
-    avgValue : scalar or list-like, optional
-        To set avgValue in the data file; probably not used.
-
-    @author: ewquon
-    """
-    dims = data.shape
-    N = dims[-1]
-    if len(dims) == 1:
-        patchType = 'scalar'
-        if avgValue is None:
-            avgValueStr = '0'
-        else:
-            avgValueStr = str(avgValue)
-    elif len(dims) == 2:
-        patchType = 'vector'
-        assert(dims[0] == 3)
-        if avgValue is None:
-            avgValueStr = '(0 0 0)'
-        else:
-            avgValueStr = '(' + ' '.join([str(val) for val in list(avgValue)]) + ')'
-    else:
-        print('ERROR: Unexpected number of dimensions! No data written.')
-        return
-
-#    with open(fname,'w') as f:
-#        f.write(dataheader.format(patchType=patchType,
-#                                  patchName=patchName,
-#                                  timeName=timeName,
-#                                  avgValue=avgValueStr,
-#                                  N=N))
-#        f.write('{:d}\n(\n'.format(N))
-#        if patchType == 'vector':
-#            for i in range(N):
-#                f.write('({v[0]:g} {v[1]:g} {v[2]:g})\n'.format(v=data[:,i]))
-#        elif patchType == 'scalar':
-#            for i in range(N):
-#                f.write('{v:g}\n'.format(v=data[i]))
-#        f.write(')\n')
-
-    headerstr = dataheader.format(patchType=patchType,
-                                  patchName=patchName,
-                                  timeName=timeName,
-                                  avgValue=avgValueStr,
-                                  N=N)
-    if patchType == 'vector':
-        np.savetxt(fname,
-                   data.T, fmt='(%g %g %g)',
-                   header=headerstr, footer=')',
-                   comments='')
-    elif patchType == 'scalar':
-        np.savetxt(fname,
-                   data.reshape((N,1)), fmt='%g',
-                   header=headerstr, footer=')',
-                   comments='')
+from datatools.openfoam_util import read_vector_field_2d, read_scalar_field_2d
 
 def _get_unique_points_from_list(ylist,zlist,NY=None,NZ=None,order='F'):
     """Detects y and z (1-D arrays) from a list of points on a
