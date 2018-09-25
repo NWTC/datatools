@@ -968,13 +968,20 @@ class PlanarAverages(object):
         except IOError:
             print('Error:',fname,'could not be written')
 
-    def to_csv(self,fname,itime=None,fields=None,dtype=None):
+    def to_csv(self,fname,**kwargs):
         """Write out specified range of times in a pandas dataframe
+
+        kwargs: see PlanarAverages.to_pandas()
+        """
+        df = self.to_pandas(**kwargs)
+        print('Dumping dataframe to',fname)
+        df.to_csv(fname)
+
+    def to_pandas(self,itime=None,fields=None,dtype=None):
+        """Create pandas dataframe for the specified range of times
 
         Inputs
         ------
-        fname: str
-            CSV file to write out
         itime: integer, list
             Time indice(s) to write out; if None, all times are output
         fields: list, dict
@@ -1020,8 +1027,7 @@ class PlanarAverages(object):
             dflist.append(df)
         df = pd.concat(dflist)
         df = df.set_index(['t','z'])
-        print('Dumping dataframe to',fname)
-        df.to_csv(fname)
+        return df
 
 """end of class PlanarAverages"""
 
