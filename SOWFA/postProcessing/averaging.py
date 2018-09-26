@@ -212,9 +212,16 @@ class PlanarAverages(object):
                             # previous simulation didn't finish; overlapped data
                             selectedpart[iend:] = False 
                         selected.append(selectedpart)
-                    selected.append(np.ones(len(tpart[-1]),dtype=bool)) # last part
+                    # last / currently running part
+                    selected.append(np.ones(len(tpart[-1]),dtype=bool))
                     selected = np.concatenate(selected)[:self.imax]
                     assert(len(selected) == len(newdata[:,0]))
+                elif not (len(newdata[:,0]) == len(selected)):
+                    # if simulation is still running, subsequent newdata may
+                    # be longer
+                    self.imax = min(len(selected), len(newdata[:,0]))
+                    selected = selected[:self.imax]
+                    newdata = newdata[:self.imax,:]
                 # select only unique data
                 newdata = newdata[selected,:]
 
