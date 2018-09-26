@@ -117,7 +117,8 @@ class PlanarAverages(object):
     def get_vars_if_needed(self,*args,**kwargs):
         """Read in specified list of variables"""
         varList = []
-        if 'reread' in kwargs and kwargs['reread']:
+        reread = kwargs.pop('reread',False)
+        if reread:
             for var in args:
                 if var in self._processed: self._processed.remove(var)
                 varList.append(var)
@@ -127,9 +128,14 @@ class PlanarAverages(object):
                 if var not in self._processed: varList.append(var)
         if len(varList)==0: return
 
-        self._processdirs( self.simTimeDirs, varList=varList )
+        kwargs['varList'] = varList
+        self._processdirs( self.simTimeDirs, **kwargs )
 
-    def _processdirs(self,tdirList,varList=['U_mean','V_mean','W_mean','T_mean']):
+    def _processdirs(self,
+                     tdirList,
+                     varList=['U_mean','V_mean','W_mean','T_mean'],
+                     trimOverlap=True
+                    ):
         """Reads all files within an averaging output time directory,
         presumably containing hLevelsCell and other cell-averaged
         quantities. An object attribute corresponding to the averaged
@@ -158,7 +164,7 @@ class PlanarAverages(object):
             line = f.readline()
         self.hLevelsCell = np.array([ float(val) for val in line.split() ])
 
-        # check that we have the same amount of data
+        # check that we have the same amount of data in all fields
         for tdir in tdirList:
             Nlines = []
             for field in outputs:
@@ -181,18 +187,46 @@ class PlanarAverages(object):
         N = Nlines[0]
 
         # NOW process all data
+        selected = []
         for field in outputs:
             arrays = [ np.loadtxt( tdir + os.sep + field ) for tdir in tdirList ]
-            newdata = np.concatenate(arrays)
-            setattr( self, field, newdata[:self.imax,2:] )
 
+            # combine into a single array and trim end of time series
+            # (because simulations that are still running can have different
+            # array lengths)
+            newdata = np.concatenate(arrays)[:self.imax,:]
+
+            # get rid of overlapped data for restarts
+            if trimOverlap:
+                if len(selected) == 0:
+                    # create array mask
+                    tpart = [ array[:,0] for array in arrays ]
+                    for ipart,tcutoff in enumerate(self.simStartTimes[1:]):
+                        selectedpart = np.ones(len(tpart[ipart]),dtype=bool)
+                        try:
+                            iend = np.nonzero(tpart[ipart] > tcutoff)[0][0]
+                        except IndexError:
+                            # clean restart
+                            pass
+                        else:
+                            # previous simulation didn't finish; overlapped data
+                            selectedpart[iend:] = False 
+                        selected.append(selectedpart)
+                    selected.append(np.ones(len(tpart[-1]),dtype=bool)) # last part
+                    selected = np.concatenate(selected)[:self.imax]
+                    assert(len(selected) == len(newdata[:,0]))
+                # select only unique data
+                newdata = newdata[selected,:]
+
+            # set time-height data
+            setattr( self, field, newdata[:,2:] )
             self._processed.append(field)
             print('  read',field)
 
-        self.t = np.array( newdata[:self.imax,0] )
-        self.dt = np.array( newdata[:self.imax,1] )
+        # set time step arrays (should be identical for all fields)
+        self.t = np.array(newdata[:,0])
+        self.dt = np.array(newdata[:,1])
         
-        return None
 
     def _trim_series_if_needed(self,fields_to_check=None):
         """check for inconsistent array lengths and trim if needed"""
