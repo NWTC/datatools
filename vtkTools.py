@@ -325,24 +325,39 @@ def vtk_write_structured_points( f, nx,ny,nz, data,
     assert( len(data) == Nvalues )
 
     # write header
-    f.write(vtk_header+'\n')
-    f.write(vtk_description+'\n')
     if 'b' in f.mode:
         binary = True
         import struct
-        f.write('BINARY\n')
+        def b(s):
+            return bytes(s,'utf-8')
+        f.write(b(vtk_header+'\n'))
+        f.write(b(vtk_description+'\n'))
+        f.write(b('BINARY\n'))
+        f.write(b('DATASET STRUCTURED_POINTS\n'))
+
+        # write out mesh descriptors
+        f.write(b('DIMENSIONS {:d} {:d} {:d}\n'.format(nx,ny,nz)))
+        f.write(b('ORIGIN {:f} {:f} {:f}\n'.format(origin[0],origin[1],origin[2])))
+        f.write(b('SPACING {:f} {:f} {:f}\n'.format(dx,dy,dz)))
+
+        # write out data
+        f.write(b('POINT_DATA {:d}\n'.format(nx*ny*nz)))
+
     else:
         binary = False
+        f.write(vtk_header+'\n')
+        f.write(vtk_description+'\n')
         f.write('ASCII\n')
-    f.write('DATASET STRUCTURED_POINTS\n')
+        f.write('DATASET STRUCTURED_POINTS\n')
 
-    # write out mesh descriptors
-    f.write('DIMENSIONS {:d} {:d} {:d}\n'.format(nx,ny,nz))
-    f.write('ORIGIN {:f} {:f} {:f}\n'.format(origin[0],origin[1],origin[2]))
-    f.write('SPACING {:f} {:f} {:f}\n'.format(dx,dy,dz))
+        # write out mesh descriptors
+        f.write('DIMENSIONS {:d} {:d} {:d}\n'.format(nx,ny,nz))
+        f.write('ORIGIN {:f} {:f} {:f}\n'.format(origin[0],origin[1],origin[2]))
+        f.write('SPACING {:f} {:f} {:f}\n'.format(dx,dy,dz))
 
-    # write out data
-    f.write('POINT_DATA {:d}\n'.format(nx*ny*nz))
+        # write out data
+        f.write('POINT_DATA {:d}\n'.format(nx*ny*nz))
+
     idx = 0 # data list index
     for idata,outputtype in enumerate(datatype):
 
@@ -361,29 +376,32 @@ def vtk_write_structured_points( f, nx,ny,nz, data,
             name = outputtype+str(idata)
 
         if outputtype=='vector':
-            f.write('{:s}S {:s} {:s}\n'.format(outputtype.upper(),name,vtk_datatype))
             mapping = { 'i': range(nx), 'j': range(ny), 'k': range(nz) }
             ijkranges = [ mapping[ijk] for ijk in indexorder ]
             if binary:
+                f.write(b('{:s}S {:s} {:s}\n'.format(outputtype.upper(),name,vtk_datatype)))
                 for k in ijkranges[2]:
                     for j in ijkranges[1]:
                         for i in ijkranges[0]:
                             f.write(struct.pack('>fff', u[i,j,k], v[i,j,k], w[i,j,k])) # big endian
             else: #ascii
+                f.write('{:s}S {:s} {:s}\n'.format(outputtype.upper(),name,vtk_datatype))
                 for k in ijkranges[2]:
                     for j in ijkranges[1]:
                         for i in ijkranges[0]:
                             f.write(' {:f} {:f} {:f}\n'.format(u[i,j,k], v[i,j,k], w[i,j,k]))
         elif outputtype=='scalar':
-            f.write('{:s}S {:s} {:s}\n'.format(outputtype.upper(),name,vtk_datatype))
-            f.write('LOOKUP_TABLE default\n')
             if binary:
+                f.write(b('{:s}S {:s} {:s}\n'.format(outputtype.upper(),name,vtk_datatype)))
+                f.write(b('LOOKUP_TABLE default\n'))
                 for k in range(nz):
                     for j in range(ny):
                         for i in range(nx):
                             #f.write(struct.pack('f',u[j,i,k])) # native endianness
                             f.write(struct.pack('>f',u[j,i,k])) # big endian
             else:
+                f.write('{:s}S {:s} {:s}\n'.format(outputtype.upper(),name,vtk_datatype))
+                f.write('LOOKUP_TABLE default\n')
                 for k in range(nz):
                     for j in range(ny):
                         for i in range(nx):

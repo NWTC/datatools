@@ -239,21 +239,21 @@ class PlanarAverages(object):
         """check for inconsistent array lengths and trim if needed"""
         if fields_to_check is None:
             fields_to_check = self._processed
-        Nt0 = len(self.t)
         for field in fields_to_check:
             try:
                 getattr(self,field)
             except AttributeError:
                 fields_to_check.remove(field)
-        Nt_new = np.min([ getattr(self,field).shape[0] for field in fields_to_check ])
-        if Nt_new < Nt0:
+        field_lengths = [ getattr(self,field).shape[0] for field in fields_to_check ]
+        if np.min(field_lengths) < np.max(field_lengths):
+            self.imax = np.min(field_lengths)
             # need to prune arrays
             print('Inconsistent averaging field lengths... is simulation still running?')
-            print('  truncated field histories from',Nt0,'to',Nt_new)
-            self.t = self.t[:Nt_new]
+            print('  truncated field histories from',np.max(field_lengths),'to',self.imax)
+            self.t = self.t[:self.imax]
+            self.dt = self.dt[:self.imax]
             for field in fields_to_check:
-                setattr(self, field, getattr(self,field)[:Nt_new,:])
-            self.imax = Nt_new
+                setattr(self, field, getattr(self,field)[:self.imax,:])
 
     #==========================================================================
     #
@@ -1035,6 +1035,11 @@ class PlanarAverages(object):
             Single datatype to which to cast all fields
         """
         import pandas as pd
+        # output all vars
+        if (fields is not None) and (fields.lower() == 'all'):
+            print('All fields requested')
+            self.get_vars_if_needed(*all_vars)
+            self._trim_series_if_needed()
         # select time range
         if itime is None:
             tindices = range(len(self.t))
@@ -1042,15 +1047,13 @@ class PlanarAverages(object):
             try:
                 iter(itime)
             except TypeError:
-                # provide single tim index
+                # specified single time index
                 tindices = [itime]
             else:
-                # provided list of indices
+                # specified list of indices
                 tindices = itime
+        # create dataframes for each time (with height as secondary index)
         print('Creating dataframe for',self.t[tindices])
-        if (fields is not None) and (fields.lower() == 'all'):
-            print('All fields requested')
-            self.get_vars_if_needed(*all_vars)
         dflist = []
         for i in tindices:
             if hasattr(fields, '__iter__') and  not isinstance(fields, str):
