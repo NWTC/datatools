@@ -35,6 +35,9 @@ else:
 
 winddirection_colormap = plt.cm.hsv
 
+#
+# Wrappers for data loading
+#
 
 def read_dir(dpath='.',
              reader=pd.read_csv,
@@ -104,13 +107,19 @@ def read_date_dirs(dpath='.',
     return pd.concat(dataframes)
 
 
+#
+# Time-height plotting tools
+#
+
 def plot_wind(df,
               height_name='height',
               speed_name='speed',
               direction_name='direction',
               datetime_range=(None,None),
               verbose=False):
-    """Make time-height plot of wind speed and direction"""
+    """Make time-height plot of wind speed and direction, assuming a
+    datetime index has been set
+    """
     # set up time range
     if datetime_range[0] is None:
         tstart = df.index[0]
@@ -158,7 +167,9 @@ def plot_temp(df,
               datetime_range=(None,None),
               contour_res=0.5,
               verbose=False):
-    """Make time-height plot of temperature"""
+    """Make time-height plot of temperature, assuming a datetime index
+    has been set
+    """
     # set up time range
     if datetime_range[0] is None:
         tstart = df.index[0]
@@ -193,3 +204,20 @@ def plot_temp(df,
 
     return fig, ax
 
+
+#
+# Profile extraction
+#
+
+def get_profile_at_time(df,time,field='speed',height_name='height'):
+    """Interpolate field data to specified time, assuming a datetime
+    index has been set.
+
+    Returns height and data vectors
+    """
+    z = df[height_name].unique()
+    wide = df.pivot(columns='height',values=field)
+    wide.loc[time] = None
+    wide = wide.interpolate(method='slinear')
+    profile = wide.loc[time]
+    return profile.index, profile.values
