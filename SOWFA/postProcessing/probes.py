@@ -65,6 +65,7 @@ class Probe(object):
         else:
             self.N = len(self.pos)
             assert(self.N == iprobe+1)
+        self.pos = np.array(self.pos)
 
     def _read_data(self,f,varname='U'):
         line = f.readline()
