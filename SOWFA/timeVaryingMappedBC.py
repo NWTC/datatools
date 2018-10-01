@@ -8,8 +8,6 @@
 from __future__ import print_function
 import numpy as np
 
-from datatools.openfoam_util import read_vector_field_2d, read_scalar_field_2d
-
 def _get_unique_points_from_list(ylist,zlist,NY=None,NZ=None,order='F'):
     """Detects y and z (1-D arrays) from a list of points on a
     structured grid. Makes no assumptions about the point
