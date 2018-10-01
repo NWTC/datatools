@@ -215,7 +215,7 @@ def get_profile_at_time(df,time,field='speed',height_name='height'):
 
     Returns height and data vectors
     """
-    wide = df.pivot(columns='height',values=field)
+    wide = df.pivot(columns=height_name,values=field)
     wide.loc[time] = None
     wide = wide.interpolate(method='slinear')
     profile = wide.loc[time]
@@ -231,7 +231,7 @@ def average_profile_over_times(df,trange,field='speed',height_name='height'):
     dfsub = df.loc[trange]
     times = dfsub.index.unique()
     print('Average over',len(times),times)
-    wide = dfsub.pivot(columns='height',values=field)
+    wide = dfsub.pivot(columns=height_name,values=field)
     profile = wide.mean(axis=0)
     z = dfsub[height_name].unique()
     return z, profile.values
