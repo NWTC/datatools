@@ -3,12 +3,6 @@ Class for reading in 'probes' type OpenFOAM sampling
 
 written by Eliot Quon (eliot.quon@nrel.gov)
 
-Sample usage:
-
-    from SOWFA.postProcessing.probes import Probe
-    probe = Probe('postProcessing/probe1/0')
-    probe.to_csv('probe1.csv')
-
 """
 from __future__ import print_function
 import os
@@ -20,9 +14,25 @@ class Probe(object):
         (N, Nt[, 3])
     where N is the number of probes and Nt is the number of samples.
     Vectors have an additional dimension to denote vector components.
+
+    Sample usage:
+
+        from SOWFA.postProcessing.probes import Probe
+
+        # read all probes
+        probe = Probe('postProcessing/probe1/0')
+
+        # read specified probes only
+        probe = Probe('postProcessing/probe1/0',fields=['U','T'])
+
+        probe.to_csv('probe1.csv')
+
     """
     def __init__(self,dpath,fields=None):
-        """dpath is a directory that contains one or more probe files"""
+        """'dpath' is a directory that contains one or more probe files.
+        If 'fields' are not explicitly specified, then all probe files
+        from the specified directory will be read.
+        """
         if fields is None:
             fields = [ fname for fname in os.listdir(dpath)
                         if os.path.isfile(os.path.join(dpath,fname)) ]
@@ -89,4 +99,26 @@ class Probe(object):
             s+= '  {:s} : {:s}\n'.format(field,
                                          str(getattr(self,field).shape))
         return s
+
+    def as_dataframe(self):
+        import pandas as pd
+        dflist = []
+        for iprobe in range(self.N):
+            data = dict(t=self.t)
+            for field in self.fields:
+                F = getattr(self,field)
+                if len(F.shape)==3:
+                    # vector
+                    for i in range(3):
+                        data[field+str(i)] = F[iprobe,:,i]
+                else:
+                    # scalar
+                    data[field] = F[iprobe,:]
+            df = pd.DataFrame(data=data)
+            df['id'] = iprobe
+            dflist.append(df)
+        return pd.concat(dflist).set_index(['t','id'])
+
+    def to_csv(self,fname):
+        self.as_dataframe().to_csv(fname)
 
