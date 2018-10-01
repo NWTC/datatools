@@ -129,7 +129,7 @@ def plot_wind(df,
     if verbose:
         print('heights:',height)
         print('times:',time)
-    X,Y = np.meshgrid(time,height,indexing='ij')
+    X,Y = np.meshgrid(time.to_pydatetime(),height,indexing='ij')
     Nt, Nh = len(time), len(height)
     wspd = np.zeros((Nt,Nh))
     wdir = np.zeros((Nt,Nh))
@@ -140,11 +140,15 @@ def plot_wind(df,
     # make plot
     fig,ax = plt.subplots(nrows=2,sharex=True,sharey=True,figsize=(10,6))
     wslevels = np.arange(0,25.1,0.5)
-    cont = ax[0].contourf(X,Y,wspd, levels=wslevels, cmap=windspeed_colormap)
-    cbar = fig.colorbar(cont, ax=ax[0], ticks=np.arange(0,26), label='wind speed [m/s]')
     wdlevels = np.arange(0,360.1,7.5)
-    cont = ax[1].contourf(X,Y,wdir, levels=wdlevels, cmap=winddirection_colormap)
-    cbar = fig.colorbar(cont, ax=ax[1], ticks=np.arange(0,361,45), label='wind direction [deg]')
+
+    cont = ax[0].contourf(X, Y, wspd, levels=wslevels, cmap=windspeed_colormap)
+    cbar = fig.colorbar(cont, ax=ax[0], ticks=np.arange(0,26),
+                        label='wind speed [m/s]')
+
+    cont = ax[1].contourf(X, Y, wdir, levels=wdlevels, cmap=winddirection_colormap)
+    cbar = fig.colorbar(cont, ax=ax[1], ticks=np.arange(0,361,45),
+                        label='wind direction [deg]')
 
     return fig, ax
 
@@ -173,7 +177,7 @@ def plot_temp(df,
     if verbose:
         print('heights:',height)
         print('times:',time)
-    X,Y = np.meshgrid(time,height,indexing='ij')
+    X,Y = np.meshgrid(time.to_pydatetime(),height,indexing='ij')
     Nt, Nh = len(time), len(height)
     thetav = np.zeros((Nt,Nh))
     for k,h in enumerate(height):
