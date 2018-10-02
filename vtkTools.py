@@ -328,8 +328,14 @@ def vtk_write_structured_points( f, nx,ny,nz, data,
     if 'b' in f.mode:
         binary = True
         import struct
-        def b(s):
-            return bytes(s,'utf-8')
+        if bytes is str:
+            # python 2
+            def b(s):
+                return str(s)
+        else:
+            # python 3
+            def b(s):
+                return bytes(s,'utf-8')
         f.write(b(vtk_header+'\n'))
         f.write(b(vtk_description+'\n'))
         f.write(b('BINARY\n'))
