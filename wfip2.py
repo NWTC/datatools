@@ -221,7 +221,8 @@ def get_profile_at_time(df,time,field='speed',height_name='height'):
     profile = wide.loc[time]
     return profile.index, profile.values
 
-def average_profile_over_times(df,trange,field='speed',height_name='height'):
+def average_profile_over_times(df,trange,field='speed',height_name='height',
+                               verbose=True):
     """Temporal average of field data over specified time range,
     assuming a datetime index has been set.
 
@@ -230,13 +231,14 @@ def average_profile_over_times(df,trange,field='speed',height_name='height'):
     trange = (df.index >= trange[0]) & (df.index <= trange[1])
     dfsub = df.loc[trange]
     times = dfsub.index.unique()
-    print('Average over',len(times),times)
+    if verbose: print('Average over',len(times),times)
     wide = dfsub.pivot(columns=height_name,values=field)
     profile = wide.mean(axis=0)
     z = dfsub[height_name].unique()
     return z, profile.values
 
-def stdev_profile_over_times(df,trange,field='speed',height_name='height'):
+def stdev_profile_over_times(df,trange,field='speed',height_name='height',
+                             verbose=True):
     """Standard deviation of field data over specified time range,
     assuming a datetime index has been set.
 
@@ -245,7 +247,7 @@ def stdev_profile_over_times(df,trange,field='speed',height_name='height'):
     trange = (df.index >= trange[0]) & (df.index <= trange[1])
     dfsub = df.loc[trange]
     times = dfsub.index.unique()
-    print('Standard deviation over',len(times),times)
+    if verbose: print('Standard deviation over',len(times),times)
     wide = dfsub.pivot(columns=height_name,values=field)
     profile = wide.std(axis=0)
     z = dfsub[height_name].unique()
