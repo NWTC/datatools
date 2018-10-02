@@ -236,3 +236,18 @@ def average_profile_over_times(df,trange,field='speed',height_name='height'):
     z = dfsub[height_name].unique()
     return z, profile.values
 
+def stdev_profile_over_times(df,trange,field='speed',height_name='height'):
+    """Standard deviation of field data over specified time range,
+    assuming a datetime index has been set.
+
+    Returns height and data vectors
+    """
+    trange = (df.index >= trange[0]) & (df.index <= trange[1])
+    dfsub = df.loc[trange]
+    times = dfsub.index.unique()
+    print('Standard deviation over',len(times),times)
+    wide = dfsub.pivot(columns=height_name,values=field)
+    profile = wide.std(axis=0)
+    z = dfsub[height_name].unique()
+    return z, profile.values
+
