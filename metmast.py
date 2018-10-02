@@ -15,10 +15,14 @@ import numpy as np
 import pandas as pd
 
 
-def load_sonic_data(fname):
+def load_sonic_data(fname,height=None,calculate_speed_direction=True):
     df = pd.read_csv(fname, parse_dates=['datetime'])
     df.set_index('datetime', inplace=True)
-    df.rename({'Tv':'th'}, axis='columns', inplace=True)
+    if height is not None:
+        df['z'] = height
+    df['speed'] = np.sqrt(df['u']**2 + df['v']**2 + df['w']**2)
+    df['direction'] = 180.0/np.pi*np.arctan2(-df['u'],-df['v'])
+    df.loc[df['direction'] < 0, 'direction'] += 360.0
     return df
 
 
