@@ -126,10 +126,10 @@ def read_profiler_data_block(f,datatypes=['WINDS','RASS']):
     df['date_time'] = date_time
     return df
 
-def ESRL_wind_profiler(fname,
-                       modes=2,
-                       check_na=['SPD','DIR'],
-                       na_values=999999):
+def radar_profiler(fname,
+                   modes=2,
+                   check_na=['SPD','DIR'],
+                   na_values=999999):
     """Wind Profiler radar with RASS
     Users: Earth Sciences Research Laboratory (ESRL)
 
@@ -139,9 +139,6 @@ def ESRL_wind_profiler(fname,
 
     Additional data format reference:
     https://www.esrl.noaa.gov/psd/data/obs/formats/
-
-    'WINDS' output have 2 sets of returns (mode configurations) per file
-    'RASS' has only 1
     """
     dataframes = []
     with open(fname,'r') as f:
@@ -169,6 +166,25 @@ def ESRL_wind_profiler(fname,
             for col in check_na:
                 df.loc[df[col]==val,col] = np.nan # flag bad values
     return df
+
+# aliases, for backward compatibility
+ESRL_wind_profiler = radar_profiler
+"""ESRL profiler configuration for WFIP 2 experiment:
+* 'WINDS' output has 2 sets of returns (configuration modes) per file
+* 'RASS' has only 1
+                                 WINDS(1)  WINDS(2)      RASS
+consensus averaging time [min]       24.0      24.0       3.0
+beams                                 3.0       3.0       1.0
+range gates                          44.0      61.0      25.0
+coherant integrations               160.0      76.0      10.0
+spectral averages                    50.0      50.0      28.0
+pulse width [ns]                    417.0     708.0     417.0
+inner pulse period [ms]              25.0      53.0       2.0
+full-scale Doppler value [m/s]       20.5      20.3     409.6
+delay to first gate [ns]           3792.0    4958.0    4000.0
+"""
+
+TTU_radar_profiler = radar_profiler
 
 
 #
