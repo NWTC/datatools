@@ -138,13 +138,22 @@ def radar_profiler(fname,
     provided reference for rev 4.1 from:
     https://a2e.energy.gov/data/wfip2/attach/915mhz-cns-winds-data-format.txt
 
+    Set 'modes' to None to read all blocks in the file
+
     Additional data format reference:
     https://www.esrl.noaa.gov/psd/data/obs/formats/
     """
     dataframes = []
     with open(fname,'r') as f:
-        for _ in range(modes):
-            dataframes.append(read_profiler_data_block(f))
+        if modes is not None:
+            for _ in range(modes):
+                dataframes.append(read_profiler_data_block(f))
+        else:
+            while True:
+                try:
+                    dataframes.append(read_profiler_data_block(f))
+                except (IOError,IndexError):
+                    break
     df = pd.concat(dataframes)
     if na_values is not None:
         nalist = []
