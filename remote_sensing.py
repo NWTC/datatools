@@ -101,8 +101,9 @@ def windcube_v1(fname,
 
 def read_profiler_data_block(f,datatypes=['WINDS','RASS']):
     """Dependency for wind_profiler radar"""
-    assert(f.readline().strip() == '') # Line 1
-    f.readline() # Line 2: station name
+    # Line 1 (may not be present for subsequent blocks within the same file
+    if f.readline().strip() == '':
+        f.readline() # Line 2: station name
     assert(f.readline().split()[0] in datatypes) # Line 3: WINDS, version
     f.readline() # Line 4: lat (N), long (W), elevation (m)
     Y,m,d,H,M,S,_ = f.readline().split() # Line 5: date
