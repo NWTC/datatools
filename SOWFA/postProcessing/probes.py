@@ -11,9 +11,10 @@ import numpy as np
 class Probe(object):
     """Stores a time array (t), and field arrays as attributes. The
     fields have shape:
-        (N, Nt[, 3])
+        (N, Nt[, Nd])
     where N is the number of probes and Nt is the number of samples.
     Vectors have an additional dimension to denote vector components.
+    Symmetric tensors have an additional dimension to denote tensor components (xx, xy, xz, yy, yz, zz).
 
     Sample usage:
 
@@ -83,6 +84,9 @@ class Probe(object):
             elif len(line) == 3*self.N+1:
                 # vector
                 F.append(arr.reshape((self.N,3),order='C'))
+            elif len(line) == 6*self.N+1:
+                # symmetric tensor
+                F.append(arr.reshape((self.N,6),order='C'))
             else:
                 raise IndexError('Unrecognized number of values')
         setattr(self, varname, np.array(F).swapaxes(0,1))
