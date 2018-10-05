@@ -101,8 +101,9 @@ def windcube_v1(fname,
 
 def read_profiler_data_block(f,datatypes=['WINDS','RASS']):
     """Dependency for wind_profiler radar"""
-    assert(f.readline().strip() == '') # Line 1
-    f.readline() # Line 2: station name
+    # Line 1 (may not be present for subsequent blocks within the same file
+    if f.readline().strip() == '':
+        f.readline() # Line 2: station name
     assert(f.readline().split()[0] in datatypes) # Line 3: WINDS, version
     f.readline() # Line 4: lat (N), long (W), elevation (m)
     Y,m,d,H,M,S,_ = f.readline().split() # Line 5: date
@@ -126,10 +127,10 @@ def read_profiler_data_block(f,datatypes=['WINDS','RASS']):
     df['date_time'] = date_time
     return df
 
-def ESRL_wind_profiler(fname,
-                       modes=2,
-                       check_na=['SPD','DIR'],
-                       na_values=999999):
+def radar_profiler(fname,
+                   modes=2,
+                   check_na=['SPD','DIR'],
+                   na_values=999999):
     """Wind Profiler radar with RASS
     Users: Earth Sciences Research Laboratory (ESRL)
 
@@ -137,16 +138,22 @@ def ESRL_wind_profiler(fname,
     provided reference for rev 4.1 from:
     https://a2e.energy.gov/data/wfip2/attach/915mhz-cns-winds-data-format.txt
 
+    Set 'modes' to None to read all blocks in the file
+
     Additional data format reference:
     https://www.esrl.noaa.gov/psd/data/obs/formats/
-
-    'WINDS' output have 2 sets of returns (mode configurations) per file
-    'RASS' has only 1
     """
     dataframes = []
     with open(fname,'r') as f:
-        for _ in range(modes):
-            dataframes.append(read_profiler_data_block(f))
+        if modes is not None:
+            for _ in range(modes):
+                dataframes.append(read_profiler_data_block(f))
+        else:
+            while True:
+                try:
+                    dataframes.append(read_profiler_data_block(f))
+                except (IOError,IndexError):
+                    break
     df = pd.concat(dataframes)
     if na_values is not None:
         nalist = []
@@ -169,6 +176,26 @@ def ESRL_wind_profiler(fname,
             for col in check_na:
                 df.loc[df[col]==val,col] = np.nan # flag bad values
     return df
+
+# aliases, for backward compatibility
+ESRL_wind_profiler = radar_profiler
+"""ESRL profiler configuration for WFIP 2 experiment:
+* 'WINDS' output has 2 sets of returns (configuration modes) per file
+* 'RASS' has only 1
+                                 WINDS(1)  WINDS(2)      RASS
+consensus averaging time [min]       24.0      24.0       3.0
+beams                                 3.0       3.0       1.0
+range gates                          44.0      61.0      25.0
+coherant integrations               160.0      76.0      10.0
+spectral averages                    50.0      50.0      28.0
+pulse width [ns]                    417.0     708.0     417.0
+inner pulse period [ms]              25.0      53.0       2.0
+full-scale Doppler value [m/s]       20.5      20.3     409.6
+delay to first gate [ns]           3792.0    4958.0    4000.0
+"""
+
+TTU_radar_profiler = radar_profiler
+
 
 #
 # Sodar data readers
@@ -336,6 +363,7 @@ def ESRL_radiometrics_mwr(fname,verbose=True):
 
     return data
 
+
 #
 # Ceilometer
 #
@@ -381,4 +409,5 @@ def Vaisala_CL31(fname,verbose=True,zcol=8,unpack=True,
         return backscatter, clouds, status
     else:
         return df
+
 

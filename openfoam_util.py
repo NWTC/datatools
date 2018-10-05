@@ -14,10 +14,18 @@ def _read(f,line=None,debug=False):
         line = f.readline()
     while (not ';' in line) \
             or (not line.count('(') == line.count(')')):
-        line += f.readline()
+        newline = f.readline()
+        if newline == '':
+            break # EOF
+        else:
+            line += newline
     # clean up the string
     line = line.strip()
-    line = line[:line.index(';')]
+    try:
+        line = line[:line.index(';')]
+    except ValueError:
+        # we reached the end of a list and/or the file, but there was no ';'
+        pass
     line = line.replace('(',' ( ') # guarantee parentheses are separated out
     line = line.replace(')',' ) ') # guarantee parentheses are separated out
     line = line.replace('\n',' ')
@@ -94,8 +102,14 @@ def of_parse_list(L,cast=float,debug=False):
 
 def read_all_defs(fname,verbose=True):
     """Read all definitions, including N-D arrays from the specified
-    file, which may be read on the fly during runtime. Results are
-    returned in a dictionary.
+    file, which may be read on the fly during runtime.
+
+    Note: Multi-dimensional OpenFOAM arrays/tables, denoted by nested
+    parenthesis, can be read, along with strings and single scalars.
+    OpenFOAM dictionaries, denoted by nested curly braces, are NOT
+    handled.
+    
+    Results are returned in a dictionary.
     """
     data = {}
     with open(fname,'r') as f:

@@ -35,6 +35,9 @@ else:
 
 winddirection_colormap = plt.cm.hsv
 
+#
+# Wrappers for data loading
+#
 
 def read_dir(dpath='.',
              reader=pd.read_csv,
@@ -104,13 +107,19 @@ def read_date_dirs(dpath='.',
     return pd.concat(dataframes)
 
 
+#
+# Time-height plotting tools
+#
+
 def plot_wind(df,
               height_name='height',
               speed_name='speed',
               direction_name='direction',
               datetime_range=(None,None),
               verbose=False):
-    """Make time-height plot of wind speed and direction"""
+    """Make time-height plot of wind speed and direction, assuming a
+    datetime index has been set
+    """
     # set up time range
     if datetime_range[0] is None:
         tstart = df.index[0]
@@ -129,7 +138,7 @@ def plot_wind(df,
     if verbose:
         print('heights:',height)
         print('times:',time)
-    X,Y = np.meshgrid(time,height,indexing='ij')
+    X,Y = np.meshgrid(time.to_pydatetime(),height,indexing='ij')
     Nt, Nh = len(time), len(height)
     wspd = np.zeros((Nt,Nh))
     wdir = np.zeros((Nt,Nh))
@@ -140,11 +149,15 @@ def plot_wind(df,
     # make plot
     fig,ax = plt.subplots(nrows=2,sharex=True,sharey=True,figsize=(10,6))
     wslevels = np.arange(0,25.1,0.5)
-    cont = ax[0].contourf(X,Y,wspd, levels=wslevels, cmap=windspeed_colormap)
-    cbar = fig.colorbar(cont, ax=ax[0], ticks=np.arange(0,26), label='wind speed [m/s]')
     wdlevels = np.arange(0,360.1,7.5)
-    cont = ax[1].contourf(X,Y,wdir, levels=wdlevels, cmap=winddirection_colormap)
-    cbar = fig.colorbar(cont, ax=ax[1], ticks=np.arange(0,361,45), label='wind direction [deg]')
+
+    cont = ax[0].contourf(X, Y, wspd, levels=wslevels, cmap=windspeed_colormap)
+    cbar = fig.colorbar(cont, ax=ax[0], ticks=np.arange(0,26),
+                        label='wind speed [m/s]')
+
+    cont = ax[1].contourf(X, Y, wdir, levels=wdlevels, cmap=winddirection_colormap)
+    cbar = fig.colorbar(cont, ax=ax[1], ticks=np.arange(0,361,45),
+                        label='wind direction [deg]')
 
     return fig, ax
 
@@ -154,7 +167,9 @@ def plot_temp(df,
               datetime_range=(None,None),
               contour_res=0.5,
               verbose=False):
-    """Make time-height plot of temperature"""
+    """Make time-height plot of temperature, assuming a datetime index
+    has been set
+    """
     # set up time range
     if datetime_range[0] is None:
         tstart = df.index[0]
@@ -173,7 +188,7 @@ def plot_temp(df,
     if verbose:
         print('heights:',height)
         print('times:',time)
-    X,Y = np.meshgrid(time,height,indexing='ij')
+    X,Y = np.meshgrid(time.to_pydatetime(),height,indexing='ij')
     Nt, Nh = len(time), len(height)
     thetav = np.zeros((Nt,Nh))
     for k,h in enumerate(height):
@@ -188,4 +203,53 @@ def plot_temp(df,
     cbar = fig.colorbar(cont, label='potential temperature [K]')
 
     return fig, ax
+
+
+#
+# Profile extraction
+#
+
+def get_profile_at_time(df,time,field='speed',height_name='height'):
+    """Interpolate field data to specified time, assuming a datetime
+    index has been set.
+
+    Returns height and data vectors
+    """
+    wide = df.pivot(columns=height_name,values=field)
+    wide.loc[time] = None
+    wide = wide.interpolate(method='slinear')
+    profile = wide.loc[time]
+    return profile.index, profile.values
+
+def average_profile_over_times(df,trange,field='speed',height_name='height',
+                               verbose=True):
+    """Temporal average of field data over specified time range,
+    assuming a datetime index has been set.
+
+    Returns height and data vectors
+    """
+    trange = (df.index >= trange[0]) & (df.index <= trange[1])
+    dfsub = df.loc[trange]
+    times = dfsub.index.unique()
+    if verbose: print('Average over',len(times),times)
+    wide = dfsub.pivot(columns=height_name,values=field)
+    profile = wide.mean(axis=0)
+    z = dfsub[height_name].unique()
+    return z, profile.values
+
+def stdev_profile_over_times(df,trange,field='speed',height_name='height',
+                             verbose=True):
+    """Standard deviation of field data over specified time range,
+    assuming a datetime index has been set.
+
+    Returns height and data vectors
+    """
+    trange = (df.index >= trange[0]) & (df.index <= trange[1])
+    dfsub = df.loc[trange]
+    times = dfsub.index.unique()
+    if verbose: print('Standard deviation over',len(times),times)
+    wide = dfsub.pivot(columns=height_name,values=field)
+    profile = wide.std(axis=0)
+    z = dfsub[height_name].unique()
+    return z, profile.values
 
