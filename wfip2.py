@@ -24,6 +24,7 @@ import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 try:
     # use NOAA colormap
@@ -33,7 +34,11 @@ except ImportError:
 else:
     windspeed_colormap = idl_colortable()
 
-winddirection_colormap = plt.cm.hsv
+try:
+    # matplotlib version >= 3.0 
+    cyclic_colormap = plt.cm.twilight
+except AttributeError:
+    cyclic_colormap = plt.cm.hsv
 
 #
 # Wrappers for data loading
@@ -119,6 +124,8 @@ def plot_wind(df,
               verbose=False):
     """Make time-height plot of wind speed and direction, assuming a
     datetime index has been set
+
+    DEPRECATED--use plot(), or plot_windspeed() and plot_winddirection()
     """
     # set up time range
     if datetime_range[0] is None:
@@ -155,7 +162,7 @@ def plot_wind(df,
     cbar = fig.colorbar(cont, ax=ax[0], ticks=np.arange(0,26),
                         label='wind speed [m/s]')
 
-    cont = ax[1].contourf(X, Y, wdir, levels=wdlevels, cmap=winddirection_colormap)
+    cont = ax[1].contourf(X, Y, wdir, levels=wdlevels, cmap=cyclic_colormap)
     cbar = fig.colorbar(cont, ax=ax[1], ticks=np.arange(0,361,45),
                         label='wind direction [deg]')
 
@@ -169,6 +176,8 @@ def plot_temp(df,
               verbose=False):
     """Make time-height plot of temperature, assuming a datetime index
     has been set
+
+    DEPRECATED--use plot(), or plot_temperature()
     """
     # set up time range
     if datetime_range[0] is None:
@@ -204,6 +213,193 @@ def plot_temp(df,
 
     return fig, ax
 
+def _trim_datetime(df, datetime_range):
+    if datetime_range == (None,None):
+        return df
+    # set up time range
+    if datetime_range[0] is None:
+        tstart = df.index[0]
+    else:
+        tstart = pd.to_datetime(datetime_range[0])
+    if datetime_range[1] is None:
+        tend = df.index[-1]
+    else:
+        tend = pd.to_datetime(datetime_range[1])
+    return df.loc[(df.index >= tstart) & (df.index <= tend)]
+
+def plot_timeheight(df, column, ax=None,
+                    datetime_range=(None,None),
+                    datetime_name='datetime',
+                    height_name='height',
+                    cmap='viridis',
+                    label='',
+                    cbar_ticks=None,
+                    **kwargs):
+    """Make time-height plot
+
+    If the dataframe does not have a datetime index, then columns
+    'datetime_name' and 'height_name' are used to form lists of unique
+    datetimes and heights to plot.
+
+    If the dataframe has a datetime index, then only 'height_name' is
+    used to form a list of unique heights to plot.
+
+    If the dataframe has a multiindex, then the first should be a
+    datetime index and the second should be the height index.
+    """
+    # setup index
+    if isinstance(df.index, pd.core.index.MultiIndex):
+        # multindex
+        height = df.index.levels[1]
+        df = df.reset_index(level=1)
+    elif isinstance(df.index, pd.DatetimeIndex):
+        # single datetime index
+        height = df[height_name].unique()
+        df = df.reset_index()
+    else:
+        # default range index
+        height = df[height_name].unique()
+        df = df.set_index(datetime_name)
+
+    # trim rows outside of range
+    df = _trim_datetime(df,datetime_range)
+    time = df.index.unique().to_pydatetime()
+
+    # create arrays for plotting
+    X,Y = np.meshgrid(time, height, indexing='ij')
+    #F = np.zeros((len(time),len(height)))
+    #for k,h in enumerate(height):
+    #    F[:,k] = df.loc[df.index.levels[1]==h, column]
+    F = df.pivot(columns=height_name, values=column).values
+
+    # make plot
+    if ax is None:
+        _,ax = plt.subplots(figsize=(10,3))
+    cm = ax.pcolormesh(X,Y,F,cmap=cmap,**kwargs)
+    cbar = plt.colorbar(cm,ax=ax,label=label)
+    if cbar_ticks is not None:
+        cbar.set_ticks(cbar_ticks)
+
+    # format time axis
+    ax.set_xlabel('')
+    ax.set_ylabel('height [m]')
+    #ax.xaxis.set_major_locator(mdates.DayLocator())
+    #ax.xaxis.set_minor_locator(mdates.HourLocator())
+    #ax.xaxis.set_major_formatter(mdates.DateFormatter('\n%Y %b %d'))
+    #ax.xaxis.set_minor_formatter(mdates.DateFormatter('%HZ'))
+
+
+def plot_windspeed(df, name='windspeed', components=None,
+                   cmap='viridis', vmin=None, vmax=None,
+                   label='wind speed [m/s]',
+                   **kwargs):
+    """Plot wind speed by calling plot_timeheight()
+    
+    'name' corresponds to a column within the dataframe. Otherwise,
+    'components', a list of u,v[,w] velocity components, is used to
+    calculate the wind speed with 'name'.
+
+    See plot_timeheight() for general keyword arguments.
+    """
+    if name not in df.columns:
+        if components is None:
+            raise KeyError("Column '{:s}' not found; specify correct column name or list of velocity components".format(name))
+        else:
+            print('Calculating wind speed from {:s}'.format(str(components)))
+            df[name] = np.sqrt((df[components]**2).sum(axis=1))
+    elif components is not None:
+        print("Components {:s} ignored because column '{:s}' exists".format(
+                str(components), name))
+
+    plot_timeheight(df, column=name,
+                    cmap=cmap,label=label,vmin=vmin,vmax=vmax,
+                    **kwargs)
+
+def plot_winddirection(df, name='winddirection', components=None,
+                       cmap='viridis', vmin=None, vmax=None,
+                       label='wind direction [deg]',
+                       cbar_ticks=None,
+                       full_360=False,
+                       **kwargs):
+    """Plot wind direction by calling plot_timeheight()
+
+    If 'full_360' is True, then a cyclic colormap is used and vmin/max
+    are ignored.
+    
+    'name' corresponds to a column within the dataframe. Otherwise,
+    'components', a list of u,v velocity components, is used to
+    calculate the wind direction with 'name'.
+
+    See plot_timeheight() for general keyword arguments.
+    """
+    if name not in df.columns:
+        if components is None:
+            raise KeyError("Column '{:s}' not found; specify correct column name or list of velocity components".format(name))
+        else:
+            print('Calculating wind direction from {:s}'.format(str(components)))
+            df[name] = 180./np.pi * np.arctan2(-df[components[0]], -df[components[1]])
+            df.loc[df[name] < 0, name] += 360
+    elif components is not None:
+        print("Components {:s} ignored because column '{:s}' exists".format(
+                str(components), name))
+
+    if full_360:
+        plot_timeheight(df, column=name,
+                        cmap=cyclic_colormap,vmin=0,vmax=360,
+                        label=label,
+                        cbar_ticks=np.arange(0,361,45),
+                        **kwargs)
+    else:
+        plot_timeheight(df, column=name,
+                        cmap=cmap,vmin=vmin,vmax=vmax,
+                        label=label,
+                        cbar_ticks=cbar_ticks,
+                        **kwargs)
+
+
+def plot_temperature(df, name='T',
+                     cmap='inferno', vmin=None, vmax=None,
+                     label='temperature [K]',
+                     **kwargs):
+    """Plot temperature by calling plot_timeheight()
+    
+    'name' corresponds to a column within the dataframe.
+
+    See plot_timeheight() for general keyword arguments.
+    """
+    if name not in df.columns:
+        raise KeyError("Column '{:s}' not found; specify correct column name".format(name))
+
+    plot_timeheight(df, column=name,
+                    cmap=cmap,label=label,vmin=vmin,vmax=vmax,
+                    **kwargs)
+
+def plot_all(df, ax=None,
+             windspeed_name='windspeed',
+             windspeed_label='wind speed [m/s]',
+             winddirection_name='winddirection',
+             winddirection_label='wind direction [deg]',
+             temperature_name='T',
+             temperature_label='temperature [K]',
+             **kwargs):
+    if ax is None:
+        fig,ax = plt.subplots(nrows=3,sharex=True,sharey=True,figsize=(10,8))
+    plot_windspeed(df,
+                ax=ax[0], 
+                name=windspeed_name,
+                label=windspeed_label,
+                **kwargs)
+    plot_winddirection(df,
+                ax=ax[1], 
+                name=winddirection_name,
+                label=winddirection_label,
+                **kwargs)
+    plot_temperature(df,
+                 ax=ax[2], 
+                 name=temperature_name,
+                 label=temperature_label,
+                 **kwargs)
+    return fig,ax
 
 #
 # Profile extraction
