@@ -461,7 +461,7 @@ class CartesianPatch(object):
 
     def write_profiles(self, t, z,
                        U=None, V=None, W=None, T=None, k=None,
-                       time_range=(None,None),
+                       time_range=[None,None],
                        verbose=True):
         """Write out constant/boundaryData/patchName/*/{U,T} given a
         set of time-height profiles. Outputs will be interpolated to 
