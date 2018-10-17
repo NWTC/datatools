@@ -154,23 +154,23 @@ class TopoSetDict(object):
             fname = '{:s}.{:d}'.format(prefix,ilevel+1)
             sourcename = self.sources[ilevel]
             source = getattr(self,'_write_'+sourcename)
-            print('Writing {:s} dict : {:s}'.format(sourcename,fname))
+#            print('Writing {:s} dict : {:s}'.format(sourcename,fname))
             # Get the effective level; if sources==['cylinder','box','box'],
             # then the zero-indexed ilevel==1 (corresponds to an overall
             # refinement level of 2, and a box-refinement level of 1)
-#            efflevel = ilevel
-#            for i in range(ilevel):
-#                if not self.sources[i] == self.sources[ilevel]:
-#                    efflevel -= 1
-#            print('Writing {:s} dict, level {:d} : {:s}'.format(sourcename,
-#                                                                efflevel,
-#                                                                fname))
+            efflevel = ilevel
+            for i in range(ilevel):
+                if not self.sources[i] == self.sources[ilevel]:
+                    efflevel -= 1
+            print('Writing {:s} dict, level {:d} : {:s}'.format(sourcename,
+                                                                efflevel,
+                                                                fname))
             # write out topoSetDict.*
             with open(fname,'w') as f:
                 f.write(topoSetDict_header.format(fname=fname))
                 for iturb in range(len(self.base_location)):
-                    #f.write(source(iturb,efflevel))
-                    f.write(source(iturb,ilevel)) # ilevel is 0-indexed
+                    #f.write(source(iturb,ilevel)) # ilevel is 0-indexed
+                    f.write(source(iturb,efflevel))
                 f.write(topoSetDict_footer)
 
 
