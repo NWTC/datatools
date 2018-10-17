@@ -33,7 +33,9 @@ topoSetDict_footer = """);
 class TopoSetDict(object):
     source_types = ['box','cylinder']
 
-    def __init__(self,sources=[],mean_rotation=0.0,perturb=0.01):
+    def __init__(self,sources=[],perturb=0.01,rotation=0.0,
+                 upstream=5.0,downstream=10.0,width=3.0,height=3.0,
+                 streamwise_buffer=1.0,lateral_buffer=1.0,vertical_buffer=1.0):
         """Object for generating a series of topoSetDict files (e.g.,
         for refinement). Level 1 is the finest level, and successive
         refinements should be performed sequentially starting from the
@@ -45,17 +47,53 @@ class TopoSetDict(object):
             Describes the cellSet sources (either "box" or "cylinder")
             used in describing the refinement regions, the length of
             which corresponds to the number of refinement levels.
-        mean_rotation : float, optional
-            Default rotation of refinement regions about z-axis using
-            the right-hand rule (NOT compass wind direction). [deg]
         perturb : float, optional
             A perturbation of the refinement boxes to keep the
             boundaries off of cell faces. [m]
+
+        Default box refinement parameters
+        ---------------------------------
+        rotation : float, optional
+            Angle about the z-axis to rotate the refinement region (NOT
+            the compass wind direction); if None, then mean_rotation is
+            used. [deg]
+        upstream : float, optional
+            Distance (in diameters) upstream of the turbine where the
+            inner refinement box starts.
+        downstream : float, optional
+            Distance (in diameters) downstream of the turbine where the
+            inner refinement box ends.
+        width : float, optional
+            The overall width (in diameters) of the inner refinement
+            box; need to account for horizontal wake meandering
+            downstream.
+        height : float, optional
+            The overall height (in diameters) of the inner refinement
+            box; need to account for vertical wake meandering
+            downstream.
+        streamwise_buffer : float, optional
+            Size of buffer region (in diameters) between refinement
+            levels in the upstream/downstream directions
+        lateral_buffer : float, optional
+            Size of buffer region (in diameters) between refinement
+            levels in the lateral directions
+        vertical_buffer : float, optional
+            Size of buffer region (in diameters) between refinement
+            levels in the vertical directions
         """
         self.sources = sources
         self.Nlevels = len(sources)
         self._check_specified_sources()
-        self.rotation0 = mean_rotation * np.pi/180.0
+
+        # set defaults
+        self.refinement = dict(
+            rotation=rotation*np.pi/180.0,
+            upstream=upstream, downstream=downstream,
+            width=width, height=height,
+            streamwise_buffer=streamwise_buffer,
+            lateral_buffer=lateral_buffer,
+            vertical_buffer=vertical_buffer
+        )
 
         # definitions for each turbine
         self.base_location = []
@@ -70,12 +108,6 @@ class TopoSetDict(object):
         self.zbuffer = []
             
 
-    def _check_specified_sources(self):
-        defined = [ (sourcename in self.source_types)
-                    for sourcename in self.sources ]
-        assert(all(defined))
-
-
     def __repr__(self):
         s = '{:d} refinement levels : {:s}'.format(self.Nlevels,
                                                    str(self.sources))
@@ -85,68 +117,44 @@ class TopoSetDict(object):
         return s
 
 
-    def add_turbine(self, base_location=(1000,1000,0),
-                rotation=None,
-                D=126.0,
-                upstream=5.0,
-                downstream=10.0,
-                width=3.0,
-                height=3.0,
-                streamwise_buffer=1.0,
-                lateral_buffer=1.0,
-                vertical_buffer=1.0):
-        """Add turbine at specified 'base_location' with diameter 'D'.
-        The 'upstream', 'downstream', 'width', and 'height' lists should
-        all have the same length as the self.sources list.
+    def _check_specified_sources(self):
+        defined = [ (sourcename in self.source_types)
+                    for sourcename in self.sources ]
+        assert(all(defined))
 
-        Refinement parameters
-        ---------------------
+    def add_turbine(self, base_location=(1000,1000,0), D=126.0, **kwargs):
+        """Add turbine at specified 'base_location' with diameter 'D'.
+
+        Note that each turbine is associated with a set of topoSet
+        refinement sources.
+
+        Turbine parameters
+        ------------------
         base_location : array-like
             xyz coordinates of turbine base. [m]
-        rotation : float, optional
-            Angle about the z-axis to rotate the refinement region (NOT
-            the compass wind direction); if None, then mean_rotation is
-            used. [deg]
         D : float
             Rotor dameter, used as a reference length. [m]
-        upstream : float
-            Distance (in diameters) upstream of the turbine where the
-            inner refinement box starts.
-        downstream : float
-            Distance (in diameters) downstream of the turbine where the
-            inner refinement box ends.
-        width : float
-            The overall width (in diameters) of the inner refinement
-            box; need to account for horizontal wake meandering
-            downstream.
-        height : float
-            The overall height (in diameters) of the inner refinement
-            box; need to account for vertical wake meandering
-            downstream.
-        streamwise_buffer : float
-            Size of buffer region (in diameters) between refinement
-            levels in the upstream/downstream directions
-        lateral_buffer : float
-            Size of buffer region (in diameters) between refinement
-            levels in the lateral directions
-        vertical_buffer : float
-            Size of buffer region (in diameters) between refinement
-            levels in the vertical directions
+        **kwargs :
+            Optional refinement parameters to override defaults
+            specified during initialization.
+
         """
         self.base_location.append(base_location)
-        if rotation is None:
-            ang = self.rotation0
-        else:
-            ang = np.pi/180. * rotation
-        self.rotation.append(ang)            
         self.diameter.append(D)
-        self.upstream.append(upstream)
-        self.downstream.append(downstream)
-        self.width.append(width)
-        self.height.append(height)
-        self.xbuffer.append(streamwise_buffer)
-        self.ybuffer.append(lateral_buffer)
-        self.zbuffer.append(vertical_buffer)
+        if 'rotation' in kwargs:
+            ang = np.pi/180. * kwargs['rotation']
+        else:
+            ang = self.refinement['rotation']
+        def get_param(param):
+            return kwargs.get(param, self.refinement[param])
+        self.rotation.append(ang)
+        self.upstream.append(get_param('upstream'))
+        self.downstream.append(get_param('downstream'))
+        self.width.append(get_param('width'))
+        self.height.append(get_param('height'))
+        self.xbuffer.append(get_param('streamwise_buffer'))
+        self.ybuffer.append(get_param('lateral_buffer'))
+        self.zbuffer.append(get_param('vertical_buffer'))
 
 
     def write(self,prefix='topoSetDict.local'):
