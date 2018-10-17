@@ -33,15 +33,15 @@ topoSetDict_footer = """);
 class TopoSetDict(object):
     source_types = ['box','cylinder']
 
-    def __init__(self,refinement=[],mean_rotation=0.0,perturb=0.01):
-        """Object for generating a series of topoSetDict files for
-        refinement. Level 1 is the finest level, and successive
+    def __init__(self,sources=[],mean_rotation=0.0,perturb=0.01):
+        """Object for generating a series of topoSetDict files (e.g.,
+        for refinement). Level 1 is the finest level, and successive
         refinements should be performed sequentially starting from the
         coarsest level down to 1.
         
         Inputs
         ------
-        refinement : list of str
+        sources : list of str
             Describes the cellSet sources (either "box" or "cylinder")
             used in describing the refinement regions, the length of
             which corresponds to the number of refinement levels.
@@ -52,9 +52,9 @@ class TopoSetDict(object):
             A perturbation of the refinement boxes to keep the
             boundaries off of cell faces. [m]
         """
-        self.refinement = refinement
-        self.Nlevels = len(refinement)
-        self._check_specified_refinement()
+        self.sources = sources
+        self.Nlevels = len(sources)
+        self._check_specified_sources()
         self.rotation0 = mean_rotation * np.pi/180.0
 
         # definitions for each turbine
@@ -70,15 +70,15 @@ class TopoSetDict(object):
         self.zbuffer = []
             
 
-    def _check_specified_refinement(self):
-        defined = [ (refinetype in self.source_types)
-                    for refinetype in self.refinement ]
+    def _check_specified_sources(self):
+        defined = [ (sourcename in self.source_types)
+                    for sourcename in self.sources ]
         assert(all(defined))
 
 
     def __repr__(self):
         s = '{:d} refinement levels : {:s}'.format(self.Nlevels,
-                                                   str(self.refinement))
+                                                   str(self.sources))
         for iturb,loc in enumerate(self.base_location):
             s += '\nturbine {:d} at {:s} rotated {:g} deg'.format(
                     iturb+1, str(loc), 180./np.pi*self.rotation[iturb])
@@ -97,7 +97,7 @@ class TopoSetDict(object):
                 vertical_buffer=1.0):
         """Add turbine at specified 'base_location' with diameter 'D'.
         The 'upstream', 'downstream', 'width', and 'height' lists should
-        all have the same length as the self.refinement list.
+        all have the same length as the self.sources list.
 
         Refinement parameters
         ---------------------
@@ -152,17 +152,17 @@ class TopoSetDict(object):
     def write(self,prefix='topoSetDict.local'):
         for ilevel in range(self.Nlevels):
             fname = '{:s}.{:d}'.format(prefix,ilevel+1)
-            refinetype = self.refinement[ilevel]
-            source = getattr(self,'_write_'+refinetype)
-            print('Writing {:s} dict : {:s}'.format(refinetype,fname))
-            # Get the effective level; if refinement==['cylinder','box','box'],
+            sourcename = self.sources[ilevel]
+            source = getattr(self,'_write_'+sourcename)
+            print('Writing {:s} dict : {:s}'.format(sourcename,fname))
+            # Get the effective level; if sources==['cylinder','box','box'],
             # then the zero-indexed ilevel==1 (corresponds to an overall
             # refinement level of 2, and a box-refinement level of 1)
 #            efflevel = ilevel
 #            for i in range(ilevel):
-#                if not self.refinement[i] == self.refinement[ilevel]:
+#                if not self.sources[i] == self.sources[ilevel]:
 #                    efflevel -= 1
-#            print('Writing {:s} dict, level {:d} : {:s}'.format(refinetype,
+#            print('Writing {:s} dict, level {:d} : {:s}'.format(sourcename,
 #                                                                efflevel,
 #                                                                fname))
             # write out topoSetDict.*
