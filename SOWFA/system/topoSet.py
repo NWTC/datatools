@@ -235,7 +235,7 @@ class TopoSetDict(object):
                 kx=kx, ky=ky, kz=kz)
 
 
-    def _write_cylinder(self,f,iturb,loc):
+    def _write_cylinder(self,iturb,ilevel):
         template = """    {{
         name         local;
         type         cellSet;
