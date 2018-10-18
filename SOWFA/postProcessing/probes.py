@@ -252,3 +252,54 @@ class Probe(object):
     def to_csv(self,fname):
         self.as_dataframe().to_csv(fname)
 
+    def to_netcdf(self,fname):
+        long_names = {'T': 'Potential temperature',
+                      'Ux': 'U velocity component',
+                      'Uy': 'V velocity component',
+                      'Uz': 'W velocity component',
+                      }
+        units = {'T': 'K',
+                 'Ux': 'm s-1',
+                 'Uy': 'm s-1',
+                 'Uz': 'm s-1',
+                }
+
+        print('Dumping data to',fname)
+        import netCDF4
+        f = netCDF4.Dataset(fname,'w')
+        f.createDimension('time',len(self.t))
+        f.createDimension('z',self.pos.shape[0])
+
+        times = f.createVariable('time', 'float', ('time',))
+        times.long_name = 'Time'
+        times.units = 's'
+        times[:] = self.t
+
+        heights = f.createVariable('z', 'float', ('z',))
+        heights.long_name = 'Height above ground level'
+        heights.units = 'm'
+        heights[:] = self.pos[:,2]
+
+        for var in self._processed:
+            F = getattr(self,var)
+            if F.shape[2]==3: # vector
+                varnames = [var+name for name in ['x','y','z']]
+            elif F.shape[2]==6: # symmetric tensor
+                varnames = [var+name for name in ['xx','xy','xz','yy','yz','zz']]
+            else: # scalar
+                varnames = [var,]
+            
+            for i, varname in enumerate(varnames):
+                field = f.createVariable(varname, 'float', ('time','z'))
+                try:
+                    field.long_name = long_names[varname]
+                except KeyError:
+                    # Use var name as description
+                    field.long_name = varname
+                try:
+                    field.units = units[varname]
+                except KeyError:
+                    # Units unknown
+                    pass
+                field[:] = F[:,:,i].swapaxes(0,1)
+        f.close()
