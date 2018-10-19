@@ -97,10 +97,7 @@ FoamFile
 }}
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include        "../../setUp"
-
 convertToMeters 1.0;
-
 """
 
 patch_def = """    {name:s}
@@ -223,6 +220,15 @@ class BlockMeshDict(object):
             else:
                 print('Invalid heights, layer not added')
 
+    def _constants(self):
+        s = '\n'
+        for const in ['xMin','xMax','yMin','yMax']:
+            s += '{:s}\t\t{:g};\n'.format(const,getattr(self,const))
+        for i in range(self.Nlayers):
+            s += 'zMin{:d}\t\t{:g};\n'.format(i,self.z0[i])
+            s += 'zMax{:d}\t\t{:g};\n'.format(i,self.z1[i])
+        s += '\n'
+        return s
 
     def _vertices(self):
         s = 'vertices\n('
@@ -304,6 +310,7 @@ class BlockMeshDict(object):
         self.Nlayers = len(self.Nx)
         with open(fpath,'w') as f:
             f.write(blockMeshDict_header)
+            f.write(self._constants())
             f.write(self._vertices())
             f.write(self._blocks())
             f.write(self._edges())
