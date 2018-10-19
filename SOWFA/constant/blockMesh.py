@@ -20,12 +20,13 @@ def grow_mesh(N, d0, r, verbose=True):
     if verbose: print('spacings : {:g} .. {:g}'.format(d0,d[-1]))
     return d
 
-def points_from(spacings, x0=0.0):
-    x = x0 * np.ones((len(spacings)+1,))
-    x[1:] += np.cumsum(spacings)
+def points_from(d, x0=0.0):
+    """Calculate points from the provided spacings (d)"""
+    x = x0 * np.ones((len(d)+1,))
+    x[1:] += np.cumsum(d)
     return x
 
-def spacings(L, N, ratio=1, verbose=True):
+def calculate_spacings(L, N, ratio=1, verbose=True):
     """Calculate the blockmesh spacings that would result given a length
     (L), number of cells (N), and simpleGrading ratio.
     """
@@ -174,7 +175,7 @@ class BlockMeshDict(object):
                 dz = Lz / self.Nz[i]
                 dzstr = '{:g}'.format(dz)
             else:
-                d = spacings(Lz, self.Nz[i], self.simpleGradingZ[i], verbose=False)
+                d = calculate_spacings(Lz, self.Nz[i], self.simpleGradingZ[i], verbose=False)
                 dzstr = '{:g}..{:g}'.format(d[0],d[-1])
             s+= '  layer {:d} : z=({:g} {:g}) N=({:d} {:d} {:d}) spacings=({:g} {:g} {:s})\n'.format(
                     i, self.z0[i], self.z1[i],
@@ -249,6 +250,13 @@ class BlockMeshDict(object):
                 print('Added layer',len(self.Nx))
             else:
                 print('Invalid heights, layer not added')
+
+    def spacings(self,level):
+        """Return an array of grid spacings for the specified level"""
+        return calculate_spacings(self.z1[level]-self.z0[level],
+                                  self.Nz[level],
+                                  self.simpleGradingZ[level],
+                                  verbose=False)
 
     def _constants(self):
         s = '\n'
