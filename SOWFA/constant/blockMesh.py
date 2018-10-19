@@ -151,8 +151,8 @@ class BlockMeshDict(object):
     def __repr__(self):
         Nlayers = len(self.Nx)
         s = 'Mesh bounding box corners: ({:g} {:g} {:g}) ({:g} {:g} {:g})\n'.format(
-                self.xMin, self.yMin, self.zMin,
-                self.xMax, self.yMax, self.zMax)
+                self.xMin, self.yMin, self.z0[0],
+                self.xMax, self.yMax, self.z1[-1])
         if Nlayers == 0:
             s += '  no layers added; call generate_uniform_grid or generate_layer'
         for i in range(Nlayers):
@@ -196,6 +196,7 @@ class BlockMeshDict(object):
         if r==1:
             Nz = int(np.ceil((z1-z0)/dz0))
             ratio = 1.0
+            print('constant vertical spacing layer, Nz=',Nz)
         else:
             assert(dz1 is not None)
             Lz,Nz,ratio = estimate(dz1,dz0,r,L=(z1-z0))
