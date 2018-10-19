@@ -297,7 +297,7 @@ class BlockMeshDict(object):
     def _mergedPatchPairs(self):
         s = 'mergedPatchPairs\n(\n'
         for pair in self.patch_pairs:
-            s += '    ' + str(pair) + '\n'
+            s += '    ({:s} {:s})\n'.format(*pair)
         s += ');\n'
         return s
 
