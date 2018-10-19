@@ -102,7 +102,7 @@ convertToMeters 1.0;
 
 patch_def = """    {name:s}
     {{
-        type patch;
+        type {ptype:s};
         faces
         (
 {faceslist:s}
@@ -281,32 +281,32 @@ class BlockMeshDict(object):
             name1 = 'interface{:d}{:d}'.format(i+1,i+2)
             name2 = 'interface{:d}{:d}'.format(i+2,i+1)
             self.patch_pairs.append((name1,name2))
-            s += patch_def.format(name=name1,
+            s += patch_def.format(name=name1, ptype='patch',
                                   faceslist='            '+self.blocks[i].upper())
-            s += patch_def.format(name=name2,
-                                  faceslist='            '+self.blocks[i].lower())
+            s += patch_def.format(name=name2, ptype='patch',
+                                  faceslist='            '+self.blocks[i+1].lower())
         # lower boundary
         lowerfaces = '            '+self.blocks[0].lower()
-        s += patch_def.format(name='lower',faceslist=lowerfaces)
+        s += patch_def.format(name='lower',ptype='wall',faceslist=lowerfaces)
         # upper boundary
         upperfaces = '            '+self.blocks[-1].upper()
-        s += patch_def.format(name='upper',faceslist=upperfaces)
+        s += patch_def.format(name='upper',ptype='patch',faceslist=upperfaces)
         # west boundary
         westfaces = '\n'.join([ '            '+self.blocks[i].west()
                                 for i in range(self.Nlayers) ])
-        s += patch_def.format(name='west',faceslist=westfaces)
+        s += patch_def.format(name='west',ptype='patch',faceslist=westfaces)
         # east boundary
         eastfaces = '\n'.join([ '            '+self.blocks[i].east()
                                 for i in range(self.Nlayers) ])
-        s += patch_def.format(name='east',faceslist=eastfaces)
+        s += patch_def.format(name='east',ptype='patch',faceslist=eastfaces)
         # north boundary
         northfaces = '\n'.join([ '            '+self.blocks[i].north()
                                  for i in range(self.Nlayers) ])
-        s += patch_def.format(name='north',faceslist=northfaces)
+        s += patch_def.format(name='north',ptype='patch',faceslist=northfaces)
         # south boundary
         southfaces = '\n'.join([ '            '+self.blocks[i].south()
                                  for i in range(self.Nlayers) ])
-        s += patch_def.format(name='south',faceslist=southfaces)
+        s += patch_def.format(name='south',ptype='patch',faceslist=southfaces)
         s += ');\n\n'
         return s
 
@@ -358,7 +358,7 @@ class hex(object):
                 ' '.join(['{:d}'.format(val) for val in self.vertices]),
                 ' '.join(['{:d}'.format(val) for val in self.Ncells]),
                 self.grading,
-                ' '.join(['{:g}'.format(val) for val in self.simpleGrading])
+                ' '.join(['{:.12g}'.format(val) for val in self.simpleGrading])
                 )
 
     def _facelist(self,v):
