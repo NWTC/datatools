@@ -89,12 +89,12 @@ blockMeshDict_header = """/*--------------------------------*- C++ -*-----------
 |    \\\\/     M anipulation  |                                                 |
 \*---------------------------------------------------------------------------*/
 FoamFile
-{{
+{
     version     2.0;
     format      ascii;
     class       dictionary;
     object      blockMeshDict;
-}}
+}
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 convertToMeters 1.0;
@@ -304,8 +304,8 @@ class BlockMeshDict(object):
         s += ');\n\n'
         return s
 
-    def _mergedPatchPairs(self):
-        s = 'mergedPatchPairs\n(\n'
+    def _mergePatchPairs(self):
+        s = 'mergePatchPairs\n(\n'
         for pair in self.patch_pairs:
             s += '    ({:s} {:s})\n'.format(*pair)
         s += ');\n'
@@ -330,7 +330,7 @@ class BlockMeshDict(object):
             f.write(self._blocks())
             f.write(self._edges())
             f.write(self._boundary())
-            f.write(self._mergedPatchPairs())
+            f.write(self._mergePatchPairs())
             f.write(blockMeshDict_footer)
         print('Wrote '+fpath)
 
