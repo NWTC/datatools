@@ -297,6 +297,8 @@ class BlockMeshDict(object):
         """Write out blockMeshDict, which should be placed into
         constant/polyMesh.
         """
+        if len(self.blocks) == 0:
+            raise IndexError('No blocks have been generated')
         assert(len(self.Nx) == len(self.Ny) == len(self.Nz) ==
                len(self.z0) == len(self.z1) == len(self.simpleGradingZ))
         self.Nlayers = len(self.Nx)
