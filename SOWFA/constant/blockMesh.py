@@ -203,18 +203,18 @@ class BlockMeshDict(object):
         specified.
         """
         Nx = int(np.ceil((self.xMax-self.xMin)/dx))
-        x0 = self.xMin
-        x1 = x0 + Nx*dx
-        if x1 > self.xMax:
-            self.xMax = x1
-            print('updated xMax to',self.xMax)
+        #x0 = self.xMin
+        #x1 = x0 + Nx*dx
+        #if x1 > self.xMax:
+        #    self.xMax = x1
+        #    print('updated xMax to',self.xMax)
 
         Ny = int(np.ceil((self.yMax-self.yMin)/dy))
-        y0 = self.yMin
-        y1 = y0 + Ny*dy
-        if y1 > self.yMax:
-            self.yMax = y1
-            print('updated yMax to',self.yMax)
+        #y0 = self.yMin
+        #y1 = y0 + Ny*dy
+        #if y1 > self.yMax:
+        #    self.yMax = y1
+        #    print('updated yMax to',self.yMax)
 
         if r==1:
             Nz = int(np.ceil((z1-z0)/dz0))
