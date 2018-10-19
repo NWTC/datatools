@@ -139,6 +139,7 @@ class BlockMeshDict(object):
         # blocks (i.e., layers, only hexes for now)
         self.vertex0 = 0
         self.blocks = []
+        self.patchpairs = []
 
         # descriptors of each layer
         self.Nx = []
@@ -147,6 +148,9 @@ class BlockMeshDict(object):
         self.z0 = []
         self.z1 = []
         self.simpleGradingZ = []
+
+    def size(self):
+        return np.sum([ block.size() for block in self.blocks ])
 
     def __repr__(self):
         Nlayers = len(self.Nx)
@@ -169,6 +173,7 @@ class BlockMeshDict(object):
                     i, self.z0[i], self.z1[i],
                     self.Nx[i], self.Ny[i], self.Nz[i],
                     dx, dy, dzstr)
+        s += 'Total cells: {:d}\n'.format(self.size())
         return s
             
 
@@ -276,11 +281,11 @@ class BlockMeshDict(object):
     def _boundary(self):
         s = 'boundary\n(\n'
         # write out interfaces
-        self.patch_pairs = []
+        self.patchpairs = []
         for i in range(self.Nlayers-1):
             name1 = 'interface{:d}{:d}'.format(i+1,i+2)
             name2 = 'interface{:d}{:d}'.format(i+2,i+1)
-            self.patch_pairs.append((name1,name2))
+            self.patchpairs.append((name1,name2))
             s += patch_def.format(name=name1, ptype='patch',
                                   faceslist='            '+self.blocks[i].upper())
             s += patch_def.format(name=name2, ptype='patch',
@@ -312,7 +317,7 @@ class BlockMeshDict(object):
 
     def _mergePatchPairs(self):
         s = 'mergePatchPairs\n(\n'
-        for pair in self.patch_pairs:
+        for pair in self.patchpairs:
             s += '    ({:s} {:s})\n'.format(*pair)
         s += ');\n'
         return s
@@ -352,6 +357,9 @@ class hex(object):
         self.Ncells = N
         self.grading = grading
         self.simpleGrading = simpleGrading
+
+    def size(self):
+        return np.prod(self.Ncells)
 
     def write(self):
         return 'hex ({:s}) ({:s}) {:s} ({:s})'.format(
