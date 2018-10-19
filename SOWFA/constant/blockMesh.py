@@ -6,6 +6,10 @@
 from __future__ import print_function
 import numpy as np
 
+#
+# General mesh functions
+#
+
 def grow_mesh(N, d0, r):
     """Calculate the cell spacings given a number of cells (N), an 
     initial spacing (d0), and a normal growth rate (r).
@@ -200,17 +204,24 @@ class BlockMeshDict(object):
             assert(Lz == z1-z0)
         
         if add:
-            self.Nx.append(Nx)
-            self.Ny.append(Ny)
-            self.Nz.append(Nz)
-            self.z0.append(z0)
-            self.z1.append(z1)
-            self.simpleGradingZ.append(ratio)
-            hexblock = hex(self.vertex0, N=(Nx,Ny,Nz),
-                           simpleGrading=(1,1,ratio))
-            self.blocks.append(hexblock)
-            self.vertex0 += 8
-            print('Added region',len(self.Nx))
+            # done designing; want to add this layer
+            if (len(self.Nx) == 0) or (z0 == self.z1[-1]): 
+                # this is either the first layer or it stacks nicely on top of
+                # the previous layer
+                self.Nx.append(Nx)
+                self.Ny.append(Ny)
+                self.Nz.append(Nz)
+                self.z0.append(z0)
+                self.z1.append(z1)
+                self.simpleGradingZ.append(ratio)
+                hexblock = hex(self.vertex0, N=(Nx,Ny,Nz),
+                               simpleGrading=(1,1,ratio))
+                self.blocks.append(hexblock)
+                self.vertex0 += 8
+                print('Added layer',len(self.Nx))
+            else:
+                print('Invalid heights, layer not added')
+
 
     def _vertices(self):
         s = 'vertices\n('
