@@ -9,7 +9,7 @@ import numpy as np
 
 """General mesh functions"""
 
-def grow_mesh(N, d0, r):
+def grow_mesh(N, d0, r, verbose=True):
     """Calculate the cell spacings given a number of cells (N), an 
     initial spacing (d0), and a normal growth rate (r).
 
@@ -17,7 +17,7 @@ def grow_mesh(N, d0, r):
         d_i = d_0 * r^i,  for i in 0 .. N-1
     """
     spacings = d0 * np.array([r**i for i in range(N)])
-    print('spacings : {:g} .. {:g}'.format(d0,spacings[-1]))
+    if verbose: print('spacings : {:g} .. {:g}'.format(d0,spacings[-1]))
     return spacings
 
 def points_from(spacings, x0=0.0):
@@ -25,14 +25,14 @@ def points_from(spacings, x0=0.0):
     x[1:] += np.cumsum(spacings)
     return x
 
-def spacings(L, N, ratio=1):
+def spacings(L, N, ratio=1, verbose=True):
     """Calculate the blockmesh spacings that would result given a length
     (L), number of cells (N), and simpleGrading ratio.
     """
     r = np.exp(np.log(ratio) / (N-1))
-    print('growth rate = ',r)
+    if verbose: print('growth rate = ',r)
     d0 = L / np.sum([r**i for i in range(N)])
-    return grow_mesh(N, d0, r)
+    return grow_mesh(N, d0, r, verbose)
 
 def start_end(L, N, ratio):
     r = np.exp(np.log(ratio) / (N-1))
@@ -167,6 +167,9 @@ class BlockMeshDict(object):
             
 
     def generate_uniform_grid(self):
+        """Wrapper around generate_layer() for a simple single-block
+        mesh with uniform grid spacing throughout
+        """
         self.generate_layer(self.zMin, self.zMax, self.dx0, self.dy0, self.dz0,
                              add=True)
 
@@ -218,10 +221,12 @@ class BlockMeshDict(object):
                 self.z0.append(z0)
                 self.z1.append(z1)
                 self.simpleGradingZ.append(ratio)
+
                 hexblock = hex(self.vertex0, N=(Nx,Ny,Nz),
                                simpleGrading=(1,1,ratio))
                 self.blocks.append(hexblock)
                 self.vertex0 += 8
+
                 print('Added layer',len(self.Nx))
             else:
                 print('Invalid heights, layer not added')
