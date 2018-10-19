@@ -59,16 +59,17 @@ def estimate(d, d0, r, L=None, round_to=10., output='blockMesh'):
     N_est = np.log(d/d0) / np.log(r) + 1
     N = int(np.ceil(N_est))
     print('estimated number of cells is {:g} ~= {:d}'.format(N_est, N))
-    L1 = np.sum(grow_mesh(N,d0,r))
-    print('resultant layer height : ',L1)
     # we assume that the estimated number of cells is pretty close to
     # what it should be and leave this fixed; since the growth rate
     # r = f(d0,d1,N), we should update it assuming the other parameters
     # are also fixed
     r_approx = np.exp(np.log(d/d0) / (N-1))
     print('actual growth rate: ',r_approx)
-    # we're basically done at this point, but the resulting distance 
-    # spanned by the points probably isn't a nice floating point number
+    # we're basically done at this point...
+    L1 = np.sum(grow_mesh(N,d0,r_approx))
+    print('resultant layer height : ',L1)
+    # but the resulting distance spanned by the points probably isn't a nice
+    # floating point number or we guessed an incorrect layer height
     if L is None:
         L = np.round(L1/round_to) * round_to
     print('calculating d0 for L =',L)
