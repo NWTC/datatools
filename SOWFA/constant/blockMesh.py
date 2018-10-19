@@ -185,16 +185,21 @@ class BlockMeshDict(object):
         x1 = x0 + Nx*dx
         if x1 > self.xMax:
             self.xMax = x1
-            print('Updated xMax to',self.xMax)
+            print('updated xMax to',self.xMax)
+
         Ny = int(np.ceil((self.yMax-self.yMin)/dy))
         y0 = self.yMin
         y1 = y0 + Ny*dy
         if y1 > self.yMax:
             self.yMax = y1
-            print('Updated yMax to',self.yMax)
+            print('updated yMax to',self.yMax)
 
         if r==1:
             Nz = int(np.ceil((z1-z0)/dz0))
+            new_z1 = z0 + Nz*dz0
+            if new_z1 > z1:
+                z1 = new_z1
+                print('updated top of layer to',z1)
             ratio = 1.0
             print('constant vertical spacing layer, Nz=',Nz)
         else:
