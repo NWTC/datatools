@@ -235,6 +235,7 @@ class BlockMeshDict(object):
         s = 'vertices\n('
         for i in range(self.Nlayers):
             s += """
+
     ( $xMin   $yMin   $zMin{i:d} )
     ( $xMax   $yMin   $zMin{i:d} )
     ( $xMax   $yMax   $zMin{i:d} )
@@ -265,9 +266,9 @@ class BlockMeshDict(object):
             name2 = 'interface{:d}{:d}'.format(i+2,i+1)
             self.patch_pairs.append((name1,name2))
             s += patch_def.format(name=name1,
-                                  faceslist='            '+self.blocks[i].top())
+                                  faceslist='            '+self.blocks[i].upper())
             s += patch_def.format(name=name2,
-                                  faceslist='            '+self.blocks[i].bottom())
+                                  faceslist='            '+self.blocks[i].lower())
         # lower boundary
         lowerfaces = '            '+self.blocks[0].lower()
         s += patch_def.format(name='lower',faceslist=lowerfaces)
