@@ -156,18 +156,18 @@ class BlockMeshDict(object):
         return np.sum([ block.size() for block in self.blocks ])
 
     def __repr__(self):
-        Nlayers = len(self.Nx)
+        Nlevel = len(self.Nx)
         zMin = self.zMin
         zMax = self.zMax
-        if Nlayers > 0:
+        if Nlevel > 0:
             zMin = self.z0[0]
             zMax = self.z1[-1]
         s = 'Mesh bounding box corners: ({:g} {:g} {:g}) ({:g} {:g} {:g})\n'.format(
                 self.xMin, self.yMin, zMin,
                 self.xMax, self.yMax, zMax)
-        if Nlayers == 0:
+        if Nlevel == 0:
             s += '  no layers added; call generate_uniform_grid or generate_layer with add=True'
-        for i in range(Nlayers):
+        for i in range(Nlevel):
             dx = (self.xMax - self.xMin) / self.Nx[i]
             dy = (self.yMax - self.yMin) / self.Ny[i]
             Lz = self.z1[i] - self.z0[i]
@@ -177,11 +177,11 @@ class BlockMeshDict(object):
             else:
                 d = calculate_spacings(Lz, self.Nz[i], self.simpleGradingZ[i], verbose=False)
                 dzstr = '{:g}..{:g}'.format(d[0],d[-1])
-            s+= '  layer {:d} : z=({:g} {:g}) N=({:d} {:d} {:d}) spacings=({:g} {:g} {:s})\n'.format(
+            s+= '  level {:d} : z=({:g} {:g}) N=({:d} {:d} {:d}) spacings=({:g} {:g} {:s})\n'.format(
                     i, self.z0[i], self.z1[i],
                     self.Nx[i], self.Ny[i], self.Nz[i],
                     dx, dy, dzstr)
-        if Nlayers > 0:
+        if Nlevel > 0:
             s += 'Total cells: {:d}\n'.format(self.size())
         return s
             
@@ -233,7 +233,7 @@ class BlockMeshDict(object):
         if add:
             # done designing; want to add this layer
             if (len(self.Nx) == 0) or (z0 == self.z1[-1]): 
-                # this is either the first layer or it stacks nicely on top of
+                # this is either the first level or it stacks nicely on top of
                 # the previous layer
                 self.Nx.append(Nx)
                 self.Ny.append(Ny)
@@ -262,7 +262,7 @@ class BlockMeshDict(object):
         s = '\n'
         for const in ['xMin','xMax','yMin','yMax']:
             s += '{:s}\t\t{:g};\n'.format(const,getattr(self,const))
-        for i in range(self.Nlayers):
+        for i in range(self.Nlevel):
             s += 'zMin{:d}\t\t{:g};\n'.format(i,self.z0[i])
             s += 'zMax{:d}\t\t{:g};\n'.format(i,self.z1[i])
         s += '\n'
@@ -270,7 +270,7 @@ class BlockMeshDict(object):
 
     def _vertices(self):
         s = 'vertices\n('
-        for i in range(self.Nlayers):
+        for i in range(self.Nlevel):
             s += """
 
     ( $xMin   $yMin   $zMin{i:d} )
@@ -298,7 +298,7 @@ class BlockMeshDict(object):
         s = 'boundary\n(\n'
         # write out interfaces
         self.patchpairs = []
-        for i in range(self.Nlayers-1):
+        for i in range(self.Nlevel-1):
             name1 = 'interface{:d}{:d}'.format(i+1,i+2)
             name2 = 'interface{:d}{:d}'.format(i+2,i+1)
             self.patchpairs.append((name1,name2))
@@ -314,19 +314,19 @@ class BlockMeshDict(object):
         s += patch_def.format(name='upper',ptype='patch',faceslist=upperfaces)
         # west boundary
         westfaces = '\n'.join([ '            '+self.blocks[i].west()
-                                for i in range(self.Nlayers) ])
+                                for i in range(self.Nlevel) ])
         s += patch_def.format(name='west',ptype='patch',faceslist=westfaces)
         # east boundary
         eastfaces = '\n'.join([ '            '+self.blocks[i].east()
-                                for i in range(self.Nlayers) ])
+                                for i in range(self.Nlevel) ])
         s += patch_def.format(name='east',ptype='patch',faceslist=eastfaces)
         # north boundary
         northfaces = '\n'.join([ '            '+self.blocks[i].north()
-                                 for i in range(self.Nlayers) ])
+                                 for i in range(self.Nlevel) ])
         s += patch_def.format(name='north',ptype='patch',faceslist=northfaces)
         # south boundary
         southfaces = '\n'.join([ '            '+self.blocks[i].south()
-                                 for i in range(self.Nlayers) ])
+                                 for i in range(self.Nlevel) ])
         s += patch_def.format(name='south',ptype='patch',faceslist=southfaces)
         s += ');\n\n'
         return s
@@ -346,7 +346,7 @@ class BlockMeshDict(object):
             raise IndexError('No blocks have been generated')
         assert(len(self.Nx) == len(self.Ny) == len(self.Nz) ==
                len(self.z0) == len(self.z1) == len(self.simpleGradingZ))
-        self.Nlayers = len(self.Nx)
+        self.Nlevel = len(self.Nx)
         with open(fpath,'w') as f:
             f.write(blockMeshDict_header)
             f.write('\n\n/*\n' +
