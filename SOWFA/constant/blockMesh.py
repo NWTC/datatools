@@ -139,10 +139,11 @@ class BlockMeshDict(object):
         self.dy0 = dy
         self.dz0 = dz
 
+        # blocks (i.e., layers, only hexes for now)
         self.vertex0 = 0
         self.blocks = []
 
-        # descriptors of each region
+        # descriptors of each layer
         self.Nx = []
         self.Ny = []
         self.Nz = []
@@ -156,7 +157,7 @@ class BlockMeshDict(object):
                 self.xMin, self.yMin, self.zMin,
                 self.xMax, self.yMax, self.zMax)
         if Nlayers == 0:
-            s += '  no layers added; call generate_uniform_grid or generate_region'
+            s += '  no layers added; call generate_uniform_grid or generate_layer'
         for i in range(Nlayers):
             dx = (self.xMax - self.xMin) / self.Nx[i]
             dy = (self.yMax - self.yMin) / self.Ny[i]
@@ -169,17 +170,17 @@ class BlockMeshDict(object):
             
 
     def generate_uniform_grid(self):
-        self.generate_region(self.zMin, self.zMax, self.dx0, self.dy0, self.dz0,
+        self.generate_layer(self.zMin, self.zMax, self.dx0, self.dy0, self.dz0,
                              add=True)
 
-    def generate_region(self,z0,z1,dx,dy,dz0,dz1=None,r=1,add=False):
-        """Generate new region between height z0 and z1, with grid
+    def generate_layer(self,z0,z1,dx,dy,dz0,dz1=None,r=1,add=False):
+        """Generate new layer between height z0 and z1, with grid
         spacings dx, dy, and dz.
 
         Optionally, a growth rate r > 1 may be specified, in which case
         the target final grid spacing (dz1) should be specified.
 
-        The new region is added to the domain until the add=True is
+        The new layer is added to the domain until the add=True is
         specified.
         """
         Nx = int(np.ceil((self.xMax-self.xMin)/dx))
