@@ -125,6 +125,9 @@ class BlockMeshDict(object):
         domain extents will be greater than or equal to the inputs,
         depending on whether the input spacings exactly fill up the
         domain.
+
+        Note: zMax is only used for generating a single-block uniform
+        domain.
         """
         self.xMin = xMin
         self.yMin = yMin
@@ -154,9 +157,14 @@ class BlockMeshDict(object):
 
     def __repr__(self):
         Nlayers = len(self.Nx)
+        zMin = self.zMin
+        zMax = self.zMax
+        if Nlayers > 0:
+            zMin = self.z0[0]
+            zMax = self.z1[-1]
         s = 'Mesh bounding box corners: ({:g} {:g} {:g}) ({:g} {:g} {:g})\n'.format(
-                self.xMin, self.yMin, self.z0[0],
-                self.xMax, self.yMax, self.z1[-1])
+                self.xMin, self.yMin, zMin,
+                self.xMax, self.yMax, zMax)
         if Nlayers == 0:
             s += '  no layers added; call generate_uniform_grid or generate_layer'
         for i in range(Nlayers):
@@ -173,7 +181,8 @@ class BlockMeshDict(object):
                     i, self.z0[i], self.z1[i],
                     self.Nx[i], self.Ny[i], self.Nz[i],
                     dx, dy, dzstr)
-        s += 'Total cells: {:d}\n'.format(self.size())
+        if Nlayers > 0:
+            s += 'Total cells: {:d}\n'.format(self.size())
         return s
             
 
