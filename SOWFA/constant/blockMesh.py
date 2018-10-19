@@ -67,14 +67,13 @@ def estimate(d, d0, r, L=None, round_to=10., output='blockMesh'):
     print('actual growth rate: ',r_approx)
     # we're basically done at this point...
     L1 = np.sum(grow_mesh(N,d0,r_approx))
-    print('resultant layer height : ',L1)
+    print('expected layer height : ',L1)
     # but the resulting distance spanned by the points probably isn't a nice
     # floating point number or we guessed an incorrect layer height
     if L is None:
         L = np.round(L1/round_to) * round_to
-    print('calculating d0 for L =',L)
     d0_approx = L / np.sum([r_approx**i for i in range(N)])
-    print('adjusted initial spacing :',d0_approx)
+    print('adjusted initial spacing to obtain a height of {:g}: {:g}'.format(L,d0_approx))
     if output=='growth':
         return N, d0_approx, r_approx
     else:
@@ -166,7 +165,7 @@ class BlockMeshDict(object):
                 self.xMin, self.yMin, zMin,
                 self.xMax, self.yMax, zMax)
         if Nlayers == 0:
-            s += '  no layers added; call generate_uniform_grid or generate_layer'
+            s += '  no layers added; call generate_uniform_grid or generate_layer with add=True'
         for i in range(Nlayers):
             dx = (self.xMax - self.xMin) / self.Nx[i]
             dy = (self.yMax - self.yMin) / self.Ny[i]
