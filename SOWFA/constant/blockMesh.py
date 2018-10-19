@@ -6,9 +6,8 @@
 from __future__ import print_function
 import numpy as np
 
-#
-# General mesh functions
-#
+
+"""General mesh functions"""
 
 def grow_mesh(N, d0, r):
     """Calculate the cell spacings given a number of cells (N), an 
@@ -310,6 +309,9 @@ class BlockMeshDict(object):
         self.Nlayers = len(self.Nx)
         with open(fpath,'w') as f:
             f.write(blockMeshDict_header)
+            f.write('\n\n' +
+                    '// Generated using NWTC/datatools python library\n' +
+                    '// https://github.com/NWTC/datatools/blob/master/SOWFA/constant/blockMesh.py\n\n\n')
             f.write(self._constants())
             f.write(self._vertices())
             f.write(self._blocks())
