@@ -16,9 +16,9 @@ def grow_mesh(N, d0, r, verbose=True):
     Spacings are calculated as follows:
         d_i = d_0 * r^i,  for i in 0 .. N-1
     """
-    spacings = d0 * np.array([r**i for i in range(N)])
-    if verbose: print('spacings : {:g} .. {:g}'.format(d0,spacings[-1]))
-    return spacings
+    d = d0 * np.array([r**i for i in range(N)])
+    if verbose: print('spacings : {:g} .. {:g}'.format(d0,d[-1]))
+    return d
 
 def points_from(spacings, x0=0.0):
     x = x0 * np.ones((len(spacings)+1,))
@@ -158,11 +158,17 @@ class BlockMeshDict(object):
         for i in range(Nlayers):
             dx = (self.xMax - self.xMin) / self.Nx[i]
             dy = (self.yMax - self.yMin) / self.Ny[i]
-            dz = (self.z1[i] - self.z0[i]) / self.Nz[i]
-            s+= '  layer {:d} : z=({:g} {:g}) N=({:d} {:d} {:d}) spacings=({:g} {:g} {:g})\n'.format(
+            Lz = self.z1[i] - self.z0[i]
+            if self.simpleGradingZ[i] == 1:
+                dz = Lz / self.Nz[i]
+                dzstr = '{:g}'.format(dz)
+            else:
+                d = spacings(Lz, self.Nz[i], self.simpleGradingZ[i], verbose=False)
+                dzstr = '{:g}..{:g}'.format(d[0],d[-1])
+            s+= '  layer {:d} : z=({:g} {:g}) N=({:d} {:d} {:d}) spacings=({:g} {:g} {:s})\n'.format(
                     i, self.z0[i], self.z1[i],
                     self.Nx[i], self.Ny[i], self.Nz[i],
-                    dx, dy, dz)
+                    dx, dy, dzstr)
         return s
             
 
@@ -322,9 +328,12 @@ class BlockMeshDict(object):
         self.Nlayers = len(self.Nx)
         with open(fpath,'w') as f:
             f.write(blockMeshDict_header)
-            f.write('\n\n' +
-                    '// Generated using NWTC/datatools python library\n' +
-                    '// https://github.com/NWTC/datatools/blob/master/SOWFA/constant/blockMesh.py\n\n\n')
+            f.write('\n\n/*\n' +
+                    ' * Generated using NWTC/datatools python library\n' +
+                    ' * https://github.com/NWTC/datatools/blob/master/SOWFA/constant/blockMesh.py\n' +
+                    ' * \n\n' +
+                    self.__repr__() +
+                    '*/\n\n')
             f.write(self._constants())
             f.write(self._vertices())
             f.write(self._blocks())
