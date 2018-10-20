@@ -110,6 +110,17 @@ patch_def = """    {name:s}
     }}
 """
 
+cyclicpatch_def = """    {name:s}
+    {{
+        type cyclic;
+        neighbourPatch {neighbor:s};
+        faces
+        (
+{faceslist:s}
+        );
+    }}
+"""
+
 blockMeshDict_footer = """
 // ************************************************************************* //"""
 
@@ -314,7 +325,7 @@ class BlockMeshDict(object):
     def _edges(self):
         return 'edges\n(\n);\n\n'
 
-    def _boundary(self):
+    def _boundary(self,cyclic):
         s = 'boundary\n(\n'
         # write out interfaces
         self.patchpairs = []
@@ -335,19 +346,31 @@ class BlockMeshDict(object):
         # west boundary
         westfaces = '\n'.join([ '            '+self.blocks[i].west()
                                 for i in range(self.Nlevel) ])
-        s += patch_def.format(name='west',ptype='patch',faceslist=westfaces)
+        if cyclic:
+            s += cyclicpatch_def.format(name='west',neighbor='east',faceslist=westfaces)
+        else:
+            s += patch_def.format(name='west',ptype='patch',faceslist=westfaces)
         # east boundary
         eastfaces = '\n'.join([ '            '+self.blocks[i].east()
                                 for i in range(self.Nlevel) ])
-        s += patch_def.format(name='east',ptype='patch',faceslist=eastfaces)
+        if cyclic:
+            s += cyclicpatch_def.format(name='east',neighbor='west',faceslist=eastfaces)
+        else:
+            s += patch_def.format(name='east',ptype='patch',faceslist=eastfaces)
         # north boundary
         northfaces = '\n'.join([ '            '+self.blocks[i].north()
                                  for i in range(self.Nlevel) ])
-        s += patch_def.format(name='north',ptype='patch',faceslist=northfaces)
+        if cyclic:
+            s += cyclicpatch_def.format(name='north',neighbor='south',faceslist=northfaces)
+        else:
+            s += patch_def.format(name='north',ptype='patch',faceslist=northfaces)
         # south boundary
         southfaces = '\n'.join([ '            '+self.blocks[i].south()
                                  for i in range(self.Nlevel) ])
-        s += patch_def.format(name='south',ptype='patch',faceslist=southfaces)
+        if cyclic:
+            s += cyclicpatch_def.format(name='south',neighbor='north',faceslist=southfaces)
+        else:
+            s += patch_def.format(name='south',ptype='patch',faceslist=southfaces)
         s += ');\n\n'
         return s
 
@@ -358,7 +381,7 @@ class BlockMeshDict(object):
         s += ');\n'
         return s
 
-    def write(self,fpath='blockMeshDict'):
+    def write(self,fpath='blockMeshDict',cyclic=False):
         """Write out blockMeshDict, which should be placed into
         constant/polyMesh.
         """
@@ -378,7 +401,7 @@ class BlockMeshDict(object):
             f.write(self._vertices())
             f.write(self._blocks())
             f.write(self._edges())
-            f.write(self._boundary())
+            f.write(self._boundary(cyclic))
             f.write(self._mergePatchPairs())
             f.write(blockMeshDict_footer)
         print('Wrote '+fpath)
