@@ -247,16 +247,36 @@ class BlockMeshDict(object):
                 self.blocks.append(hexblock)
                 self.vertex0 += 8
 
-                print('Added layer',len(self.Nx))
+                self.Nlevel = len(self.Nx)
+                print('Added layer',self.Nlevel)
             else:
                 print('Invalid heights, layer not added')
 
-    def spacings(self,level):
+
+    def spacings(self,level=None):
         """Return an array of grid spacings for the specified level"""
-        return calculate_spacings(self.z1[level]-self.z0[level],
-                                  self.Nz[level],
-                                  self.simpleGradingZ[level],
-                                  verbose=False)
+        if level is not None:
+            d = calculate_spacings(self.z1[level]-self.z0[level],
+                                   self.Nz[level],
+                                   self.simpleGradingZ[level],
+                                   verbose=False)
+        else:
+            dlist = []
+            for level in range(self.Nlevel):
+                dlist.append(
+                    calculate_spacings(self.z1[level]-self.z0[level],
+                                       self.Nz[level],
+                                       self.simpleGradingZ[level],
+                                       verbose=False)
+                )
+            d = np.concatenate(dlist)
+        return d
+
+    def points(self,level=None):
+        z = points_from(self.spacings(level))
+        if level==None:
+            level = 0
+        return z + self.z0[level]
 
     def _constants(self):
         s = '\n'
@@ -346,7 +366,6 @@ class BlockMeshDict(object):
             raise IndexError('No blocks have been generated')
         assert(len(self.Nx) == len(self.Ny) == len(self.Nz) ==
                len(self.z0) == len(self.z1) == len(self.simpleGradingZ))
-        self.Nlevel = len(self.Nx)
         with open(fpath,'w') as f:
             f.write(blockMeshDict_header)
             f.write('\n\n/*\n' +
