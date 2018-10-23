@@ -28,14 +28,14 @@ pointsheader = """/*--------------------------------*- C++ -*-------------------
 FoamFile
 {{
     version     2.0;
-    format      ascii;
+    format      {fmt:s};
     class       vectorField;
-    location    "constant/boundaryData/{patchName}";
+    location    "constant/boundaryData/{patchName:s}";
     object      points;
 }}
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-{N}
+{N:d}
 ("""
 
 dataheader = """/*--------------------------------*- C++ -*----------------------------------*\\
@@ -48,16 +48,16 @@ dataheader = """/*--------------------------------*- C++ -*---------------------
 FoamFile
 {{
     version     2.0;
-    format      ascii;
-    class       {patchType}AverageField;
-    location    "constant/boundaryData/{patchName}/{timeName}";
+    format      {fmt:s};
+    class       {patchType:s}AverageField;
+    location    "constant/boundaryData/{patchName:s}/{timeName:s}";
     object      values;
 }}
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 // Average
-{avgValue}
+{avgValue:s}
 
-{N}
+{N:d}
 ("""
 
 
@@ -77,7 +77,7 @@ def write_points(fname,x,y,z,patchName='patch'):
         os.makedirs(dpath)
     np.savetxt(fname,
                np.stack((x,y,z)).T, fmt='(%f %f %f)',
-               header=pointsheader.format(patchName=patchName,N=N),
+               header=pointsheader.format(patchName=patchName,N=N,fmt='ascii'),
                footer=')',
                comments='')
 
@@ -131,9 +131,10 @@ def write_data(fname,
 
     headerstr = dataheader.format(patchType=patchType,
                                   patchName=patchName,
-                                  timeName=timeName,
+                                  timeName=str(timeName),
                                   avgValue=avgValueStr,
-                                  N=N)
+                                  N=N,
+                                  fmt='ascii')
     if patchType == 'vector':
         np.savetxt(fname,
                    data.T, fmt='(%g %g %g)',
