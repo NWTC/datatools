@@ -35,7 +35,8 @@ class TopoSetDict(object):
 
     def __init__(self,sources=[],perturb=0.01,rotation=0.0,
                  upstream=5.0,downstream=10.0,width=3.0,height=3.0,
-                 streamwise_buffer=1.0,lateral_buffer=1.0,vertical_buffer=1.0):
+                 streamwise_buffer=1.0,lateral_buffer=1.0,vertical_buffer=1.0,
+                 radial_buffer=0.5):
         """Object for generating a series of topoSetDict files (e.g.,
         for refinement). Level 1 is the finest level, and successive
         refinements should be performed sequentially starting from the
@@ -84,6 +85,10 @@ class TopoSetDict(object):
         vertical_buffer : float, optional
             Size of buffer region (in diameters) between refinement
             levels in the vertical directions
+        radial_buffer : float, optional
+            Used to set size of cylindrical refinement region; cylinder
+            level i has diameter (1 + (i+1)*radial_buffer)*D for
+            i=0,1,...
         """
         self.sources = sources
         self.Nlevels = len(sources)
@@ -96,7 +101,8 @@ class TopoSetDict(object):
             width=width, height=height,
             streamwise_buffer=streamwise_buffer,
             lateral_buffer=lateral_buffer,
-            vertical_buffer=vertical_buffer
+            vertical_buffer=vertical_buffer,
+            radial_buffer=radial_buffer
         )
 
         # definitions for each background region
@@ -113,6 +119,7 @@ class TopoSetDict(object):
         self.base_location = []
         self.rotation = []
         self.diameter = []
+        self.zhub = []
         self.upstream = []
         self.downstream = []
         self.width = []
@@ -120,11 +127,15 @@ class TopoSetDict(object):
         self.xbuffer = []
         self.ybuffer = []
         self.zbuffer = []
+        self.rbuffer = []
             
 
     def __repr__(self):
         s = '{:d} refinement levels : {:s}'.format(self.Nlevels,
                                                    str(self.sources))
+        for ibkg,loc in enumerate(self.LLcorner):
+            s += '\nbackground region {:d} at {:s} rotated {:g} deg'.format(
+                    ibkg+1, str(loc), 180./np.pi*self.bkg_rotation[ibkg])
         for iturb,loc in enumerate(self.base_location):
             s += '\nturbine {:d} at {:s} rotated {:g} deg'.format(
                     iturb+1, str(loc), 180./np.pi*self.rotation[iturb])
@@ -179,7 +190,9 @@ class TopoSetDict(object):
         self.bkg_ybuffer.append(lateral_buffer)
         self.bkg_zbuffer.append(vertical_buffer)
 
-    def add_turbine(self, base_location=(1000,1000,0), D=126.0, **kwargs):
+    def add_turbine(self,
+            base_location=(1000,1000,0), D=126.0, zhub=None,
+            **kwargs):
         """Add turbine at specified 'base_location' with diameter 'D'.
 
         Note that each turbine is associated with a set of topoSet
@@ -190,14 +203,19 @@ class TopoSetDict(object):
         base_location : array-like
             xyz coordinates of turbine base. [m]
         D : float
-            Rotor dameter, used as a reference length. [m]
+            Rotor diameter, used as a reference length. [m]
+        zhub : float, optional
+            Hub height, used for cylindrical refinement; if None, set
+            to rotor diameter. [m]
         **kwargs :
             Optional refinement parameters to override defaults
             specified during initialization.
-
         """
         self.base_location.append(base_location)
         self.diameter.append(D)
+        if zhub is None:
+            zhub = D
+        self.zhub.append(zhub)
         if 'rotation' in kwargs:
             ang = np.pi/180. * kwargs['rotation']
         else:
@@ -212,6 +230,7 @@ class TopoSetDict(object):
         self.xbuffer.append(get_param('streamwise_buffer'))
         self.ybuffer.append(get_param('lateral_buffer'))
         self.zbuffer.append(get_param('vertical_buffer'))
+        self.rbuffer.append(get_param('radial_buffer'))
 
 
     def write(self,prefix='topoSetDict.local'):
@@ -245,6 +264,8 @@ class TopoSetDict(object):
 
 
     def _write_background_box(self,ibkg,ilevel):
+        # Depends on bkg_length, bkg_width, bkg_height, bkg_xbuffer,
+        # bkg_ybuffer, and bkg_zbuffer.
         template = """    {{
         name         local;
         type         cellSet;
@@ -295,6 +316,8 @@ class TopoSetDict(object):
 
 
     def _write_turbine_box(self,iturb,ilevel):
+        # Depends on D, upstream, downstream, width, height,
+        # streamwise_buffer, lateral_buffer, and vertical_buffer.
         template = """    {{
         name         local;
         type         cellSet;
@@ -348,6 +371,47 @@ class TopoSetDict(object):
 
 
     def _write_turbine_cylinder(self,iturb,ilevel):
+        # Depends on D, radial_buffer, upstream, downstream, and
+        # streamwise buffer.
+        template = """    {{
+        name         local;
+        type         cellSet;
+        action       {action:s};
+        source       cylinderToCell;
+        sourceInfo
+        {{
+            p1      ( {x1:f} {y1:f} {z1:f} );
+            p2      ( {x2:f} {y2:f} {z2:f} );
+            radius  {R:g};
+        }}
+    }}
+"""
+        if iturb == 0:
+            action = 'new'
+        else:
+            action = 'add'
+        Lref = self.diameter[iturb]
+        R = (1.0 + (ilevel+1)*self.rbuffer[iturb]) * Lref/2
+        upstream = self.upstream[iturb] * Lref
+        downstream = self.downstream[iturb] * Lref
+        xbuff = self.xbuffer[iturb] * Lref
+        base = self.base_location[iturb]
+        ang = self.rotation[iturb]
+        # upstream point
+        xu = -upstream - ilevel*xbuff
+        x1 = xu * np.cos(ang) + base[0]
+        y1 = xu * np.sin(ang) + base[1]
+        xd = downstream + ilevel*xbuff
+        x2 = xd * np.cos(ang) + base[0]
+        y2 = xd * np.sin(ang) + base[1]
+        z = self.zhub[iturb] + base[2]
+        return template.format(action=action,
+                x1=x1, y1=y1, z1=z,
+                x2=x2, y2=y2, z2=z,
+                R=R)
+
+
+    def _write_NEW(self,i,ilevel):
         template = """    {{
         name         local;
         type         cellSet;
