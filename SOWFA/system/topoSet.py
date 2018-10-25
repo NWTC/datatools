@@ -276,7 +276,7 @@ class TopoSetDict(object):
         y0 = -ilevel*ybuff
         x = x0 * np.cos(ang) - y0 * np.sin(ang) + LLcorner[0]
         y = x0 * np.sin(ang) + y0 * np.cos(ang) + LLcorner[1]
-        z = base[2]
+        z = LLcorner[2]
         # box dimensions
         ix = (length + 2*ilevel*xbuff) * np.cos(ang)
         iy = (length + 2*ilevel*xbuff) * np.sin(ang)
