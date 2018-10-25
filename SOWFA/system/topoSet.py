@@ -252,7 +252,7 @@ class TopoSetDict(object):
         source       rotatedBoxToCell;
         sourceInfo
         {{
-            origin ( {x0:g} {y0:g} {z0:g} );
+            origin ( {x0:f} {y0:f} {z0:f} );
             i      ( {ix:g} {iy:g} {iz:g} );
             j      ( {jx:g} {jy:g} {jz:g} );
             k      ( {kx:g} {ky:g} {kz:g} );
@@ -302,7 +302,7 @@ class TopoSetDict(object):
         source       rotatedBoxToCell;
         sourceInfo
         {{
-            origin ( {x0:g} {y0:g} {z0:g} );
+            origin ( {x0:f} {y0:f} {z0:f} );
             i      ( {ix:g} {iy:g} {iz:g} );
             j      ( {jx:g} {jy:g} {jz:g} );
             k      ( {kx:g} {ky:g} {kz:g} );
