@@ -16,7 +16,7 @@ class SampleSet(list):
     functionObjectLibs ("libsampling.so");
     enabled             true;
     interpolationScheme {interpolationScheme:s};
-    outputControl       timeStep;
+    outputControl       {outputControl:s};
     outputInterval      {outputInterval:d};
     setFormat           {setFormat:s};
     fields
@@ -35,6 +35,7 @@ class SampleSet(list):
         self.name = name
         self.fields = kwargs.pop('fields',['U'])
         self.interpolationScheme = kwargs.pop('interpolationScheme','cellPoint')
+        self.outputControl = kwargs.pop('outputControl','timestep')
         self.outputInterval = kwargs.pop('outputInterval',1)
         self.setFormat = kwargs.pop('setFormat','NEED_TO_SPECIFY')
         if sys.version_info < (3, 0):
@@ -59,6 +60,7 @@ class SampleSet(list):
                     self.header.format(
                         name=self.name,
                         interpolationScheme=self.interpolationScheme,
+                        outputControl=self.outputControl,
                         outputInterval=self.outputInterval,
                         setFormat=self.setFormat,
                         fields=fields
