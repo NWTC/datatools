@@ -67,6 +67,28 @@ class SampleSet(list):
             for sampleset in self:
                 sampleset.write(f)
             f.write(self.footer)
+
+    def plotxy(self,ax=None,label=True,**kwargs):
+        """Plot all bounding boxes from the sampleSet in an xy-plane"""
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as patches
+        if ax is None:
+            fig,ax = plt.subplots()
+        for i,sampleset in enumerate(self):
+            LL = sampleset.bbox0[:2] # lower-left
+            UR = sampleset.bbox1[:2] # upper-right
+            center = (LL+UR) / 2
+            extent = UR - LL
+            rect = patches.Rectangle(LL,width=extent[0],height=extent[1],
+                                     fill=False, **kwargs)
+            ax.add_patch(rect)
+            if label:
+                if not (label==True):
+                    label = label.format(i+1)
+                ax.text(center[0],center[1],sampleset.name,
+                        horizontalalignment='center',
+                        verticalalignment='center',
+                        **kwargs)
         
 
 class Set(object):
