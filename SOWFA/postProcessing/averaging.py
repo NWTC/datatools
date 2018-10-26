@@ -1073,6 +1073,87 @@ class PlanarAverages(object):
         df = df.set_index(['t','z'])
         return df
 
+    def to_netcdf(self,fname):
+
+        long_names = {'U_mean': 'U velocity component',
+                      'V_mean': 'V velocity component',
+                      'W_mean': 'W velocity component',
+                      'T_mean': 'Potential temperature',
+                      'uu_mean': "uu component of resolved Reynolds stress tensor", 
+                      'vv_mean': "vv component of resolved Reynolds stress tensor", 
+                      'ww_mean': "ww component of resolved Reynolds stress tensor", 
+                      'uv_mean': "uv component of resolved Reynolds stress tensor", 
+                      'uw_mean': "uw component of resolved Reynolds stress tensor", 
+                      'vw_mean': "vw component of resolved Reynolds stress tensor",
+                      'R11_mean': "uu component of subgrid-scale stress tensor", 
+                      'R22_mean': "vv component of subgrid-scale stress tensor",
+                      'R33_mean': "ww component of subgrid-scale stress tensor",
+                      'R12_mean': "uv component of subgrid-scale stress tensor",
+                      'R13_mean': "uw component of subgrid-scale stress tensor",
+                      'R23_mean': "vw component of subgrid-scale stress tensor",
+                      'Tu_mean': "uT component of resolved turbulent heat flux",
+                      'Tv_mean': "vT component of resolved turbulent heat flux",
+                      'Tw_mean': "wT component of resolved turbulent heat flux",
+                      'q1_mean': "uT component of subgrid-scale heat flux",
+                      'q2_mean': "vT component of subgrid-scale heat flux",
+                      'q3_mean': "wT component of subgrid-scale heat flux",
+                      'nu_SGS_mean': 'subgrid-scale turbulent viscosity',
+                        }
+        units = {'U_mean': 'm s-1',
+                 'V_mean': 'm s-1',
+                 'W_mean': 'm s-1',
+                 'T_mean': 'K',
+                 'uu_mean': 'm2 s-2',
+                 'vv_mean': 'm2 s-2',
+                 'ww_mean': 'm2 s-2',
+                 'uv_mean': 'm2 s-2',
+                 'uw_mean': 'm2 s-2',
+                 'vw_mean': 'm2 s-2',
+                 'R11_mean': 'm2 s-2',
+                 'R22_mean': 'm2 s-2',
+                 'R33_mean': 'm2 s-2',
+                 'R12_mean': 'm2 s-2',
+                 'R13_mean': 'm2 s-2',
+                 'R23_mean': 'm2 s-2',
+                 'Tu_mean': 'K m s-1',
+                 'Tv_mean': 'K m s-1',
+                 'Tw_mean': 'K m s-1',
+                 'q1_mean': 'K m s-1',
+                 'q2_mean': 'K m s-1',
+                 'q3_mean': 'K m s-1',
+                 'nu_SGS_mean': 'm2 s-1',
+                }
+
+        print('Dumping data to',fname)
+        import netCDF4
+        f = netCDF4.Dataset(fname,'w')
+        f.createDimension('time',len(self.t))
+        f.createDimension('z',len(self.hLevelsCell))
+
+        times = f.createVariable('time', 'float', ('time',))
+        times.long_name = 'Time'
+        times.units = 's'
+        times[:] = self.t
+
+        heights = f.createVariable('z', 'float', ('z',))
+        heights.long_name = 'Height above ground level'
+        heights.units = 'm'
+        heights[:] = self.hLevelsCell
+
+        for var in self._processed:
+            field = f.createVariable(var, 'float', ('time','z'))
+            try:
+                field.long_name = long_names[var]
+            except KeyError:
+                # Use var name as description
+                field.long_name = var
+            try:
+                field.units = units[var]
+            except KeyError:
+                # Units unknown
+                pass
+            field[:] = getattr(self,var)
+
 """end of class PlanarAverages"""
 
 
