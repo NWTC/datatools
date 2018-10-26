@@ -188,3 +188,73 @@ class Array(Set):
         s += '  spacing {:s}'.format(str(self.spacing))
         return s
 
+
+class Probes(list):
+    header = """{name:s}
+{{
+    type                probes;
+    functionObjectLibs ("libsampling.so");
+    name                {name:s};
+    outputControl       {outputControl:s};
+    outputInterval      {outputInterval:d};
+    fields
+    (
+        {fields:s}
+    );
+
+    probeLocations
+    (
+"""
+    footer = """    );
+}
+"""
+    def __init__(self,name,*args,**kwargs):
+        """Probe sampling dictionary, to be included in controlDict.functions
+
+        Locations may be specified as a list of coordinates or as a 2D array.
+
+        Keyword arguments
+        -----------------
+        fields : list, optional
+            Default is U and T
+        outputControl : str, optional
+            'timeStep', 'runTime', or 'adjustableRunTime' (default: timeStep)
+        outputInterval : int or float, optional
+            Value for timeStep and runTime output, respectively (default: 1)
+        perturb : float, optional
+            Shift sampling location by a small amount to help prevent the probe
+            from landing on an edge or face; under some circumstances, OpenFOAM
+            sampling may fail if this is the case.
+        """
+        self.name = name
+        self.fields = kwargs.pop('fields',['U','T'])
+        self.outputControl = kwargs.pop('outputControl','timeStep')
+        self.outputInterval = kwargs.pop('outputInterval',1)
+        self.perturb = kwargs.pop('perturb',0.001)
+        if sys.version_info < (3, 0):
+            super(SampleSet, self).__init__(*args,**kwargs)
+        else:
+            super().__init__(*args,**kwargs)
+
+    def __repr__(self):
+        return '{:s} ({:d} probes)'.format(self.name, len(self))
+
+    def write(self,fpath):
+        fields = '\n        '.join(self.fields)
+        with open(fpath,'w') as f:
+            f.write(
+                    self.header.format(
+                        name=self.name,
+                        outputControl=self.outputControl,
+                        outputInterval=self.outputInterval,
+                        fields=fields
+                        )
+                   )
+            locations = np.array(self)
+            for i in range(len(self)):
+                loc = locations[i,:]
+                f.write('        ({:f} {:f} {:f})\n'.format(loc[0]+self.perturb,
+                                                            loc[1]+self.perturb,
+                                                            loc[2]+self.perturb))
+            f.write(self.footer)
+
