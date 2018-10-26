@@ -190,6 +190,8 @@ class Array(Set):
 
 
 class Probes(list):
+    """A general probes class"""
+
     header = """{name:s}
 {{
     type                probes;
@@ -208,6 +210,7 @@ class Probes(list):
     footer = """    );
 }
 """
+
     def __init__(self,name,*args,**kwargs):
         """Probe sampling dictionary, to be included in controlDict.functions
 
@@ -232,14 +235,16 @@ class Probes(list):
         self.outputInterval = kwargs.pop('outputInterval',1)
         self.perturb = kwargs.pop('perturb',0.001)
         if sys.version_info < (3, 0):
-            super(SampleSet, self).__init__(*args,**kwargs)
+            super(Probes, self).__init__(*args,**kwargs)
         else:
             super().__init__(*args,**kwargs)
 
     def __repr__(self):
         return '{:s} ({:d} probes)'.format(self.name, len(self))
 
-    def write(self,fpath):
+    def write(self,fpath=None):
+        if fpath is None:
+            fpath = self.name
         fields = '\n        '.join(self.fields)
         with open(fpath,'w') as f:
             f.write(
@@ -257,4 +262,27 @@ class Probes(list):
                                                             loc[1]+self.perturb,
                                                             loc[2]+self.perturb))
             f.write(self.footer)
+        print('Wrote '+fpath)
 
+
+class VirtualMetMast(Probes):
+    def __init__(self,name,base,*args,**kwargs):
+        """Create a virtual met mast described by a Probes object
+
+        base: list-like
+            xyz coordinates of the base of the met mast
+        heights: list-like, optional
+            If specified, calls add_heights
+        """
+        heights = kwargs.pop('heights',None)
+        if sys.version_info < (3, 0):
+            super(VirtualMetMast, self).__init__(name,*args,**kwargs)
+        else:
+            super().__init__(name,*args,**kwargs)
+        self.base = np.array(base)
+        if heights is not None:
+            self.add_heights(heights)
+
+    def add_heights(self,z):
+        for zi in z:
+            self.append([self.base[0],self.base[1],self.base[2]+zi])
