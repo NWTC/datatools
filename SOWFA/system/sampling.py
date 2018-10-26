@@ -35,7 +35,7 @@ class SampleSet(list):
         self.name = name
         self.fields = kwargs.pop('fields',['U'])
         self.interpolationScheme = kwargs.pop('interpolationScheme','cellPoint')
-        self.outputControl = kwargs.pop('outputControl','timestep')
+        self.outputControl = kwargs.pop('outputControl','timeStep')
         self.outputInterval = kwargs.pop('outputInterval',1)
         self.setFormat = kwargs.pop('setFormat','NEED_TO_SPECIFY')
         if sys.version_info < (3, 0):
@@ -190,7 +190,7 @@ class Array(Set):
 
 
 class Probes(list):
-    """A general probes class"""
+    """General point sampling"""
 
     header = """{name:s}
 {{
@@ -219,11 +219,12 @@ class Probes(list):
         Keyword arguments
         -----------------
         fields : list, optional
-            Default is U and T
+            Fields to sample (default: U, T)
         outputControl : str, optional
             'timeStep', 'runTime', or 'adjustableRunTime' (default: timeStep)
         outputInterval : int or float, optional
-            Value for timeStep and runTime output, respectively (default: 1)
+            Number of steps or sampling period, for timestep and runtime
+            sampling, respectively (default: 1)
         perturb : float, optional
             Shift sampling location by a small amount to help prevent the probe
             from landing on an edge or face; under some circumstances, OpenFOAM
