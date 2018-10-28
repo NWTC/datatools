@@ -13,7 +13,7 @@ class SampleSet(list):
     header = """{name:s}
 {{
     type                sets;
-    functionObjectLibs ("libsampling.so");
+    functionObjectLibs ("libsampling.so" "libuserfileFormats.so");
     enabled             true;
     interpolationScheme {interpolationScheme:s};
     outputControl       {outputControl:s};
