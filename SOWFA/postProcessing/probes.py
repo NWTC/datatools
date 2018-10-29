@@ -127,16 +127,22 @@ class Probe(object):
                 # select only unique data
                 newdata = newdata[selected,:]
 
-            # reshape field into (Nz,Nt,Nd) and set as attribute
+            # reshape field into (Nt,Nz[,Nd]) and set as attribute
+            # - note: first column of 'newdata' is time
+            # - note: old behavior was to return (Nz,Nt,Nd) for Nd >= 1
+            print(newdata)
             if newdata.shape[1] == self.N+1:
                 # scalar
-                setattr( self, field, newdata[:,1:,np.newaxis].swapaxes(0,1) )
+                #setattr( self, field, newdata[:,1:,np.newaxis].swapaxes(0,1) )
+                setattr( self, field, newdata[:,1:] )
             elif newdata.shape[1] == 3*self.N+1:
                 # vector
-                setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,3),order='C').swapaxes(0,1) )
+                #setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,3),order='C').swapaxes(0,1) )
+                setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,3),order='C') )
             elif newdata.shape[1] == 6*self.N+1:
                 # symmetric tensor
-                setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,6),order='C').swapaxes(0,1) )
+                #setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,6),order='C').swapaxes(0,1) )
+                setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,6),order='C') )
             else:
                 raise IndexError('Unrecognized number of values')
             self._processed.append(field)
