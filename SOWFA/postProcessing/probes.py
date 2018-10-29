@@ -130,7 +130,6 @@ class Probe(object):
             # reshape field into (Nt,Nz[,Nd]) and set as attribute
             # - note: first column of 'newdata' is time
             # - note: old behavior was to return (Nz,Nt,Nd) for Nd >= 1
-            print(newdata)
             if newdata.shape[1] == self.N+1:
                 # scalar
                 #setattr( self, field, newdata[:,1:,np.newaxis].swapaxes(0,1) )
