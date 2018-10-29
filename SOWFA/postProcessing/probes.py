@@ -280,7 +280,7 @@ class Probe(object):
         import netCDF4
         f = netCDF4.Dataset(fname,'w')
         f.createDimension('time',len(self.t))
-        f.createDimension('z',self.pos.shape[0])
+        f.createDimension('z',self.pos.shape[1])
 
         times = f.createVariable('time', 'float', ('time',))
         times.long_name = 'Time'
