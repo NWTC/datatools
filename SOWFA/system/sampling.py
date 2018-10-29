@@ -199,6 +199,7 @@ class Probes(list):
     name                {name:s};
     outputControl       {outputControl:s};
     outputInterval      {outputInterval:d};
+    interpolationScheme {interpolationScheme:s};
     fields
     (
         {fields:s}
@@ -225,6 +226,8 @@ class Probes(list):
         outputInterval : int or float, optional
             Number of steps or sampling period, for timestep and runtime
             sampling, respectively (default: 1)
+        interpolationScheme : str, optional
+            'cell', 'cellPoint' linear (default: cell)
         perturb : float, optional
             Shift sampling location by a small amount to help prevent the probe
             from landing on an edge or face; under some circumstances, OpenFOAM
@@ -234,6 +237,7 @@ class Probes(list):
         self.fields = kwargs.pop('fields',['U','T'])
         self.outputControl = kwargs.pop('outputControl','timeStep')
         self.outputInterval = kwargs.pop('outputInterval',1)
+        self.interpolationScheme = kwargs.pop('interpolationScheme','cell')
         self.perturb = kwargs.pop('perturb',0.001)
         if sys.version_info < (3, 0):
             super(Probes, self).__init__(*args,**kwargs)
@@ -253,6 +257,7 @@ class Probes(list):
                         name=self.name,
                         outputControl=self.outputControl,
                         outputInterval=self.outputInterval,
+                        interpolationScheme=self.interpolationScheme,
                         fields=fields
                         )
                    )
