@@ -3,6 +3,9 @@
 #
 # written by Eliot Quon (eliot.quon@nrel.gov)
 #
+# Note:
+# - function object ref: OpenFOAM-2.4.x/src/postProcessing/functionObjects/IO/controlDict
+#
 from __future__ import print_function
 import sys
 import numpy as np
@@ -17,7 +20,7 @@ class SampleSet(list):
     enabled             true;
     interpolationScheme {interpolationScheme:s};
     outputControl       {outputControl:s};
-    outputInterval      {outputInterval:d};
+    {intervalName:s}      {outputInterval:g};
     setFormat           {setFormat:s};
     fields
     (
@@ -55,13 +58,20 @@ class SampleSet(list):
 
     def write(self,fpath):
         fields = '\n        '.join(self.fields)
+        if self.outputControl in ['timeStep','outputTime']:
+            intervalName = 'outputInterval'
+            intervalValue = int(self.outputInterval)
+        else:
+            intervalName = 'writeInterval '
+            intervalValue = self.outputInterval
         with open(fpath,'w') as f:
             f.write(
                     self.header.format(
                         name=self.name,
                         interpolationScheme=self.interpolationScheme,
                         outputControl=self.outputControl,
-                        outputInterval=self.outputInterval,
+                        outputInterval=intervalValue,
+                        intervalName=intervalName,
                         setFormat=self.setFormat,
                         fields=fields
                         )
@@ -198,7 +208,7 @@ class Probes(list):
     functionObjectLibs ("libsampling.so");
     name                {name:s};
     outputControl       {outputControl:s};
-    outputInterval      {outputInterval:d};
+    {intervalName:s}      {outputInterval:g};
     interpolationScheme {interpolationScheme:s};
     fields
     (
@@ -251,12 +261,19 @@ class Probes(list):
         if fpath is None:
             fpath = self.name
         fields = '\n        '.join(self.fields)
+        if self.outputControl in ['timeStep','outputTime']:
+            intervalName = 'outputInterval'
+            intervalValue = int(self.outputInterval)
+        else:
+            intervalName = 'writeInterval '
+            intervalValue = self.outputInterval
         with open(fpath,'w') as f:
             f.write(
                     self.header.format(
                         name=self.name,
                         outputControl=self.outputControl,
-                        outputInterval=self.outputInterval,
+                        outputInterval=intervalValue,
+                        intervalName=intervalName,
                         interpolationScheme=self.interpolationScheme,
                         fields=fields
                         )
