@@ -255,7 +255,7 @@ class Probe(object):
         return pd.concat(dflist).set_index(['t','z'])
 
     def to_csv(self,fname):
-        self.as_dataframe().to_csv(fname)
+        self.to_pandas().to_csv(fname)
 
     def to_netcdf(self,fname):
         long_names = {'T': 'Potential temperature',
