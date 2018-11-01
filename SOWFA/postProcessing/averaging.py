@@ -1036,7 +1036,7 @@ class PlanarAverages(object):
         """
         import pandas as pd
         # output all vars
-        if (fields is not None) and (fields.lower() == 'all'):
+        if (fields is not None) and (not isinstance(fields, dict)) and (fields.lower() == 'all'):
             print('All fields requested')
             self.get_vars_if_needed(*all_vars)
             self._trim_series_if_needed()
@@ -1056,12 +1056,12 @@ class PlanarAverages(object):
         print('Creating dataframe for',self.t[tindices])
         dflist = []
         for i in tindices:
-            if hasattr(fields, '__iter__') and  not isinstance(fields, str):
-                # have an iterable object, write out specified fields
-                data = { var: getattr(self,var)[i,:] for var in fields }
-            elif isinstance(fields, dict):
+            if isinstance(fields, dict):
                 # write out specified fields with custom column names
                 data = { col: getattr(self,var)[i,:] for col,var in fields.items() }
+            elif hasattr(fields, '__iter__') and  not isinstance(fields, str):
+                # have an iterable object, write out specified fields
+                data = { var: getattr(self,var)[i,:] for var in fields }
             else:
                 # write out all fields that have been processed
                 data = { var: getattr(self,var)[i,:] for var in self._processed }
