@@ -127,16 +127,18 @@ class Probe(object):
                 # select only unique data
                 newdata = newdata[selected,:]
 
-            # reshape field into (Nz,Nt,Nd) and set as attribute
+            # reshape field into (Nt,Nz[,Nd]) and set as attribute
+            # - note: first column of 'newdata' is time
+            # - note: old behavior was to return (Nz,Nt,Nd) for Nd >= 1
             if newdata.shape[1] == self.N+1:
                 # scalar
-                setattr( self, field, newdata[:,1:,np.newaxis].swapaxes(0,1) )
+                setattr( self, field, newdata[:,1:] )
             elif newdata.shape[1] == 3*self.N+1:
                 # vector
-                setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,3),order='C').swapaxes(0,1) )
+                setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,3),order='C') )
             elif newdata.shape[1] == 6*self.N+1:
                 # symmetric tensor
-                setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,6),order='C').swapaxes(0,1) )
+                setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,6),order='C') )
             else:
                 raise IndexError('Unrecognized number of values')
             self._processed.append(field)
@@ -196,8 +198,10 @@ class Probe(object):
             try:
                 getattr(self,field)
             except AttributeError:
+                print('Skipping time series length check for unknown field: ',
+                      field)
                 fields_to_check.remove(field)
-        field_lengths = [ getattr(self,field).shape[1] for field in fields_to_check ]
+        field_lengths = [ getattr(self,field).shape[0] for field in fields_to_check ]
         if np.min(field_lengths) < np.max(field_lengths):
             self.imax = np.min(field_lengths)
             # need to prune arrays
@@ -206,7 +210,15 @@ class Probe(object):
             self.t = self.t[:self.imax]
             self.Nt = len(self.t)
             for field in fields_to_check:
-                setattr(self, field, getattr(self,field)[:,:self.imax,:])
+                Ndim = len(getattr(self,field).shape)
+                if Ndim == 2:
+                    # scalar
+                    setattr(self, field, getattr(self,field)[:self.imax,:])
+                elif Ndim == 3:
+                    # vector/tensor
+                    setattr(self, field, getattr(self,field)[:self.imax,:,:])
+                else:
+                    print('Unknown field type ',field)
 
 
     def __repr__(self):
@@ -231,17 +243,17 @@ class Probe(object):
             data = dict(t=self.t)
             for field in self._processed:
                 F = getattr(self,field)
-                if F.shape[2]==3:
+                if len(F.shape)==2:
+                    # scalar
+                    data[field] = F[:,iprobe]
+                elif F.shape[2]==3:
                     # vector
                     for i,name in enumerate(['x','y','z']):
-                        data[field+name] = F[iprobe,:,i]
+                        data[field+name] = F[:,iprobe,i]
                 elif F.shape[2]==6:
                     # symmetric tensor
                     for i,name in enumerate(['xx','xy','xz','yy','yz','zz']):
-                        data[field+name] = F[iprobe,:,i]
-                else:
-                    # scalar
-                    data[field] = F[iprobe,:,0]
+                        data[field+name] = F[:,iprobe,i]
             df = pd.DataFrame(data=data)
             #df['id'] = iprobe
             df['z'] = self.pos[iprobe,2]
@@ -268,7 +280,7 @@ class Probe(object):
         import netCDF4
         f = netCDF4.Dataset(fname,'w')
         f.createDimension('time',len(self.t))
-        f.createDimension('z',self.pos.shape[0])
+        f.createDimension('z',self.pos.shape[1])
 
         times = f.createVariable('time', 'float', ('time',))
         times.long_name = 'Time'
@@ -282,12 +294,16 @@ class Probe(object):
 
         for var in self._processed:
             F = getattr(self,var)
-            if F.shape[2]==3: # vector
-                varnames = [var+name for name in ['x','y','z']]
-            elif F.shape[2]==6: # symmetric tensor
-                varnames = [var+name for name in ['xx','xy','xz','yy','yz','zz']]
-            else: # scalar
+            if len(F.shape)==2:
+                # scalar
                 varnames = [var,]
+                F = F[:,:,np.newaxis]
+            elif F.shape[2]==3:
+                # vector
+                varnames = [var+name for name in ['x','y','z']]
+            elif F.shape[2]==6:
+                # symmetric tensor
+                varnames = [var+name for name in ['xx','xy','xz','yy','yz','zz']]
             
             for i, varname in enumerate(varnames):
                 field = f.createVariable(varname, 'float', ('time','z'))
@@ -301,5 +317,5 @@ class Probe(object):
                 except KeyError:
                     # Units unknown
                     pass
-                field[:] = F[:,:,i].swapaxes(0,1)
+                field[:] = F[:,:,i]
         f.close()

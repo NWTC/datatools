@@ -21,7 +21,8 @@ from IPython.display import display
 from datatools.SOWFA.constant.forcingTable import ForcingTable
 
 g = 9.81
-contour_colormap = 'bwr' # closest to what's available in ncview
+#contour_colormap = 'bwr' # closest to what's available in ncview
+contour_colormap = 'RdBu_r' # more soothing blues and reds
 series_colormap = 'viridis'
 
 class Visualization2D(object):
