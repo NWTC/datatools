@@ -57,13 +57,14 @@ class SampleSet(list):
         return s
 
     def write(self,fpath):
-        fields = '\n        '.join(self.fields)
+        """Write sampling object definition"""
         if self.outputControl in ['timeStep','outputTime']:
             intervalName = 'outputInterval'
             intervalValue = int(self.outputInterval)
         else:
             intervalName = 'writeInterval '
             intervalValue = self.outputInterval
+        fields = '\n        '.join(self.fields)
         with open(fpath,'w') as f:
             f.write(
                     self.header.format(
@@ -113,6 +114,7 @@ class Set(object):
         self.params = {'type': settype}
 
     def write(self,f):
+        """Write a single sampling set definition"""
         params = dict(name=self.name,type=self.type)
         for key,val in self.params.items():
             params[key] = val
@@ -136,8 +138,8 @@ class Array(Set):
                 e1              {e1:s};
                 e2              {e2:s};
             }}
-            pointsDensity       (12 12 13);
-            spanBox             (130 130 140);
+            pointsDensity       ({pointsDensity[0]:d} {pointsDensity[1]:d} {pointsDensity[2]:d});
+            spanBox             ({spanBox[0]:.3f} {spanBox[1]:.3f} {spanBox[2]:.3f});
         }}
 """
 
@@ -258,6 +260,7 @@ class Probes(list):
         return '{:s} ({:d} probes)'.format(self.name, len(self))
 
     def write(self,fpath=None):
+        """Write a point sampling object definition"""
         if fpath is None:
             fpath = self.name
         fields = '\n        '.join(self.fields)
