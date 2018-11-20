@@ -143,11 +143,14 @@ class TopoSetDict(object):
 
 
     def _check_specified_sources(self):
+        """Check that all specified sources are defined, i.e., they have
+        associated _write_* functions defined.
+        """
         defined = [ (sourcename in self.source_types)
                     for sourcename in self.sources ]
         assert(all(defined))
 
-    def add_background(self, LLcorner=(0,0,0),
+    def add_background_box(self, LLcorner=(0,0,0),
             length=0.0, width=0.0, height=0.0, rotation=0.0,
             streamwise_buffer=50.0, lateral_buffer=50.0, vertical_buffer=50.0):
         """Add refinement box at location specified by the lower-left
