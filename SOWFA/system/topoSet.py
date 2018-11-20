@@ -106,7 +106,7 @@ class TopoSetDict(object):
         )
 
         # definitions for each background region
-        self.LLcorner = []
+        self.bkg_LLcorner = []
         self.bkg_rotation = []
         self.bkg_length = []
         self.bkg_width = []
@@ -133,7 +133,7 @@ class TopoSetDict(object):
     def __repr__(self):
         s = '{:d} refinement levels : {:s}'.format(self.Nlevels,
                                                    str(self.sources))
-        for ibkg,loc in enumerate(self.LLcorner):
+        for ibkg,loc in enumerate(self.bkg_LLcorner):
             s += '\nbackground region {:d} at {:s} rotated {:g} deg'.format(
                     ibkg+1, str(loc), 180./np.pi*self.bkg_rotation[ibkg])
         for iturb,loc in enumerate(self.base_location):
@@ -182,7 +182,7 @@ class TopoSetDict(object):
             direction. [m]
         """
         assert((length > 0) and (width > 0) and (height > 0))
-        self.LLcorner.append(LLcorner)
+        self.bkg_LLcorner.append(LLcorner)
         if 'rotation' is None:
             rotation = self.refinement['rotation']
         self.bkg_rotation.append(rotation)
@@ -252,7 +252,7 @@ class TopoSetDict(object):
                     efflevel -= 1
             if sourcename == 'background_box':
                 print('{:d}: background regions {:d}'.format(ilevel,efflevel))
-                for ibkg in range(len(self.LLcorner)):
+                for ibkg in range(len(self.bkg_LLcorner)):
                     length = self.bkg_length[ibkg]
                     width = self.bkg_width[ibkg]
                     height = self.bkg_height[ibkg]
@@ -326,7 +326,7 @@ class TopoSetDict(object):
                     for iturb in range(len(self.base_location)):
                         f.write(source(iturb,efflevel)) # levels are 0-indexed
                 elif sourcename.startswith('background'):
-                    for ibkg in range(len(self.LLcorner)):
+                    for ibkg in range(len(self.bkg_LLcorner)):
                         f.write(source(ibkg,efflevel)) # levels are 0-indexed
                 else:
                     print("Unrecognized source type for source '{:s}'".format(sourcename))
@@ -360,7 +360,7 @@ class TopoSetDict(object):
         xbuff = self.bkg_xbuffer[ibkg]
         ybuff = self.bkg_ybuffer[ibkg]
         zbuff = self.bkg_zbuffer[ibkg]
-        LLcorner = self.LLcorner[ibkg]
+        LLcorner = self.bkg_LLcorner[ibkg]
         ang = self.bkg_rotation[ibkg]
         # origin (x,y,z)
         x0 = -ilevel*xbuff
