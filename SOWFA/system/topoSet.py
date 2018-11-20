@@ -233,13 +233,80 @@ class TopoSetDict(object):
         self.rbuffer.append(get_param('radial_buffer'))
 
 
+    def estimate_mesh_size(self,initial_size=None,ds0=10.0):
+        """NOTE: this is experimental and not very accurate!"""
+        if initial_size is None:
+            raise ValueError('specify initial cell count or list of dimensions')
+        if hasattr(initial_size,'__iter__'):
+            initial_size = int(np.prod(initial_size))
+            print('calculated initial cell count: {:d}'.format(initial_size))
+        vol = np.zeros(self.Nlevels)
+        for ilevel in range(self.Nlevels):
+            sourcename = self.sources[ilevel]
+            efflevel = ilevel
+            for i in range(ilevel):
+                if not self.sources[i] == self.sources[ilevel]:
+                    efflevel -= 1
+            if sourcename == 'background_box':
+                print('{:d}: background regions {:d}'.format(ilevel,efflevel))
+                for ibkg in range(len(self.LLcorner)):
+                    length = self.bkg_length[ibkg]
+                    width = self.bkg_width[ibkg]
+                    height = self.bkg_height[ibkg]
+                    xbuff = self.bkg_xbuffer[ibkg]
+                    ybuff = self.bkg_ybuffer[ibkg]
+                    zbuff = self.bkg_zbuffer[ibkg]
+                    length += 2*efflevel*xbuff
+                    width += 2*efflevel*ybuff
+                    height += efflevel*zbuff
+                    vol[ilevel] += length*width*height
+                    #print('  box{:d} vol  = {:g}'.format(ibkg,length*width*height))
+            elif sourcename == 'turbine_box':
+                print('{:d}: turbine box regions {:d}'.format(ilevel,efflevel))
+                for iturb in range(len(self.base_location)):
+                    Lref = self.diameter[iturb]
+                    upstream = self.upstream[iturb] * Lref
+                    downstream = self.downstream[iturb] * Lref
+                    length = upstream + downstream
+                    width = self.width[iturb] * Lref
+                    height = self.height[iturb] * Lref
+                    xbuff = self.xbuffer[iturb] * Lref
+                    ybuff = self.ybuffer[iturb] * Lref
+                    zbuff = self.zbuffer[iturb] * Lref
+                    length += 2*efflevel*xbuff
+                    width += 2*efflevel*ybuff
+                    height += efflevel*zbuff
+                    vol[ilevel] += length*width*height
+            elif sourcename == 'turbine_cylinder':
+                print('{:d}: turbine cylinder regions {:d}'.format(ilevel,efflevel))
+                for iturb in range(len(self.base_location)):
+                    Lref = self.diameter[iturb]
+                    R = (1.0 + (efflevel+1)*self.rbuffer[iturb]) * Lref/2
+                    upstream = self.upstream[iturb] * Lref
+                    downstream = self.downstream[iturb] * Lref
+                    xbuff = self.xbuffer[iturb] * Lref
+                    length = upstream + downstream + 2*efflevel*xbuff
+                    vol[ilevel] += length * np.pi*R**2
+        lastcount = initial_size
+        ds = float(ds0)
+        for ilevel in range(self.Nlevels):
+            print('volume, ds : {:g} {:f}'.format(vol[ilevel],ds))
+            approx_cells = int(vol[ilevel] / ds**3)
+            print('approx number of selected cells : {:d}'.format(approx_cells))
+            newcount = lastcount + 7*approx_cells
+            print('refinement level {:d} : increase from {:d} to {:d}'.format(
+                    ilevel+1, lastcount, newcount))
+            lastcount = newcount
+            ds /= 2
+
+
     def write(self,prefix='topoSetDict.local'):
         for ilevel in range(self.Nlevels):
             fname = '{:s}.{:d}'.format(prefix,ilevel+1)
             sourcename = self.sources[ilevel]
             source = getattr(self,'_write_'+sourcename)
-#            print('Writing {:s} dict : {:s}'.format(sourcename,fname))
-            # Get the effective level; if sources==['cylinder','box','box'],
+            # Get the effective level; e.g., if
+            #   sources==['cylinder','box','box'],
             # then the zero-indexed ilevel==1 (corresponds to an overall
             # refinement level of 2, and a box-refinement level of 1)
             efflevel = ilevel
