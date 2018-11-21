@@ -31,12 +31,16 @@ topoSetDict_footer = """);
 
 
 class TopoSetDict(object):
-    source_types = ['background_box','turbine_box','turbine_cylinder']
+    source_types = ['box','cylinder']
+    defaults = dict(
+        rotation=0.0,
+        upstream=5.0, downstream=10.0,
+        width=3.0, height=3.0,
+        xbuffer=1.0, ybuffer=1.0, zbuffer=1.0,
+        rbuffer=0.5
+    )
 
-    def __init__(self,sources=[],perturb=0.01,rotation=0.0,
-                 upstream=5.0,downstream=10.0,width=3.0,height=3.0,
-                 streamwise_buffer=1.0,lateral_buffer=1.0,vertical_buffer=1.0,
-                 radial_buffer=0.5):
+    def __init__(self,sources=[],perturb=0.01,**kwargs):
         """Object for generating a series of topoSetDict files (e.g.,
         for refinement). Level 1 is the finest level, and successive
         refinements should be performed sequentially starting from the
@@ -45,65 +49,27 @@ class TopoSetDict(object):
         Note that defaults are only specified for turbine refinement
         regions; the actual dimensional values must be specified for 
         each background refinement region.
+
+        Optional keyword arguments are passed to setup()
         
         Inputs
         ------
         sources : list of str
-            Describes the cellSet sources (either "box" or "cylinder")
-            used in describing the refinement regions, the length of
-            which corresponds to the number of refinement levels.
+            cellSet sources (available in sources in self.source_types)
+            that describe the refinement regions, the length of which
+            corresponds to the number of refinement levels.
         perturb : float, optional
             A perturbation of the refinement boxes to keep the
             boundaries off of cell faces. [m]
-
-        Default turbine box refinement parameters
-        -----------------------------------------
-        rotation : float, optional
-            Angle about the z-axis to rotate the refinement region (NOT
-            the compass wind direction); if None, then mean_rotation is
-            used. [deg]
-        upstream : float, optional
-            Distance (in diameters) upstream of the turbine where the
-            inner refinement box starts.
-        downstream : float, optional
-            Distance (in diameters) downstream of the turbine where the
-            inner refinement box ends.
-        width : float, optional
-            The overall width (in diameters) of the inner refinement
-            box; need to account for horizontal wake meandering
-            downstream.
-        height : float, optional
-            The overall height (in diameters) of the inner refinement
-            box; need to account for vertical wake meandering
-            downstream.
-        streamwise_buffer : float, optional
-            Size of buffer region (in diameters) between refinement
-            levels in the upstream/downstream directions
-        lateral_buffer : float, optional
-            Size of buffer region (in diameters) between refinement
-            levels in the lateral directions
-        vertical_buffer : float, optional
-            Size of buffer region (in diameters) between refinement
-            levels in the vertical directions
-        radial_buffer : float, optional
-            Used to set size of cylindrical refinement region; cylinder
-            level i has diameter (1 + (i+1)*radial_buffer)*D for
-            i=0,1,...
         """
         self.sources = sources
         self.Nlevels = len(sources)
         self._check_specified_sources()
 
-        # set defaults
-        self.refinement = dict(
-            rotation=rotation*np.pi/180.0,
-            upstream=upstream, downstream=downstream,
-            width=width, height=height,
-            streamwise_buffer=streamwise_buffer,
-            lateral_buffer=lateral_buffer,
-            vertical_buffer=vertical_buffer,
-            radial_buffer=radial_buffer
-        )
+        self.refinement = dict()
+        if len(kwargs) == 0:
+            print('using defaults')
+        self.setup(**kwargs)
 
         # definitions for each background region
         self.bkg_LLcorner = []
@@ -150,11 +116,57 @@ class TopoSetDict(object):
                     for sourcename in self.sources ]
         assert(all(defined))
 
+    
+    def setup(self,**kwargs):
+        """
+        Refinement Parameters
+        ---------------------
+        rotation : float
+            Angle about the z-axis to rotate the refinement region (NOT
+            the compass wind direction); if None, then mean_rotation is
+            used. [deg]
+        upstream : float
+            Distance (in diameters) upstream of the turbine where the
+            inner refinement box starts.
+        downstream : float
+            Distance (in diameters) downstream of the turbine where the
+            inner refinement box ends.
+        width : float
+            The overall width (in diameters) of the inner refinement
+            box; need to account for horizontal wake meandering
+            downstream.
+        height : float
+            The overall height (in diameters) of the inner refinement
+            box; need to account for vertical wake meandering
+            downstream.
+        xbuffer : float
+            Size of buffer region (in diameters) between refinement
+            levels in the upstream/downstream directions
+        ybuffer : float
+            Size of buffer region (in diameters) between refinement
+            levels in the lateral directions
+        zbuffer : float
+            Size of buffer region (in diameters) between refinement
+            levels in the vertical directions
+        rbuffer : float
+            Used to set size of cylindrical refinement region; cylinder
+            level i has diameter (1 + (i+1)*rbuffer)*D for
+            i=0,1,...
+        """
+        for key,defval in self.defaults.items():
+            val = kwargs.get(key, defval)
+            #if not hasattr(val,'__iter__')
+            self.refinement[key] = val
+        print('refinement parameters:',self.refinement)
+
+
     def add_background_box(self, LLcorner=(0,0,0),
             length=0.0, width=0.0, height=0.0, rotation=0.0,
-            streamwise_buffer=50.0, lateral_buffer=50.0, vertical_buffer=50.0):
+            xbuffer=50.0, ybuffer=50.0, zbuffer=50.0):
         """Add refinement box at location specified by the lower-left
         corner 'LLcorner' with dimensions given by Lx, Ly, Lz.
+
+        Background refinement boxes are only implemented for a single level.
         
         By default, the box is aligned with the x-, y-, and z- axes.
 
@@ -171,32 +183,35 @@ class TopoSetDict(object):
             Height of box in the x-direction. [m]
         rotation : float, optional
             Angle about the z-axis to rotate the refinement region. [deg]
-        streamwise_buffer : float, optional
+        xbuffer : float, optional
             Size of buffer region between refinement levels in the upstream
             and downstream directions. [m]
-        lateral_buffer : float, optional
+        ybuffer : float, optional
             Size of buffer region between refinement levels in the lateral
             directions. [m]
-        vertical_buffer : float, optional
+        zbuffer : float, optional
             Size of buffer region between refinement levels in the vertical
             direction. [m]
         """
+        if not self.sources[0] == 'background_box':
+            self.sources = ['background_box'] + self.sources
         assert((length > 0) and (width > 0) and (height > 0))
         self.bkg_LLcorner.append(LLcorner)
         if 'rotation' is None:
-            rotation = self.refinement['rotation']
+            rotation = self.defaults['rotation']
         self.bkg_rotation.append(rotation)
         self.bkg_length.append(length)
         self.bkg_width.append(width)
         self.bkg_height.append(height)
-        self.bkg_xbuffer.append(streamwise_buffer)
-        self.bkg_ybuffer.append(lateral_buffer)
-        self.bkg_zbuffer.append(vertical_buffer)
+        self.bkg_xbuffer.append(xbuffer)
+        self.bkg_ybuffer.append(ybuffer)
+        self.bkg_zbuffer.append(zbuffer)
 
     def add_turbine(self,
             base_location=(1000,1000,0), D=126.0, zhub=None,
             **kwargs):
-        """Add turbine at specified 'base_location' with diameter 'D'.
+        """Add turbine at specified 'base_location' with diameter 'D'
+        and orientation 'rotation'.
 
         Note that each turbine is associated with a set of topoSet
         refinement sources.
@@ -222,18 +237,18 @@ class TopoSetDict(object):
         if 'rotation' in kwargs:
             ang = np.pi/180. * kwargs['rotation']
         else:
-            ang = self.refinement['rotation']
+            ang = self.defaults['rotation']
         def get_param(param):
-            return kwargs.get(param, self.refinement[param])
+            return kwargs.get(param, self.defaults[param])
         self.rotation.append(ang)
         self.upstream.append(get_param('upstream'))
         self.downstream.append(get_param('downstream'))
         self.width.append(get_param('width'))
         self.height.append(get_param('height'))
-        self.xbuffer.append(get_param('streamwise_buffer'))
-        self.ybuffer.append(get_param('lateral_buffer'))
-        self.zbuffer.append(get_param('vertical_buffer'))
-        self.rbuffer.append(get_param('radial_buffer'))
+        self.xbuffer.append(get_param('xbuffer'))
+        self.ybuffer.append(get_param('ybuffer'))
+        self.zbuffer.append(get_param('zbuffer'))
+        self.rbuffer.append(get_param('rbuffer'))
 
 
     def estimate_mesh_size(self,initial_size=None,ds0=10.0):
@@ -264,7 +279,7 @@ class TopoSetDict(object):
                     height += efflevel*zbuff
                     vol[ilevel] += length*width*height
                     #print('  box{:d} vol  = {:g}'.format(ibkg,length*width*height))
-            elif sourcename == 'turbine_box':
+            elif sourcename == 'box':
                 print('{:d}: turbine box regions {:d}'.format(ilevel,efflevel))
                 for iturb in range(len(self.base_location)):
                     Lref = self.diameter[iturb]
@@ -280,7 +295,7 @@ class TopoSetDict(object):
                     width += 2*efflevel*ybuff
                     height += efflevel*zbuff
                     vol[ilevel] += length*width*height
-            elif sourcename == 'turbine_cylinder':
+            elif sourcename == 'cylinder':
                 print('{:d}: turbine cylinder regions {:d}'.format(ilevel,efflevel))
                 for iturb in range(len(self.base_location)):
                     Lref = self.diameter[iturb]
@@ -385,7 +400,7 @@ class TopoSetDict(object):
                 kx=kx, ky=ky, kz=kz)
 
 
-    def _write_turbine_box(self,iturb,ilevel):
+    def _write_box(self,iturb,ilevel):
         # Depends on D, upstream, downstream, width, height,
         # streamwise_buffer, lateral_buffer, and vertical_buffer.
         template = """    {{
@@ -440,7 +455,7 @@ class TopoSetDict(object):
                 kx=kx, ky=ky, kz=kz)
 
 
-    def _write_turbine_cylinder(self,iturb,ilevel):
+    def _write_cylinder(self,iturb,ilevel):
         # Depends on D, radial_buffer, upstream, downstream, and
         # streamwise buffer.
         template = """    {{
