@@ -63,7 +63,6 @@ class TopoSetDict(object):
             boundaries off of cell faces. [m]
         """
         self.sources = sources
-        self.Nlevels = len(sources)
         self._check_specified_sources()
 
         self.refinement = dict()
@@ -97,14 +96,14 @@ class TopoSetDict(object):
             
 
     def __repr__(self):
-        s = '{:d} refinement levels : {:s}'.format(self.Nlevels,
+        s = '{:d} refinement levels : {:s}'.format(len(self.sources),
                                                    str(self.sources))
         for ibkg,loc in enumerate(self.bkg_LLcorner):
             s += '\nbackground region {:d} at {:s} rotated {:g} deg'.format(
-                    ibkg+1, str(loc), 180./np.pi*self.bkg_rotation[ibkg])
+                    ibkg+1, str(loc), self.bkg_rotation[ibkg])
         for iturb,loc in enumerate(self.base_location):
             s += '\nturbine {:d} at {:s} rotated {:g} deg'.format(
-                    iturb+1, str(loc), 180./np.pi*self.rotation[iturb])
+                    iturb+1, str(loc), self.rotation[iturb])
         return s
 
 
@@ -193,12 +192,12 @@ class TopoSetDict(object):
             Size of buffer region between refinement levels in the vertical
             direction. [m]
         """
-        if not self.sources[0] == 'background_box':
-            self.sources = ['background_box'] + self.sources
+        if not self.sources[-1] == 'background_box':
+            self.sources.append('background_box')
         assert((length > 0) and (width > 0) and (height > 0))
         self.bkg_LLcorner.append(LLcorner)
         if 'rotation' is None:
-            rotation = self.defaults['rotation']
+            rotation = self.refinement['rotation']
         self.bkg_rotation.append(rotation)
         self.bkg_length.append(length)
         self.bkg_width.append(width)
@@ -235,12 +234,12 @@ class TopoSetDict(object):
             zhub = D
         self.zhub.append(zhub)
         if 'rotation' in kwargs:
-            ang = np.pi/180. * kwargs['rotation']
+            ang_deg = kwargs['rotation']
         else:
-            ang = self.defaults['rotation']
+            ang_deg = self.refinement['rotation']
         def get_param(param):
-            return kwargs.get(param, self.defaults[param])
-        self.rotation.append(ang)
+            return kwargs.get(param, self.refinement[param])
+        self.rotation.append(np.radians(ang_deg))
         self.upstream.append(get_param('upstream'))
         self.downstream.append(get_param('downstream'))
         self.width.append(get_param('width'))
@@ -258,8 +257,9 @@ class TopoSetDict(object):
         if hasattr(initial_size,'__iter__'):
             initial_size = int(np.prod(initial_size))
             print('calculated initial cell count: {:d}'.format(initial_size))
-        vol = np.zeros(self.Nlevels)
-        for ilevel in range(self.Nlevels):
+        Nlevels = len(self.sources)
+        vol = np.zeros(Nlevels)
+        for ilevel in range(Nlevels):
             sourcename = self.sources[ilevel]
             efflevel = ilevel
             for i in range(ilevel):
@@ -307,7 +307,7 @@ class TopoSetDict(object):
                     vol[ilevel] += length * np.pi*R**2
         lastcount = initial_size
         ds = float(ds0)
-        for ilevel in range(self.Nlevels):
+        for ilevel in range(Nlevels):
             print('volume, ds : {:g} {:f}'.format(vol[ilevel],ds))
             approx_cells = int(vol[ilevel] / ds**3)
             print('approx number of selected cells : {:d}'.format(approx_cells))
@@ -319,7 +319,7 @@ class TopoSetDict(object):
 
 
     def write(self,prefix='topoSetDict.local'):
-        for ilevel in range(self.Nlevels):
+        for ilevel in range(len(self.sources)):
             fname = '{:s}.{:d}'.format(prefix,ilevel+1)
             sourcename = self.sources[ilevel]
             source = getattr(self,'_write_'+sourcename)
@@ -331,18 +331,19 @@ class TopoSetDict(object):
             for i in range(ilevel):
                 if not self.sources[i] == self.sources[ilevel]:
                     efflevel -= 1
-            print('Writing {:s} dict, level {:d} : {:s}'.format(sourcename,
-                                                                efflevel,
-                                                                fname))
             # write out topoSetDict.*
             with open(fname,'w') as f:
                 f.write(topoSetDict_header.format(fname=fname))
-                if sourcename.startswith('turbine'):
-                    for iturb in range(len(self.base_location)):
-                        f.write(source(iturb,efflevel)) # levels are 0-indexed
-                elif sourcename.startswith('background'):
+                if sourcename.startswith('background'):
+                    print('{:d}: Writing {:s} dict, level {:d} to {:s}'.format(
+                            ilevel, sourcename, efflevel, fname))
                     for ibkg in range(len(self.bkg_LLcorner)):
                         f.write(source(ibkg,efflevel)) # levels are 0-indexed
+                elif sourcename in self.source_types:
+                    print('{:d}: Writing {:s} dict, level {:d} to {:s}'.format(
+                            ilevel, sourcename, efflevel, fname))
+                    for iturb in range(len(self.base_location)):
+                        f.write(source(iturb,efflevel)) # levels are 0-indexed
                 else:
                     print("Unrecognized source type for source '{:s}'".format(sourcename))
                 f.write(topoSetDict_footer)
@@ -401,6 +402,7 @@ class TopoSetDict(object):
 
 
     def _write_box(self,iturb,ilevel):
+        # Write out topoSetDict for a turbine refinement box.
         # Depends on D, upstream, downstream, width, height,
         # streamwise_buffer, lateral_buffer, and vertical_buffer.
         template = """    {{
@@ -456,6 +458,7 @@ class TopoSetDict(object):
 
 
     def _write_cylinder(self,iturb,ilevel):
+        # Write out topoSetDict for a turbine refinement cylinder.
         # Depends on D, radial_buffer, upstream, downstream, and
         # streamwise buffer.
         template = """    {{
