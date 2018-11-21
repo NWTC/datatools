@@ -36,7 +36,9 @@ class TopoSetDict(object):
         rotation=0.0,
         upstream=5.0, downstream=10.0,
         width=3.0, height=3.0,
-        xbuffer=1.0, ybuffer=1.0, zbuffer=1.0,
+        xbuffer_upstream=1.0,
+        xbuffer_downstream=1.0,
+        ybuffer=1.0, zbuffer=1.0,
         rbuffer=0.5
     )
 
@@ -89,7 +91,8 @@ class TopoSetDict(object):
         self.downstream = []
         self.width = []
         self.height = []
-        self.xbuffer = []
+        self.xbuffer_upstream = []
+        self.xbuffer_downstream = []
         self.ybuffer = []
         self.zbuffer = []
         self.rbuffer = []
@@ -138,13 +141,16 @@ class TopoSetDict(object):
             The overall height (in diameters) of the inner refinement
             box; need to account for vertical wake meandering
             downstream.
-        xbuffer : float
+        xbuffer : float or list-like
+        xbuffer_upstream : float or list-like
+        xbuffer_downstream : float or list-like
             Size of buffer region (in diameters) between refinement
-            levels in the upstream/downstream directions
-        ybuffer : float
+            levels in the upstream/downstream directions; set 'xbuffer'
+            to use the same value for upstream and downstream
+        ybuffer : float or list-like
             Size of buffer region (in diameters) between refinement
             levels in the lateral directions
-        zbuffer : float
+        zbuffer : float or list-like
             Size of buffer region (in diameters) between refinement
             levels in the vertical directions
         rbuffer : float
@@ -152,9 +158,15 @@ class TopoSetDict(object):
             level i has diameter (1 + (i+1)*rbuffer)*D for
             i=0,1,...
         """
+        # special treatment of xbuffer inputs
+        if 'xbuffer' in kwargs:
+            if not 'xbuffer_upstream' in kwargs:
+                kwargs['xbuffer_upstream'] = kwargs['xbuffer']
+            if not 'xbuffer_downstream' in kwargs:
+                kwargs['xbuffer_downstream'] = kwargs['xbuffer']
+        # now plug in all the remaining values
         for key,defval in self.defaults.items():
             val = kwargs.get(key, defval)
-            #if not hasattr(val,'__iter__')
             self.refinement[key] = val
         print('refinement parameters:',self.refinement)
 
@@ -244,7 +256,8 @@ class TopoSetDict(object):
         self.downstream.append(get_param('downstream'))
         self.width.append(get_param('width'))
         self.height.append(get_param('height'))
-        self.xbuffer.append(get_param('xbuffer'))
+        self.xbuffer_upstream.append(get_param('xbuffer_upstream'))
+        self.xbuffer_downstream.append(get_param('xbuffer_downstream'))
         self.ybuffer.append(get_param('ybuffer'))
         self.zbuffer.append(get_param('zbuffer'))
         self.rbuffer.append(get_param('rbuffer'))
@@ -288,12 +301,13 @@ class TopoSetDict(object):
                     length = upstream + downstream
                     width = self.width[iturb] * Lref
                     height = self.height[iturb] * Lref
-                    xbuff = self.xbuffer[iturb] * Lref
-                    ybuff = self.ybuffer[iturb] * Lref
-                    zbuff = self.zbuffer[iturb] * Lref
-                    length += 2*efflevel*xbuff
-                    width += 2*efflevel*ybuff
-                    height += efflevel*zbuff
+                    xbuff_u = self._get_refinement_buffer(self.xbuffer_upstream[iturb],efflevel) * Lref
+                    xbuff_d = self._get_refinement_buffer(self.xbuffer_downstream[iturb],efflevel) * Lref
+                    ybuff = self._get_refinement_buffer(self.ybuffer[iturb],efflevel) * Lref
+                    zbuff = self._get_refinement_buffer(self.zbuffer[iturb],efflevel) * Lref
+                    length += xbuff_u + xbuff_d
+                    width += 2*ybuff
+                    height += zbuff
                     vol[ilevel] += length*width*height
             elif sourcename == 'cylinder':
                 print('{:d}: turbine cylinder regions {:d}'.format(ilevel,efflevel))
@@ -302,8 +316,9 @@ class TopoSetDict(object):
                     R = (1.0 + (efflevel+1)*self.rbuffer[iturb]) * Lref/2
                     upstream = self.upstream[iturb] * Lref
                     downstream = self.downstream[iturb] * Lref
-                    xbuff = self.xbuffer[iturb] * Lref
-                    length = upstream + downstream + 2*efflevel*xbuff
+                    xbuff_u = self._get_refinement_buffer(self.xbuffer_upstream[iturb],efflevel) * Lref
+                    xbuff_d = self._get_refinement_buffer(self.xbuffer_downstream[iturb],efflevel) * Lref
+                    length = upstream + downstream + xbuff_u + xbuff_d
                     vol[ilevel] += length * np.pi*R**2
         lastcount = initial_size
         ds = float(ds0)
@@ -401,10 +416,23 @@ class TopoSetDict(object):
                 kx=kx, ky=ky, kz=kz)
 
 
+    def _get_refinement_buffer(self,buff,ilevel):
+        """*buffer parameters may be set to a scalar or a list-like
+        object. This returns the size of the buffer region up to the 
+        specified refinement nest level.
+        """
+        if hasattr(buff,'__iter__'):
+            return np.sum(buff[:ilevel])
+        else:
+            return ilevel*buff
+
+
     def _write_box(self,iturb,ilevel):
-        # Write out topoSetDict for a turbine refinement box.
-        # Depends on D, upstream, downstream, width, height,
-        # streamwise_buffer, lateral_buffer, and vertical_buffer.
+        """Write out topoSetDict for a turbine refinement box.
+
+        Depends on D, upstream, downstream, width, height,
+        xbuffer_upstream, xbuffer_downstream, ybuffer, and zbuffer.
+        """
         template = """    {{
         name         local;
         type         cellSet;
@@ -429,27 +457,31 @@ class TopoSetDict(object):
         length = upstream + downstream
         width = self.width[iturb] * Lref
         height = self.height[iturb] * Lref
-        xbuff = self.xbuffer[iturb] * Lref
-        ybuff = self.ybuffer[iturb] * Lref
-        zbuff = self.zbuffer[iturb] * Lref
+        #xbuff = ilevel * self.xbuffer[iturb] * Lref
+        xbuff_u = self._get_refinement_buffer(self.xbuffer_upstream[iturb],ilevel) * Lref
+        xbuff_d = self._get_refinement_buffer(self.xbuffer_downstream[iturb],ilevel) * Lref
+        ybuff = self._get_refinement_buffer(self.ybuffer[iturb],ilevel) * Lref
+        zbuff = self._get_refinement_buffer(self.zbuffer[iturb],ilevel) * Lref
         base = self.base_location[iturb]
         ang = self.rotation[iturb]
         # origin (x,y,z)
-        x0 = -upstream - ilevel*xbuff
-        y0 = -0.5*width - ilevel*ybuff
+        x0 = -upstream - xbuff_u
+        y0 = -0.5*width - ybuff
         x = x0 * np.cos(ang) - y0 * np.sin(ang) + base[0]
         y = x0 * np.sin(ang) + y0 * np.cos(ang) + base[1]
         z = base[2]
         # box dimensions
-        ix = (length + 2*ilevel*xbuff) * np.cos(ang)
-        iy = (length + 2*ilevel*xbuff) * np.sin(ang)
+        #ix = (length + 2*xbuff) * np.cos(ang)
+        #iy = (length + 2*xbuff) * np.sin(ang)
+        ix = (length + xbuff_u + xbuff_d) * np.cos(ang)
+        iy = (length + xbuff_u + xbuff_d) * np.sin(ang)
         iz = 0.0
-        jx = -(width + 2*ilevel*ybuff) * np.sin(ang)
-        jy =  (width + 2*ilevel*ybuff) * np.cos(ang)
+        jx = -(width + 2*ybuff) * np.sin(ang)
+        jy =  (width + 2*ybuff) * np.cos(ang)
         jz = 0.0
         kx = 0.0
         ky = 0.0
-        kz = height + ilevel*zbuff
+        kz = height + zbuff
         return template.format(action=action,
                 x0=x, y0=y, z0=z,
                 ix=ix, iy=iy, iz=iz,
@@ -458,9 +490,11 @@ class TopoSetDict(object):
 
 
     def _write_cylinder(self,iturb,ilevel):
-        # Write out topoSetDict for a turbine refinement cylinder.
-        # Depends on D, radial_buffer, upstream, downstream, and
-        # streamwise buffer.
+        """Write out topoSetDict for a turbine refinement cylinder.
+
+        Depends on D, radial_buffer, upstream, downstream, and
+        xbuffer_upstream, and xbuffer_downstream.
+        """
         template = """    {{
         name         local;
         type         cellSet;
@@ -482,14 +516,16 @@ class TopoSetDict(object):
         R = (1.0 + (ilevel+1)*self.rbuffer[iturb]) * Lref/2
         upstream = self.upstream[iturb] * Lref
         downstream = self.downstream[iturb] * Lref
-        xbuff = self.xbuffer[iturb] * Lref
+        #xbuff = ilevel * self.xbuffer[iturb] * Lref
+        xbuff_u = self._get_refinement_buffer(self.xbuffer_upstream[iturb],ilevel) * Lref
+        xbuff_d = self._get_refinement_buffer(self.xbuffer_downstream[iturb],ilevel) * Lref
         base = self.base_location[iturb]
         ang = self.rotation[iturb]
         # upstream point
-        xu = -upstream - ilevel*xbuff
+        xu = -upstream - xbuff_u
         x1 = xu * np.cos(ang) + base[0]
         y1 = xu * np.sin(ang) + base[1]
-        xd = downstream + ilevel*xbuff
+        xd = downstream + xbuff_d
         x2 = xd * np.cos(ang) + base[0]
         y2 = xd * np.sin(ang) + base[1]
         z = self.zhub[iturb] + base[2]
