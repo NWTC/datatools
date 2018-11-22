@@ -251,7 +251,7 @@ class TopoSetDict(object):
             ang_deg = self.refinement['rotation']
         def get_param(param):
             return kwargs.get(param, self.refinement[param])
-        self.rotation.append(np.radians(ang_deg))
+        self.rotation.append(ang_deg)
         self.upstream.append(get_param('upstream'))
         self.downstream.append(get_param('downstream'))
         self.width.append(get_param('width'))
@@ -392,7 +392,7 @@ class TopoSetDict(object):
         ybuff = self.bkg_ybuffer[ibkg]
         zbuff = self.bkg_zbuffer[ibkg]
         LLcorner = self.bkg_LLcorner[ibkg]
-        ang = self.bkg_rotation[ibkg]
+        ang = np.deg2rad(self.bkg_rotation[ibkg])
         # origin (x,y,z)
         x0 = -ilevel*xbuff
         y0 = -ilevel*ybuff
@@ -463,7 +463,7 @@ class TopoSetDict(object):
         ybuff = self._get_refinement_buffer(self.ybuffer[iturb],ilevel) * Lref
         zbuff = self._get_refinement_buffer(self.zbuffer[iturb],ilevel) * Lref
         base = self.base_location[iturb]
-        ang = self.rotation[iturb]
+        ang = np.deg2rad(self.rotation[iturb])
         # origin (x,y,z)
         x0 = -upstream - xbuff_u
         y0 = -0.5*width - ybuff
@@ -520,7 +520,7 @@ class TopoSetDict(object):
         xbuff_u = self._get_refinement_buffer(self.xbuffer_upstream[iturb],ilevel) * Lref
         xbuff_d = self._get_refinement_buffer(self.xbuffer_downstream[iturb],ilevel) * Lref
         base = self.base_location[iturb]
-        ang = self.rotation[iturb]
+        ang = np.deg2rad(self.rotation[iturb])
         # upstream point
         xu = -upstream - xbuff_u
         x1 = xu * np.cos(ang) + base[0]
