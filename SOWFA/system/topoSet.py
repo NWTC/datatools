@@ -7,9 +7,10 @@ import os,sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot(fpath,plane='xy',verbose=False,**plot_kwargs):
+def plot(fpath,plane='xy',verbose=False,IDs=None,**plot_kwargs):
     """Plot an existing topoSetDict (only tested for topoSetDict files
-    generated using the TopoSetDict class.
+    generated using the TopoSetDict class. One-index list of IDs may be
+    provided to plot only specific turbine refinement regions.
     """
     with open(fpath,'r') as f:
         while not f.readline().strip() == 'actions': continue
@@ -52,6 +53,7 @@ def plot(fpath,plane='xy',verbose=False,**plot_kwargs):
                             value = line[0]
                     inputs[key] = value
             return inputs
+
         # read all blocks
         N = 0
         while True:
@@ -62,9 +64,14 @@ def plot(fpath,plane='xy',verbose=False,**plot_kwargs):
             if verbose:
                 print('{:d}: {} source {}'.format(
                         N,inputs['action'],inputs['source']))
+            if (IDs is not None) and (N not in IDs):
+                if verbose: print('  skipped')
+                continue
             plot_info = plot_kwargs.copy()
             if N==1:
-                plot_info['label'] = os.path.split(fpath)[-1]
+                name = '{:s} : {:s}'.format(
+                        os.path.split(fpath)[-1], inputs['source'])
+                plot_info['label'] = name
             funcname = 'plot_' + inputs['source']
             try:
                 plot = getattr(sys.modules[__name__],funcname)
@@ -79,6 +86,26 @@ def _plot_poly(*args,**kwargs):
     pts = np.array(args)
     plt.plot(pts[:,0],pts[:,1],**kwargs)
     plt.axis('equal')
+
+def plot_rotatedBoxToCell(plane,plot_kwargs={},**kwargs):
+    origin = np.array(kwargs['origin'])
+    if plane=='xy':
+        # horizontal slice
+        origin = origin[[0,1]]
+        rx = np.array(kwargs['i'])[[0,1]]
+        ry = np.array(kwargs['j'])[[0,1]]
+    elif plane=='xz':
+        # vertical slice
+        origin = origin[[0,2]]
+        rx = np.array(kwargs['i'])[[0,2]]
+        ry = np.array(kwargs['k'])[[0,2]]
+    else:
+        print('unknown plane orientation:',plane)
+    LL = origin
+    LR = origin + rx
+    UR = origin + rx + ry
+    UL = origin + ry
+    _plot_poly(LL,LR,UR,UL,**plot_kwargs)
 
 def plot_cylinderToCell(plane,plot_kwargs={},**kwargs):
     p1 = np.array(kwargs['p1'])
@@ -103,26 +130,6 @@ def plot_cylinderToCell(plane,plot_kwargs={},**kwargs):
     UR = p2 + dr*R
     UL = p1 + dr*R
     plt.plot([p1[0],p2[0]], [p1[1],p2[1]], 'k--')
-    _plot_poly(LL,LR,UR,UL,**plot_kwargs)
-
-def plot_rotatedBoxToCell(plane,plot_kwargs={},**kwargs):
-    origin = np.array(kwargs['origin'])
-    if plane=='xy':
-        # horizontal slice
-        origin = origin[[0,1]]
-        rx = np.array(kwargs['i'])[[0,1]]
-        ry = np.array(kwargs['j'])[[0,1]]
-    elif plane=='xz':
-        # vertical slice
-        origin = origin[[0,2]]
-        rx = np.array(kwargs['i'])[[0,2]]
-        ry = np.array(kwargs['k'])[[0,2]]
-    else:
-        print('unknown plane orientation:',plane)
-    LL = origin
-    LR = origin + rx
-    UR = origin + rx + ry
-    UL = origin + ry
     _plot_poly(LL,LR,UR,UL,**plot_kwargs)
 
 
@@ -520,7 +527,8 @@ class TopoSetDict(object):
 
     def _write_background_box(self,ibkg,ilevel):
         # Depends on bkg_length, bkg_width, bkg_height, bkg_xbuffer,
-        # bkg_ybuffer, and bkg_zbuffer.
+        # bkg_ybuffer, and bkg_zbuffer which are all dimensional
+        # parameters.
         template = """    {{
         name         local;
         type         cellSet;
