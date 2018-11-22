@@ -3,7 +3,128 @@
 #
 # Written by Eliot Quon (eliot.quon@nrel.gov)
 #
+import os,sys
 import numpy as np
+import matplotlib.pyplot as plt
+
+def plot(fpath,plane='xy',verbose=False,**plot_kwargs):
+    """Plot an existing topoSetDict (only tested for topoSetDict files
+    generated using the TopoSetDict class.
+    """
+    with open(fpath,'r') as f:
+        while not f.readline().strip() == 'actions': continue
+        f.readline()
+        def read_block():
+            block = ''
+            inputs = {}
+            while (block=='') or \
+                    (not block.count('{') == block.count('}')):
+                line = f.readline()
+                if line == '':
+                    # EOF, but probably shouldn't end up here
+                    return None
+                line = line.strip()
+                if line.startswith('//'):
+                    continue
+                block += line
+                if line.endswith(';'):
+                    # parse it
+                    line = line.rstrip(';')
+                    if '(' in line:
+                        assert(line.count('(') == line.count(')'))
+                        line = line.replace('(','').replace(')','')
+                        is_array = True
+                    else:
+                        is_array = False
+                    line = line.split()
+                    key = line.pop(0)
+                    if key==')':
+                        # end of 'actions' block
+                        return None
+                    if is_array:
+                        assert(len(line)==3)
+                        value = np.array([float(val) for val in line])
+                    else:
+                        assert(len(line)==1)
+                        try:
+                            value = float(line[0])
+                        except ValueError:
+                            value = line[0]
+                    inputs[key] = value
+            return inputs
+        # read all blocks
+        N = 0
+        while True:
+            inputs = read_block()
+            if inputs is None:
+                break
+            N += 1
+            if verbose:
+                print('{:d}: {} source {}'.format(
+                        N,inputs['action'],inputs['source']))
+            plot_info = plot_kwargs.copy()
+            if N==1:
+                plot_info['label'] = os.path.split(fpath)[-1]
+            funcname = 'plot_' + inputs['source']
+            try:
+                plot = getattr(sys.modules[__name__],funcname)
+            except AttributeError:
+                print(funcname,'not available')
+            else:
+                plot(plane,plot_kwargs=plot_info,**inputs)
+
+def _plot_poly(*args,**kwargs):
+    args = list(args)
+    args.append(args[0])
+    pts = np.array(args)
+    plt.plot(pts[:,0],pts[:,1],**kwargs)
+    plt.axis('equal')
+
+def plot_cylinderToCell(plane,plot_kwargs={},**kwargs):
+    p1 = np.array(kwargs['p1'])
+    p2 = np.array(kwargs['p2'])
+    R = kwargs['radius']
+    if plane=='xy':
+        # horizontal slice
+        p1 = p1[[0,1]]
+        p2 = p2[[0,1]]
+    elif plane=='xz':
+        # vertical slice
+        p1 = p1[[0,2]]
+        p2 = p2[[0,2]]
+    else:
+        print('unknown plane orientation:',plane)
+    dp = p2 - p1 
+    ang = np.arctan2(dp[1],dp[0])
+    dr = np.array([-dp[1],dp[0]])
+    dr /= np.sqrt(dr.dot(dr))
+    LL = p1 - dr*R
+    LR = p2 - dr*R
+    UR = p2 + dr*R
+    UL = p1 + dr*R
+    plt.plot([p1[0],p2[0]], [p1[1],p2[1]], 'k--')
+    _plot_poly(LL,LR,UR,UL,**plot_kwargs)
+
+def plot_rotatedBoxToCell(plane,plot_kwargs={},**kwargs):
+    origin = np.array(kwargs['origin'])
+    if plane=='xy':
+        # horizontal slice
+        origin = origin[[0,1]]
+        rx = np.array(kwargs['i'])[[0,1]]
+        ry = np.array(kwargs['j'])[[0,1]]
+    elif plane=='xz':
+        # vertical slice
+        origin = origin[[0,2]]
+        rx = np.array(kwargs['i'])[[0,2]]
+        ry = np.array(kwargs['k'])[[0,2]]
+    else:
+        print('unknown plane orientation:',plane)
+    LL = origin
+    LR = origin + rx
+    UR = origin + rx + ry
+    UL = origin + ry
+    _plot_poly(LL,LR,UR,UL,**plot_kwargs)
+
 
 topoSetDict_header = """/*--------------------------------*- C++ -*----------------------------------*\\
 | =========                 |                                                 |
@@ -30,7 +151,11 @@ topoSetDict_footer = """);
 // ************************************************************************* //"""
 
 
+
 class TopoSetDict(object):
+    """Class for generating topoSetDict files. To visualize existing 
+    topoSetDicts, use the plot_toposet function.
+    """
     source_types = ['box','cylinder']
     defaults = dict(
         rotation=0.0,
@@ -331,6 +456,35 @@ class TopoSetDict(object):
                     ilevel+1, lastcount, newcount))
             lastcount = newcount
             ds /= 2
+
+
+    def plot(self,plane='xy',turbines=None):
+        """Visualize locations of turbines
+        TODO: call plot_* functions here too
+        TODO: specify which turbine(s) to plot
+        """
+        R = np.array(self.diameter) / 2
+        if plane=='xy':
+            locations = np.array([ loc[[0,1]] for loc in self.base_location ])
+            ang = np.deg2rad(self.rotation)
+            xoff = R * np.sin(ang)
+            yoff = R * np.cos(ang)
+            xrotor = [ [xval+xoff,xval-xoff] for xval in locations[:,0] ]
+            yrotor = [ [yval-yoff,yval+yoff]
+                       for iturb,yval in enumerate(locations[:,1]) ]
+        elif plane=='xz':
+            locations = np.array([ loc[[0,2]] for loc in self.base_location ])
+            locations[:,1] += self.zhub
+            xrotor = [ [xval,xval] for xval in locations[:,0] ]
+            yrotor = [ [zval-R[iturb],zval+R[iturb]]
+                       for iturb,zval in enumerate(locations[:,1]) ]
+        else:
+            print('unknown plane orientation:',plane)
+        for iturb,loc in enumerate(locations):
+            plt.plot(loc[0],loc[1], 'ko', markersize=5, markerfacecolor='k')
+            plt.plot(xrotor[iturb],yrotor[iturb], 'k-')
+            plt.text(loc[0],loc[1], '{:d}'.format(iturb+1),
+                     fontsize='large',fontweight='bold')
 
 
     def write(self,prefix='topoSetDict.local'):
