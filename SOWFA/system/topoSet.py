@@ -130,7 +130,7 @@ def plot_cylinderToCell(plane,plot_kwargs={},**kwargs):
     LR = p2 - dr*R
     UR = p2 + dr*R
     UL = p1 + dr*R
-    plt.plot([p1[0],p2[0]], [p1[1],p2[1]], 'k--')
+    #plt.plot([p1[0],p2[0]], [p1[1],p2[1]], 'k--')
     _plot_poly(LL,LR,UR,UL,**plot_kwargs)
 
 
@@ -168,6 +168,7 @@ class TopoSetDict(object):
     defaults = dict(
         rotation=0.0,
         upstream=5.0, downstream=10.0,
+        cyl_upstream=0.5, cyl_downstream=0.5,
         width=3.0, height=3.0,
         xbuffer_upstream=1.0,
         xbuffer_downstream=1.0,
@@ -222,6 +223,8 @@ class TopoSetDict(object):
         self.zhub = []
         self.upstream = []
         self.downstream = []
+        self.cyl_upstream = []
+        self.cyl_downstream = []
         self.width = []
         self.height = []
         self.xbuffer_upstream = []
@@ -260,12 +263,12 @@ class TopoSetDict(object):
             Angle about the z-axis to rotate the refinement region (NOT
             the compass wind direction); if None, then mean_rotation is
             used. [deg]
-        upstream : float
-            Distance (in diameters) upstream of the turbine where the
-            inner refinement box starts.
-        downstream : float
-            Distance (in diameters) downstream of the turbine where the
-            inner refinement box ends.
+        upstream, downstream : float
+            Distance (in diameters) upstream/downstream of the turbine
+            where the innermost refinement box starts.
+        cyl_upstream, cyl_downstream : float
+            Distance (in diameters) upstream/downstream of the turbine
+            where the innermost refinement cylinder starts.
         width : float
             The overall width (in diameters) of the inner refinement
             box; need to account for horizontal wake meandering
@@ -279,13 +282,16 @@ class TopoSetDict(object):
         xbuffer_downstream : float or list-like
             Size of buffer region (in diameters) between refinement
             levels in the upstream/downstream directions; set 'xbuffer'
-            to use the same value for upstream and downstream
+            to use the same value for upstream and downstream or set
+            'xbuffer_upstream' and 'xbuffer_downstream' separately--for
+            box and cylinder refinement
         ybuffer : float or list-like
             Size of buffer region (in diameters) between refinement
-            levels in the lateral directions
+            levels in the lateral directions--for box and cylinder 
+            refinement
         zbuffer : float or list-like
             Size of buffer region (in diameters) between refinement
-            levels in the vertical directions
+            levels in the vertical directions--for box refinement only
         rbuffer : float
             Used to set size of cylindrical refinement region; cylinder
             level i has diameter (1 + (i+1)*rbuffer)*D for
@@ -387,6 +393,8 @@ class TopoSetDict(object):
         self.rotation.append(ang_deg)
         self.upstream.append(get_param('upstream'))
         self.downstream.append(get_param('downstream'))
+        self.cyl_upstream.append(get_param('cyl_upstream'))
+        self.cyl_downstream.append(get_param('cyl_downstream'))
         self.width.append(get_param('width'))
         self.height.append(get_param('height'))
         self.xbuffer_upstream.append(get_param('xbuffer_upstream'))
@@ -662,7 +670,7 @@ class TopoSetDict(object):
     def _write_cylinder(self,iturb,ilevel):
         """Write out topoSetDict for a turbine refinement cylinder.
 
-        Depends on D, radial_buffer, upstream, downstream, and
+        Depends on D, radial_buffer, cyl_upstream, cyl_downstream,
         xbuffer_upstream, and xbuffer_downstream.
         """
         template = """    {{
@@ -684,8 +692,8 @@ class TopoSetDict(object):
             action = 'add'
         Lref = self.diameter[iturb]
         R = (1.0 + (ilevel+1)*self.rbuffer[iturb]) * Lref/2
-        upstream = self.upstream[iturb] * Lref
-        downstream = self.downstream[iturb] * Lref
+        upstream = self.cyl_upstream[iturb] * Lref
+        downstream = self.cyl_downstream[iturb] * Lref
         #xbuff = ilevel * self.xbuffer[iturb] * Lref
         xbuff_u = self._get_refinement_buffer(self.xbuffer_upstream[iturb],ilevel) * Lref
         xbuff_d = self._get_refinement_buffer(self.xbuffer_downstream[iturb],ilevel) * Lref
