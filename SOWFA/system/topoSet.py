@@ -92,19 +92,20 @@ def plot_rotatedBoxToCell(plane,plot_kwargs={},**kwargs):
     if plane=='xy':
         # horizontal slice
         origin = origin[[0,1]]
-        rx = np.array(kwargs['i'])[[0,1]]
-        ry = np.array(kwargs['j'])[[0,1]]
+        r1 = np.array(kwargs['i'])[[0,1]]
+        r2 = np.array(kwargs['j'])[[0,1]]
     elif plane=='xz':
         # vertical slice
+        origin += np.array(kwargs['j'])/2 # slice through centroid of box
         origin = origin[[0,2]]
-        rx = np.array(kwargs['i'])[[0,2]]
-        ry = np.array(kwargs['k'])[[0,2]]
+        r1 = np.array(kwargs['i'])[[0,2]]
+        r2 = np.array(kwargs['k'])[[0,2]]
     else:
         print('unknown plane orientation:',plane)
     LL = origin
-    LR = origin + rx
-    UR = origin + rx + ry
-    UL = origin + ry
+    LR = origin + r1
+    UR = origin + r1 + r2
+    UL = origin + r2
     _plot_poly(LL,LR,UR,UL,**plot_kwargs)
 
 def plot_cylinderToCell(plane,plot_kwargs={},**kwargs):
