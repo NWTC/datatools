@@ -173,7 +173,8 @@ class TopoSetDict(object):
         xbuffer_upstream=1.0,
         xbuffer_downstream=1.0,
         ybuffer=1.0, zbuffer=1.0,
-        rbuffer=0.5
+        rbuffer=0.5,
+        zoffset=0.0
     )
 
     def __init__(self,sources=[],perturb=0.01,**kwargs):
@@ -227,6 +228,7 @@ class TopoSetDict(object):
         self.cyl_downstream = []
         self.width = []
         self.height = []
+        self.zoffset = []
         self.xbuffer_upstream = []
         self.xbuffer_downstream = []
         self.ybuffer = []
@@ -296,6 +298,11 @@ class TopoSetDict(object):
             Used to set size of cylindrical refinement region; cylinder
             level i has diameter (1 + (i+1)*rbuffer)*D for
             i=0,1,...
+        zoffset : float
+            For box refinement region, the height/elevation of the lower
+            surface offset from the turbine base location z value; set
+            to < 0 to capture regions on windward/leeward regions if a
+            turbine is situated on a hill. [m]
         """
         # special treatment of xbuffer inputs
         if 'xbuffer' in kwargs:
@@ -364,7 +371,9 @@ class TopoSetDict(object):
         and orientation 'rotation'.
 
         Note that each turbine is associated with a set of topoSet
-        refinement sources.
+        refinement sources. Turbine-specific refinement parameters may
+        be specified as keyword arguments, otherwise the default values
+        set with setup() are used.
 
         Turbine parameters
         ------------------
@@ -384,19 +393,16 @@ class TopoSetDict(object):
         if zhub is None:
             zhub = D
         self.zhub.append(zhub)
-        if 'rotation' in kwargs:
-            ang_deg = kwargs['rotation']
-        else:
-            ang_deg = self.refinement['rotation']
         def get_param(param):
             return kwargs.get(param, self.refinement[param])
-        self.rotation.append(ang_deg)
+        self.rotation.append(get_param('rotation'))
         self.upstream.append(get_param('upstream'))
         self.downstream.append(get_param('downstream'))
         self.cyl_upstream.append(get_param('cyl_upstream'))
         self.cyl_downstream.append(get_param('cyl_downstream'))
         self.width.append(get_param('width'))
         self.height.append(get_param('height'))
+        self.zoffset.append(get_param('zoffset'))
         self.xbuffer_upstream.append(get_param('xbuffer_upstream'))
         self.xbuffer_downstream.append(get_param('xbuffer_downstream'))
         self.ybuffer.append(get_param('ybuffer'))
@@ -634,6 +640,7 @@ class TopoSetDict(object):
         length = upstream + downstream
         width = self.width[iturb] * Lref
         height = self.height[iturb] * Lref
+        zoffset = self.zoffset[iturb]
         #xbuff = ilevel * self.xbuffer[iturb] * Lref
         xbuff_u = self._get_refinement_buffer(self.xbuffer_upstream[iturb],ilevel) * Lref
         xbuff_d = self._get_refinement_buffer(self.xbuffer_downstream[iturb],ilevel) * Lref
@@ -646,7 +653,7 @@ class TopoSetDict(object):
         y0 = -0.5*width - ybuff
         x = x0 * np.cos(ang) - y0 * np.sin(ang) + base[0]
         y = x0 * np.sin(ang) + y0 * np.cos(ang) + base[1]
-        z = base[2]
+        z = base[2] + zoffset
         # box dimensions
         #ix = (length + 2*xbuff) * np.cos(ang)
         #iy = (length + 2*xbuff) * np.sin(ang)
@@ -658,7 +665,7 @@ class TopoSetDict(object):
         jz = 0.0
         kx = 0.0
         ky = 0.0
-        kz = height + zbuff
+        kz = height - zoffset + zbuff
         return template.format(action=action,
                 x0=x, y0=y, z0=z,
                 ix=ix, iy=iy, iz=iz,
