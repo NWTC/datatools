@@ -467,9 +467,11 @@ class TopoSetDict(object):
 
 
     def plot(self,plane='xy',turbines=None):
-        """Visualize locations of turbines
+        """Visualize locations of turbines. If 'turbines' is None, all
+        are plotted, otherwise a list of one-indexed IDs should be
+        specified.
+
         TODO: call plot_* functions here too
-        TODO: specify which turbine(s) to plot
         """
         R = np.array(self.diameter) / 2
         if plane=='xy':
@@ -488,7 +490,12 @@ class TopoSetDict(object):
                        for iturb,zval in enumerate(locations[:,1]) ]
         else:
             print('unknown plane orientation:',plane)
-        for iturb,loc in enumerate(locations):
+        if turbines is None:
+            turbines = np.arange(len(locations))
+        else:
+            turbines = [iturb-1 for iturb in turbines]
+        for iturb in turbines:
+            loc = locations[iturb]
             plt.plot(loc[0],loc[1], 'ko', markersize=5, markerfacecolor='k')
             plt.plot(xrotor[iturb],yrotor[iturb], 'k-')
             plt.text(loc[0],loc[1], '{:d}'.format(iturb+1),
