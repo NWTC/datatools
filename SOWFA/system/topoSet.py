@@ -411,7 +411,11 @@ class TopoSetDict(object):
 
 
     def estimate_mesh_size(self,initial_size=None,ds0=10.0):
-        """NOTE: this is experimental and not very accurate!"""
+        """Estimate mesh size from the initial mesh size (e.g., from
+        blockMesh) and an initial uniform mesh size.
+
+        NOTE: this is experimental and not very accurate!
+        """
         if initial_size is None:
             raise ValueError('specify initial cell count or list of dimensions')
         if hasattr(initial_size,'__iter__'):
@@ -419,7 +423,7 @@ class TopoSetDict(object):
             print('calculated initial cell count: {:d}'.format(initial_size))
         Nlevels = len(self.sources)
         vol = np.zeros(Nlevels)
-        for ilevel in range(Nlevels):
+        for ilevel in range(Nlevels-1,-1,-1):
             sourcename = self.sources[ilevel]
             efflevel = ilevel
             for i in range(ilevel):
@@ -469,7 +473,7 @@ class TopoSetDict(object):
                     vol[ilevel] += length * np.pi*R**2
         lastcount = initial_size
         ds = float(ds0)
-        for ilevel in range(Nlevels):
+        for ilevel in range(Nlevels-1,-1,-1):
             print('volume, ds : {:g} {:f}'.format(vol[ilevel],ds))
             approx_cells = int(vol[ilevel] / ds**3)
             print('approx number of selected cells : {:d}'.format(approx_cells))
