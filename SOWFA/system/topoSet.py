@@ -388,7 +388,7 @@ class TopoSetDict(object):
             Optional refinement parameters to override defaults
             specified during initialization.
         """
-        self.base_location.append(base_location)
+        self.base_location.append(np.array(base_location,dtype=float))
         self.diameter.append(D)
         if zhub is None:
             zhub = D
