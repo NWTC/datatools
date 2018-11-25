@@ -30,25 +30,26 @@ turbine_definition = """{name:s}
     numBladePoints                    {numBladePoints:d};
     numNacellePoints                  {numNacellePoints:d};
     numTowerPoints                    {numTowerPoints:d};
-    bladePointDistType               "{bladePointDistType:s}";  // (uniform | ...)
-    nacellePointDistType             "{nacellePointDistType:s}";  // (uniform | ...)
-    towerPointDistType               "{towerPointDistType:s}";  // (uniform | ...)
-    bladeSearchCellMethod            "{bladeSearchCellMethod:s}";  // (sphere | disk)
-    bladeActuatorPointInterpType     "integral";  // (integral | linear | cellCenter)
-    nacelleActuatorPointInterpType   "linear";  // (linear | cellCenter)
-    towerActuatorPointInterpType     "linear";  // (linear | cellCenter)
-    actuatorUpdateType               "{actuatorUpdateType:s}";  // (oldPosition | newPosition)
-    bladeForceProjectionType         "{bladeForceProjectionType:s}";  // (uniformGaussian | generalizedGaussian | generalizedGaussian2D | variableGaussianUserDef | variableUniformGaussianChord | chordThicknessGaussian | chordThicknessGaussian2D)
-    nacelleForceProjectionType       "{nacelleForceProjectionType:s}"; // (uniformGaussian | diskGaussian | advanced*)
-    towerForceProjectionType         "{towerForceProjectionType:s}";  // (uniformGaussian | diskGaussian | ringGaussian | advanced*)
-    bladeForceProjectionDirection    "{bladeForceProjectionDirection:s}";  // (localVelocityAligned | localVelocityAlignedCorrected | sampleVelocityAligned)
+    bladePointDistType               "{bladePointDistType:s}";
+    nacellePointDistType             "{nacellePointDistType:s}";
+    towerPointDistType               "{towerPointDistType:s}";
+    bladeSearchCellMethod            "{bladeSearchCellMethod:s}";
+    bladeActuatorPointInterpType     "integral";
+    nacelleActuatorPointInterpType   "linear";
+    towerActuatorPointInterpType     "linear";
+    actuatorUpdateType               "{actuatorUpdateType:s}";
+    velocityDragCorrType             "{velocityDragCorrType:s}";
+    bladeForceProjectionType         "{bladeForceProjectionType:s}";
+    nacelleForceProjectionType       "{nacelleForceProjectionType:s}";
+    towerForceProjectionType         "{towerForceProjectionType:s}";
+    bladeForceProjectionDirection    "{bladeForceProjectionDirection:s}";
     bladeEpsilon                     ({bladeEpsilon[0]:f} {bladeEpsilon[1]:f} {bladeEpsilon[2]:f});
     nacelleEpsilon                   ({nacelleEpsilon[0]:f} {nacelleEpsilon[1]:f} {nacelleEpsilon[2]:f});
     towerEpsilon                     ({towerEpsilon[0]:f} {towerEpsilon[1]:f} {towerEpsilon[2]:f});
     nacelleSampleDistance             {nacelleSampleDistance:f};
     towerSampleDistance               {towerSampleDistance:f};
-    tipRootLossCorrType              "{tipRootLossCorrType:s}";  // (none | Glauert)
-    rotationDir                      "{rotationDir:s}";  // (cw | ccw)
+    tipRootLossCorrType              "{tipRootLossCorrType:s}";
+    rotationDir                      "{rotationDir:s}";
     Azimuth                           {azimuth:f};
     RotSpeed                          {rotorSpeed:f};
     TorqueGen                         {torqueGen:f};
@@ -63,28 +64,29 @@ defaults = dict(
     includeTower='false',
     numNacellePoints=10,
     numTowerPoints=80,
-    bladePointDistType='uniform',
-    nacellePointDistType='uniform',
-    towerPointDistType='uniform',
-    bladeSearchCellMethod='disk',
-    bladeActuatorPointInterpType='integral',
-    nacelleActuatorPointInterpType='linear',
-    towerActuatorPointInterpType='linear',
-    actuatorUpdateType='oldPosition',
+    bladePointDistType='uniform',  # (uniform | ...)
+    nacellePointDistType='uniform',  # (uniform | ...)
+    towerPointDistType='uniform',  # (uniform | ...)
+    bladeSearchCellMethod='disk',  # (sphere | disk)
+    bladeActuatorPointInterpType='integral',  # (integral | linear | cellCenter)
+    nacelleActuatorPointInterpType='linear',  # (linear | cellCenter)
+    towerActuatorPointInterpType='linear',  # (linear | cellCenter)
+    actuatorUpdateType='oldPosition',  # (oldPosition | newPosition)
+    velocityDragCorrType='none',  # (none | Martinez)
+    # bladeForceProjectionType: (uniformGaussian | generalizedGaussian | generalizedGaussian2D | variableGaussianUserDef | variableUniformGaussianChord | chordThicknessGaussian | chordThicknessGaussian2D)
     bladeForceProjectionType='uniformGaussian',
+    # nacelleForceProjectionType: (uniformGaussian | diskGaussian | advanced*)
     nacelleForceProjectionType='diskGaussian',
+    # towerForceProjectionType: (uniformGaussian | diskGaussian | ringGaussian | advanced*)
     towerForceProjectionType='diskGaussian',
+    # bladeForceProjectionDirection: (localVelocityAligned | localVelocityAlignedCorrected | sampleVelocityAligned)
     bladeForceProjectionDirection='localVelocityAligned',
     nacelleEpsilon=(0,0,0),
     towerEpsilon=(0,0,0),
     nacelleSampleDistance=1.0,
     towerSampleDistance=1.0,
-    tipRootLossCorrType='Glauert',
-    rotationDir='cw',
-    azimuth=0.0,
-    rotorSpeed=0.0,
-    torqueGen=0.0,
-    pitch=0.0,
+    tipRootLossCorrType='Glauert',  # (none | Glauert)
+    rotationDir='cw',  # (cw | ccw)
     fluidDensity=1.23,
 )
 
@@ -103,15 +105,30 @@ class TurbineArrayProperties(object):
         self.turbdefs = []
 
     def add_turbine(self,turbineType,
-                    baseLocation,numBladePoints,bladeEpsilon,nacelleYaw,
+                    baseLocation,numBladePoints,bladeEpsilon,
+                    azimuth=0.0,
+                    rotorSpeed=0.0,
+                    torqueGen=0.0,
+                    pitch=0.0,
+                    nacelleYaw=270.0,
                     **kwargs):
         """Add turbine at 'baseLocation' with the specified number of
         actuator points and spreading parameters (epsilon). 
         'turbineType' should correspond to a turbine definition in
         constant/turbineProperties/<turbineType>.
 
-        The turbine orientation is determined by 'nacelleYaw', specified
-        as a _compass_ direction in degrees.
+        Operating parameters
+        --------------------
+        azimuth : float
+            Blade 1 azimuth [deg]
+        rotorSpeed : float
+            Rotor RPM
+        torqueGen : float
+            generator torque [N-m]
+        pitch : float
+            blade pitch [deg]
+        nacelleYaw: float
+            Nacelle yaw angle, as a compass direction [deg]
 
         Default turbine properties may be overridden using keyword
         arguments.
@@ -121,6 +138,10 @@ class TurbineArrayProperties(object):
         d['baseLocation'] = baseLocation
         d['numBladePoints'] = numBladePoints
         d['bladeEpsilon'] = bladeEpsilon
+        d['azimuth'] = azimuth
+        d['rotorSpeed'] = rotorSpeed
+        d['torqueGen'] = torqueGen
+        d['pitch'] = pitch
         d['nacelleYaw'] = nacelleYaw
         for key,val in kwargs.items():
             if not key in d:
