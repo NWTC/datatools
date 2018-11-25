@@ -1,4 +1,17 @@
-header = """/*--------------------------------*- C++ -*----------------------------------*\\
+#
+# turbineArrayProperties
+#
+# Classes for generating SOWFA turbine array inputs:
+# - constant/turbineArrayProperties
+# - constant/turbineProperties/turbineDef
+#
+# written by Eliot Quon (eliot.quon@nrel.gov)
+#
+
+class TurbineArrayProperties(object):
+    """Class for creating constant/turbineArrayProperties input files"""
+
+    header = """/*--------------------------------*- C++ -*----------------------------------*\\
 | =========                 |                                                 |
 | \\\\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
 |  \\\\    /   O peration     | Version:  2.0                                   |
@@ -22,7 +35,7 @@ globalProperties
 
 """
 
-turbine_definition = """{name:s}
+    turbine_definition = """{name:s}
 {{
     turbineType                      "{turbineType:s}";
     includeNacelle                    {includeNacelle:s};
@@ -61,40 +74,37 @@ turbine_definition = """{name:s}
 
 """
 
-defaults = dict(
-    includeNacelle='false',
-    includeTower='false',
-    numNacellePoints=10,
-    numTowerPoints=80,
-    bladePointDistType='uniform',  # (uniform | ...)
-    nacellePointDistType='uniform',  # (uniform | ...)
-    towerPointDistType='uniform',  # (uniform | ...)
-    bladeSearchCellMethod='disk',  # (sphere | disk)
-    bladeActuatorPointInterpType='integral',  # (integral | linear | cellCenter)
-    nacelleActuatorPointInterpType='linear',  # (linear | cellCenter)
-    towerActuatorPointInterpType='linear',  # (linear | cellCenter)
-    actuatorUpdateType='oldPosition',  # (oldPosition | newPosition)
-    velocityDragCorrType='none',  # (none | Martinez)
-    # bladeForceProjectionType: (uniformGaussian | generalizedGaussian | generalizedGaussian2D | variableGaussianUserDef | variableUniformGaussianChord | chordThicknessGaussian | chordThicknessGaussian2D)
-    bladeForceProjectionType='uniformGaussian',
-    # nacelleForceProjectionType: (uniformGaussian | diskGaussian | advanced*)
-    nacelleForceProjectionType='diskGaussian',
-    # towerForceProjectionType: (uniformGaussian | diskGaussian | ringGaussian | advanced*)
-    towerForceProjectionType='diskGaussian',
-    # bladeForceProjectionDirection: (localVelocityAligned | localVelocityAlignedCorrected | sampleVelocityAligned)
-    bladeForceProjectionDirection='localVelocityAligned',
-    nacelleEpsilon=(0,0,0),
-    towerEpsilon=(0,0,0),
-    nacelleSampleDistance=1.0,
-    towerSampleDistance=1.0,
-    tipRootLossCorrType='Glauert',  # (none | Glauert)
-    rotationDir='cw',  # (cw | ccw)
-    fluidDensity=1.2,
-)
+    defaults = dict(
+        includeNacelle='false',
+        includeTower='false',
+        numNacellePoints=10,
+        numTowerPoints=80,
+        bladePointDistType='uniform',  # (uniform | ...)
+        nacellePointDistType='uniform',  # (uniform | ...)
+        towerPointDistType='uniform',  # (uniform | ...)
+        bladeSearchCellMethod='disk',  # (sphere | disk)
+        bladeActuatorPointInterpType='integral',  # (integral | linear | cellCenter)
+        nacelleActuatorPointInterpType='linear',  # (linear | cellCenter)
+        towerActuatorPointInterpType='linear',  # (linear | cellCenter)
+        actuatorUpdateType='oldPosition',  # (oldPosition | newPosition)
+        velocityDragCorrType='none',  # (none | Martinez)
+        # bladeForceProjectionType: (uniformGaussian | generalizedGaussian | generalizedGaussian2D | variableGaussianUserDef | variableUniformGaussianChord | chordThicknessGaussian | chordThicknessGaussian2D)
+        bladeForceProjectionType='uniformGaussian',
+        # nacelleForceProjectionType: (uniformGaussian | diskGaussian | advanced*)
+        nacelleForceProjectionType='diskGaussian',
+        # towerForceProjectionType: (uniformGaussian | diskGaussian | ringGaussian | advanced*)
+        towerForceProjectionType='diskGaussian',
+        # bladeForceProjectionDirection: (localVelocityAligned | localVelocityAlignedCorrected | sampleVelocityAligned)
+        bladeForceProjectionDirection='localVelocityAligned',
+        nacelleEpsilon=(0,0,0),
+        towerEpsilon=(0,0,0),
+        nacelleSampleDistance=1.0,
+        towerSampleDistance=1.0,
+        tipRootLossCorrType='Glauert',  # (none | Glauert)
+        rotationDir='cw',  # (cw | ccw)
+        fluidDensity=1.2,
+    )
 
-
-class TurbineArrayProperties(object):
-    """Class for creating constant/turbineArrayProperties input files"""
     def __init__(self,outputControl='timeStep',outputInterval=1,
                  **kwargs):
         """Optional turbine properties are specified as keyword
@@ -104,7 +114,7 @@ class TurbineArrayProperties(object):
         self.outputControl = outputControl;
         self.outputInterval = outputInterval;
         self.turbines = []
-        self.properties = defaults.copy()
+        self.properties = self.defaults.copy()
         for key,val in kwargs.items():
             self.properties[key] = val
 
@@ -168,9 +178,9 @@ class TurbineArrayProperties(object):
     def write(self,fpath='turbineArrayProperties'):
         """Write OpenFOAM dictionary constant/turbineArrayProperties"""
         with open(fpath,'w') as f:
-            f.write(header.format(outputControl=self.outputControl,
-                                  outputInterval=self.outputInterval))
+            f.write(self.header.format(outputControl=self.outputControl,
+                                       outputInterval=self.outputInterval))
             for iturb, d in enumerate(self.turbines):
-                f.write(turbine_definition.format(**d))
+                f.write(self.turbine_definition.format(**d))
         print('Wrote',fpath)
 
