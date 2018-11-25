@@ -103,8 +103,10 @@ class TurbineArrayProperties(object):
         """
         self.outputControl = outputControl;
         self.outputInterval = outputInterval;
-        self.properties = defaults.copy()
         self.turbines = []
+        self.properties = defaults.copy()
+        for key,val in kwargs.items():
+            self.properties[key] = val
 
 
     def add_turbine(self,turbineType,
