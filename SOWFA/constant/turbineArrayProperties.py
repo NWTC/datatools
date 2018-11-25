@@ -19,6 +19,7 @@ globalProperties
     outputControl       {outputControl:s};
     outputInterval      {outputInterval:g};
 }}
+
 """
 
 turbine_definition = """{name:s}
@@ -57,6 +58,7 @@ turbine_definition = """{name:s}
     NacYaw                            {nacelleYaw:f};
     fluidDensity                      {fluidDensity:f};
 }}
+
 """
 
 defaults = dict(
@@ -87,7 +89,7 @@ defaults = dict(
     towerSampleDistance=1.0,
     tipRootLossCorrType='Glauert',  # (none | Glauert)
     rotationDir='cw',  # (cw | ccw)
-    fluidDensity=1.23,
+    fluidDensity=1.2,
 )
 
 
@@ -102,10 +104,12 @@ class TurbineArrayProperties(object):
         self.outputControl = outputControl;
         self.outputInterval = outputInterval;
         self.properties = defaults.copy()
-        self.turbdefs = []
+        self.turbines = []
+
 
     def add_turbine(self,turbineType,
                     baseLocation,numBladePoints,bladeEpsilon,
+                    name=None,
                     azimuth=0.0,
                     rotorSpeed=0.0,
                     torqueGen=0.0,
@@ -119,12 +123,15 @@ class TurbineArrayProperties(object):
 
         Operating parameters
         --------------------
-        azimuth : float
+        name : str, optional
+            if None, then defaults 'turbine${i}' where i = 0..Nturb-1
+        azimuth : float, optional
             Blade 1 azimuth [deg]
         rotorSpeed : float
             Rotor RPM
-        torqueGen : float
-            generator torque [N-m]
+        torqueGen : float, optional
+            commanded generator torque, used to calculate speed if
+            generator torque or blade pitch control is turned on [N-m]
         pitch : float
             blade pitch [deg]
         nacelleYaw: float
@@ -134,6 +141,9 @@ class TurbineArrayProperties(object):
         arguments.
         """
         d = self.properties.copy()
+        if name  is None:
+            name = 'turbine{:d}'.format(len(self.turbines))
+        d['name'] = name
         d['turbineType'] = turbineType
         d['baseLocation'] = baseLocation
         d['numBladePoints'] = numBladePoints
@@ -150,15 +160,15 @@ class TurbineArrayProperties(object):
                 d[key] = str(val).lower()
             else:
                 d[key] = val
-        self.turbdefs.append(d)
+        self.turbines.append(d)
+
 
     def write(self,fpath='turbineArrayProperties'):
         """Write OpenFOAM dictionary constant/turbineArrayProperties"""
         with open(fpath,'w') as f:
             f.write(header.format(outputControl=self.outputControl,
                                   outputInterval=self.outputInterval))
-            for iturb, d in enumerate(self.turbdefs):
-                d['name'] = 'turbine' + str(iturb)
+            for iturb, d in enumerate(self.turbines):
                 f.write(turbine_definition.format(**d))
         print('Wrote',fpath)
 
