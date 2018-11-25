@@ -189,8 +189,8 @@ class Array(Set):
         # optional parameters
         self.params['axis'] = axis
         self.params['rotation'] = rotation
-        self.params['e1'] = str(e1).replace(',','')
-        self.params['e2'] = str(e2).replace(',','')
+        self.params['e1'] = str(tuple(e1)).replace(',','')
+        self.params['e2'] = str(tuple(e2)).replace(',','')
 
     def __repr__(self):
         s = '"{:s}" array\n'.format(self.name)
