@@ -48,9 +48,9 @@ globalProperties
     nacellePointDistType             "{nacellePointDistType:s}";
     towerPointDistType               "{towerPointDistType:s}";
     bladeSearchCellMethod            "{bladeSearchCellMethod:s}";
-    bladeActuatorPointInterpType     "integral";
-    nacelleActuatorPointInterpType   "linear";
-    towerActuatorPointInterpType     "linear";
+    bladeActuatorPointInterpType     "{bladeActuatorPointInterpType:s}";
+    nacelleActuatorPointInterpType   "{nacelleActuatorPointInterpType:s}";
+    towerActuatorPointInterpType     "{towerActuatorPointInterpType:s}";
     actuatorUpdateType               "{actuatorUpdateType:s}";
     velocityDragCorrType             "{velocityDragCorrType:s}";
     bladeForceProjectionType         "{bladeForceProjectionType:s}";
@@ -83,7 +83,7 @@ globalProperties
         nacellePointDistType='uniform',  # (uniform | ...)
         towerPointDistType='uniform',  # (uniform | ...)
         bladeSearchCellMethod='disk',  # (sphere | disk)
-        bladeActuatorPointInterpType='integral',  # (integral | linear | cellCenter)
+        bladeActuatorPointInterpType='linear',  # (integral | linear | cellCenter)
         nacelleActuatorPointInterpType='linear',  # (linear | cellCenter)
         towerActuatorPointInterpType='linear',  # (linear | cellCenter)
         actuatorUpdateType='oldPosition',  # (oldPosition | newPosition)
