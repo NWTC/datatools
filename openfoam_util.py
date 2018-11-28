@@ -17,6 +17,8 @@ def _read(f,line=None,debug=False):
         newline = f.readline()
         if newline == '':
             break # EOF
+        elif newline.strip().startswith('//'):
+            continue
         else:
             line += newline
     # clean up the string
@@ -100,7 +102,7 @@ def of_parse_list(L,cast=float,debug=False):
 
     return L
 
-def read_all_defs(fname,verbose=True):
+def read_all_defs(fname,skip=0,verbose=True):
     """Read all definitions, including N-D arrays from the specified
     file, which may be read on the fly during runtime.
 
@@ -113,6 +115,10 @@ def read_all_defs(fname,verbose=True):
     """
     data = {}
     with open(fname,'r') as f:
+        for iskip in range(skip):
+            line = f.readline()
+            if verbose:
+                print('SKIP',line.strip())
         line = f.readline()
         while not line=='': #EOF
             if line.lstrip().startswith('/*'):
