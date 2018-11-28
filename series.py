@@ -195,14 +195,14 @@ class SOWFATimeSeries(Series):
 
         # set up file list
         if filename is not None:
-            self.update_filelist(filename)
+            self.get(filename)
 
         # select time range
         tstart = kwargs.get('tstart',None)
         tend = kwargs.get('tend',None)
         self.trimtimes(tstart,tend)
 
-    def update_filelist(self,filename):
+    def get(self,filename):
         """Update file list for iteration"""
         self.filelist = []
         for path in self.dirlist:
