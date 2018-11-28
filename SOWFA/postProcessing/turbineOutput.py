@@ -12,27 +12,6 @@ import pandas as pd
 
 from datatools.series import SOWFATimeSeries
 
-def processTurbineOutputHeader(line):
-    """turbineOutput file headers have the following format:
-
-    #Turbine    [Blade]    Time(s)    dt(s)    outputQuantity (units)
-
-    where the 'Blade' column only occurs for blade-sampled output. 
-    In this case, 'outputQuantity' has 'numBladePoints' (defined in
-    turbineArrayProperties) points.
-    """
-    if line.startswith('#'):
-        line = line[1:]
-    line = line.split()
-    headerNames = []
-    for i,name in enumerate(line):
-        headerNames.append(name)
-        if name.startswith('dt'):
-            break
-    headerNames.append(' '.join(line[i+1:]))
-    return headerNames
-
-
 class TurbineOutput(object):
     """Container for SOWFA turbineOutput data"""
 
@@ -50,6 +29,26 @@ class TurbineOutput(object):
         self.turbineList = turbineList
         self.timeIndexName = timeIndexName
         self.toffset = toffset
+
+    def processTurbineOutputHeader(self,line):
+        """turbineOutput file headers have the following format:
+
+        #Turbine    [Blade]    Time(s)    dt(s)    outputQuantity (units)
+
+        where the 'Blade' column only occurs for blade-sampled output. 
+        In this case, 'outputQuantity' has 'numBladePoints' (defined in
+        turbineArrayProperties) points.
+        """
+        if line.startswith('#'):
+            line = line.lstrip('#')
+        line = line.split()
+        headerNames = []
+        for i,name in enumerate(line):
+            headerNames.append(name)
+            if name.startswith('dt'):
+                break
+        headerNames.append(' '.join(line[i+1:]))
+        return headerNames
 
     def readRotorOutputs(self,prefix='rotor'):
         """Returns a dictionary of pandas dataframes for each turbine"""
