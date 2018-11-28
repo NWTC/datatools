@@ -689,7 +689,7 @@ class foam_ensight_array(sampled_data):
     See superclass sampled_data for more information.
     """
 
-    def __init__(self,datadir,prefix=None,**kwargs):
+    def __init__(self,datadir,prefix=None,Nt=None,**kwargs):
         """Reads time series data from subdirectories in ${outputdir}.
         Each time subdirectory should contain a file named
         '${prefix}.000.U'.
@@ -788,7 +788,9 @@ class foam_ensight_array(sampled_data):
         self.z = self.z.reshape((NX,NY,NZ),order='F')
 
         # read data
-        data = np.zeros((self.Ntimes,NX,NY,NZ,self.datasize))
+	if Nt is None:
+	    Nt = len(self.ts)
+	data = np.zeros((Nt,NX,NY,NZ,self.datasize))
         for itime,fname in enumerate(self.ts):
             sys.stderr.write('\rProcessing frame {:d}'.format(itime))
             #sys.stderr.flush()
@@ -840,6 +842,9 @@ class foam_ensight_array(sampled_data):
 
             for i in range(self.datasize):
                 data[itime,:,:,:,i] = u[i,:].reshape((NX,NY,NZ),order='F')
+
+	    if itime>=Nt-1:
+                break
 
         sys.stderr.write('\n')
         self.data = data
