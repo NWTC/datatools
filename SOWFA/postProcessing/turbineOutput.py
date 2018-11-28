@@ -7,6 +7,7 @@
 #   tdata.
 #
 from __future__ import print_function
+import os
 import numpy as np
 import pandas as pd
 
@@ -17,16 +18,24 @@ class TurbineOutput(object):
 
     def __init__(self,datadir='turbineOutput',
                  Nturb=1,turbineList=None,
-                 timeIndexName='Time(s)',toffset=None):
+                 ignoreHeaderNames=False,
+                 timeIndexName='Time(s)',toffset=None,
+                 verbose=True):
         """If turbineList is specified, then selected turbines are
         returned; otherwise, all turbines (presumably Nturb many) are
         returned.
         """
+        self.verbose = verbose
         self.datadir = datadir
         self.Nturb = Nturb
         if turbineList is None:
             turbineList = range(Nturb)
         self.turbineList = turbineList
+        self.ignoreHeaderNames = ignoreHeaderNames
+        if ignoreHeaderNames:
+            self.names = dict()
+        else:
+            self.names = []
         self.timeIndexName = timeIndexName
         self.toffset = toffset
 
@@ -58,16 +67,22 @@ class TurbineOutput(object):
         turbinedata = dict()
 
         for dataname in dataNames:
-            print('Processing',dataname)
+            if self.verbose: print('Processing',dataname)
             dataseries.get(dataname)
             
             dframes = []
             
             # loop over restarts
             for irest,fname in enumerate(dataseries):
-                print('  datafile',irest,':',fname)
+                if self.verbose: print('  datafile',irest,':',fname)
                 with open(fname,'r') as f:
-                    headerNames = processTurbineOutputHeader(f.readline())
+                    headerNames = self.processTurbineOutputHeader(f.readline())
+                    if self.ignoreHeaderNames:
+                        shortname = os.path.split(fname)[-1]
+                        self.names[shortname] = headerNames[-1]
+                        headerNames[-1] = shortname
+                    else:
+                        self.names.append(headerNames[-1])
                     df = pd.read_csv(f,
                             delim_whitespace=True,
                             header=None, names=headerNames)
@@ -116,19 +131,26 @@ class TurbineOutput(object):
         turbinedata = dict()
 
         for dataname in dataNames:
-            print('Processing',dataname)
+            if self.verbose: print('Processing',dataname)
             dataseries.get(dataname)
             
             dframes = []
             
             # loop over restarts
             for irest,fname in enumerate(dataseries):
-                print('  datafile',irest,':',fname)
+                if self.verbose: print('  datafile',irest,':',fname)
                 with open(fname,'r') as f:
-                    headerNames = processTurbineOutputHeader(f.readline())
+                    headerNames = self.processTurbineOutputHeader(f.readline())
+                    if self.ignoreHeaderNames:
+                        shortname = os.path.split(fname)[-1]
+                        self.names[shortname] = headerNames[-1]
+                        headerNames[-1] = shortname
+                    else:
+                        self.names.append(headerNames[-1])
                     testline = f.readline().split()
                     numBladePoints = len(testline) - len(headerNames) + 1
-                    print('  (detected',numBladePoints,'blade points)')
+                    if self.verbose:
+                        print('  (detected',numBladePoints,'blade points)')
                     fieldname = headerNames[-1]
                     headerNames = headerNames[:-1] \
                             + [ fieldname+'_'+str(ipt) for ipt in range(numBladePoints) ]
@@ -180,19 +202,26 @@ class TurbineOutput(object):
         turbinedata = dict()
 
         for dataname in dataNames:
-            print('Processing',dataname)
+            if self.verbose: print('Processing',dataname)
             dataseries.get(dataname)
             
             dframes = []
             
             # loop over restarts
             for irest,fname in enumerate(dataseries):
-                print('  datafile',irest,':',fname)
+                if self.verbose: print('  datafile',irest,':',fname)
                 with open(fname,'r') as f:
-                    headerNames = processTurbineOutputHeader(f.readline())
+                    headerNames = self.processTurbineOutputHeader(f.readline())
+                    if self.ignoreHeaderNames:
+                        shortname = os.path.split(fname)[-1]
+                        self.names[shortname] = headerNames[-1]
+                        headerNames[-1] = shortname
+                    else:
+                        self.names.append(headerNames[-1])
                     testline = f.readline().split()
                     numTowerPoints = len(testline) - len(headerNames) + 1
-                    print('  (detected',numTowerPoints,'tower points)')
+                    if self.verbose:
+                        print('  (detected',numTowerPoints,'tower points)')
                     fieldname = headerNames[-1]
                     headerNames = headerNames[:-1] \
                             + [ fieldname+'_'+str(ipt) for ipt in range(numTowerPoints) ]
