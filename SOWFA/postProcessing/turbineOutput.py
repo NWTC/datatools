@@ -17,20 +17,15 @@ class TurbineOutput(object):
     """Container for SOWFA turbineOutput data"""
 
     def __init__(self,datadir='turbineOutput',
-                 Nturb=1,turbineList=None,
+                 turbineList=None,
                  ignoreHeaderNames=False,
                  timeIndexName='Time(s)',toffset=None,
                  verbose=True):
         """If turbineList is specified, then selected turbines are
-        returned; otherwise, all turbines (presumably Nturb many) are
-        returned.
+        returned; otherwise, read all turbines.
         """
         self.verbose = verbose
         self.datadir = datadir
-        self.Nturb = Nturb
-        if turbineList is None:
-            turbineList = range(Nturb)
-        self.turbineList = turbineList
         self.ignoreHeaderNames = ignoreHeaderNames
         if ignoreHeaderNames:
             self.names = dict()
@@ -39,7 +34,38 @@ class TurbineOutput(object):
         self.timeIndexName = timeIndexName
         self.toffset = toffset
 
-    def processTurbineOutputHeader(self,line):
+        self.dataseries = SOWFATimeSeries(datadir,verbose=False)
+        checkfile = os.path.join(self.dataseries.dirlist[0],'bladePointX')
+        self._getNumberTurbinesBladesPoints(checkfile)
+        if turbineList is None:
+            turbineList = np.arange(self.Nturbines)
+        self.turbineList = turbineList
+
+    def _getNumberTurbinesBladesPoints(self,checkFile):
+        with open(checkFile,'r') as f:
+            line = f.readline() # header
+            turbines = []
+            blades = []
+            Npts = None
+            line = f.readline()
+            while not line.strip()=='':
+                vals = line.split()
+                #Turbine    Blade    Time(s)    dt(s)    x-locations
+                iturb, iblade = [ int(ival) for ival in vals[:2] ]
+                if Npts is None:
+                    Npts = len(vals) - 4
+                if not iturb in turbines:
+                    turbines.append(iturb)
+                if not iblade in blades:
+                    blades.append(iblade)
+                line = f.readline()
+        self.Nturbines = len(turbines)
+        self.Nblades = len(blades)
+        self.Npoints = Npts
+        print('turbines, blades, blade points:',
+              self.Nturbines, self.Nblades, self.Npoints)
+
+    def _processTurbineOutputHeader(self,line):
         """turbineOutput file headers have the following format:
 
         #Turbine    [Blade]    Time(s)    dt(s)    outputQuantity (units)
@@ -61,22 +87,20 @@ class TurbineOutput(object):
 
     def readRotorOutputs(self,prefix='rotor'):
         """Returns a dictionary of pandas dataframes for each turbine"""
-        dataseries = SOWFATimeSeries(self.datadir,verbose=False)
-        #dataNames = dataseries.outputs(prefix)
-        dataNames = dataseries.outputs(prefix) + ['bladePitch']
+        dataNames = self.dataseries.outputs(prefix) + ['bladePitch']
         turbinedata = dict()
 
         for dataname in dataNames:
             if self.verbose: print('Processing',dataname)
-            dataseries.get(dataname)
+            self.dataseries.get(dataname)
             
             dframes = []
             
             # loop over restarts
-            for irest,fname in enumerate(dataseries):
+            for irest,fname in enumerate(self.dataseries):
                 if self.verbose: print('  datafile',irest,':',fname)
                 with open(fname,'r') as f:
-                    headerNames = self.processTurbineOutputHeader(f.readline())
+                    headerNames = self._processTurbineOutputHeader(f.readline())
                     if self.ignoreHeaderNames:
                         shortname = os.path.split(fname)[-1]
                         self.names[shortname] = headerNames[-1]
@@ -123,8 +147,7 @@ class TurbineOutput(object):
 
         For reference: http://pandas.pydata.org/pandas-docs/stable/reshaping.html
         """
-        dataseries = SOWFATimeSeries(self.datadir,verbose=False)
-        dataNames = dataseries.outputs(prefix)
+        dataNames = self.dataseries.outputs(prefix)
         # Note: 'bladePitch' is the collective pitch for all blades, and should
         #       be a 'rotor' quantity
         dataNames.remove('bladePitch')
@@ -132,15 +155,15 @@ class TurbineOutput(object):
 
         for dataname in dataNames:
             if self.verbose: print('Processing',dataname)
-            dataseries.get(dataname)
+            self.dataseries.get(dataname)
             
             dframes = []
             
             # loop over restarts
-            for irest,fname in enumerate(dataseries):
+            for irest,fname in enumerate(self.dataseries):
                 if self.verbose: print('  datafile',irest,':',fname)
                 with open(fname,'r') as f:
-                    headerNames = self.processTurbineOutputHeader(f.readline())
+                    headerNames = self._processTurbineOutputHeader(f.readline())
                     if self.ignoreHeaderNames:
                         shortname = os.path.split(fname)[-1]
                         self.names[shortname] = headerNames[-1]
@@ -197,21 +220,20 @@ class TurbineOutput(object):
 
         For reference: http://pandas.pydata.org/pandas-docs/stable/reshaping.html
         """
-        dataseries = SOWFATimeSeries(self.datadir,verbose=False)
-        dataNames = dataseries.outputs(prefix)
+        dataNames = self.dataseries.outputs(prefix)
         turbinedata = dict()
 
         for dataname in dataNames:
             if self.verbose: print('Processing',dataname)
-            dataseries.get(dataname)
+            self.dataseries.get(dataname)
             
             dframes = []
             
             # loop over restarts
-            for irest,fname in enumerate(dataseries):
+            for irest,fname in enumerate(self.dataseries):
                 if self.verbose: print('  datafile',irest,':',fname)
                 with open(fname,'r') as f:
-                    headerNames = self.processTurbineOutputHeader(f.readline())
+                    headerNames = self._processTurbineOutputHeader(f.readline())
                     if self.ignoreHeaderNames:
                         shortname = os.path.split(fname)[-1]
                         self.names[shortname] = headerNames[-1]
