@@ -21,6 +21,36 @@ import pandas as pd
 def read(outputFile,**kwargs):
     return FASToutput(outputFile,**kwargs)
 
+def read_channels(sumfile,maxlines=9999):
+    """Read list of channels from summary file, useful if output is
+    binary and the channel information is not available.
+    """
+    with open(sumfile,'r') as f:
+        Nread = 0
+        line = f.readline()
+        while (Nread < maxlines) and \
+                (not line.lstrip().startswith('Requested Channels')):
+            Nread += 1
+            line = f.readline()
+        for _ in range(3):
+            f.readline() # channel header lines
+        channel_number = []
+        channel_name = []
+        channel_units = []
+        channel_source = []
+        line = f.readline()
+        while not line =='':
+            items = line.strip().split()
+            channel_number.append(items[0])
+            channel_name.append(items[1])
+            channel_units.append(items[2])
+            channel_source.append(items[3])
+            try:
+                line = f.readline()
+            except IOError:
+                break
+    return channel_name,channel_units,channel_source
+
 class FASToutput(object):
     # TODO: override dict instead of generic object
 
@@ -47,7 +77,7 @@ class FASToutput(object):
         else:
             raise KeyError('Requested key \'{:s}\' not in {}'.format(key,self.outputs))
 
-    def _readASCII(self,fname):
+    def _readASCII(self,fname,Nheaderlines):
         # first read header
         if self.verbose: print('Reading header info from',fname)
         with open(fname,'r') as f:
@@ -68,14 +98,15 @@ class FASToutput(object):
         return np.loadtxt(fname,skiprows=Nheaderlines+2)
 
     def _readBinary(self,fname):
-        # not implemented
+        from datatools.binario import BinaryFile
+        print('Not implemented')
 
     def _readFASToutput(self,fname,Nheaderlines=6):
         # read data
         if self.binary:
             data = self._readBinary(fname)
         else:
-            data = self._readASCII(fname)
+            data = self._readASCII(fname,Nheaderlines)
         # set data columns as attributes
         for i,output in enumerate(self.outputs):
             setattr(self,output,data[:,i])
