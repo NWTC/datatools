@@ -5,8 +5,8 @@
 #
 # Sample Usage
 # ------------
-# from binario import binaryfile
-# with binaryfile(fname) as f:
+# from binario import BinaryFile
+# with BinaryFile(fname) as f:
 #     i = f.read_int4()
 #     f = f.read_float()
 #     someArray = f.read_float(10)
@@ -15,7 +15,7 @@ from __future__ import print_function
 import struct
 import numpy as np
 
-class binaryfile:
+class BinaryFile:
     def __init__(self,path,mode='r'):
         self.path = path
         self.mode = mode.strip('b')
