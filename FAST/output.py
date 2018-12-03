@@ -24,9 +24,10 @@ def read(outputFile,**kwargs):
 class FASToutput(object):
     # TODO: override dict instead of generic object
 
-    def __init__(self,fname,default_aliases=False,verbose=False):
+    def __init__(self,fname,binary=False,default_aliases=False,verbose=False):
         # inputs
         self.fname = fname
+        self.binary = binary
         self.verbose = verbose
         # initialize members
         self.outputs = None
@@ -46,7 +47,8 @@ class FASToutput(object):
         else:
             raise KeyError('Requested key \'{:s}\' not in {}'.format(key,self.outputs))
 
-    def _readFASToutput(self,fname,Nheaderlines=6):
+    def _readASCII(self,fname):
+        # first read header
         if self.verbose: print('Reading header info from',fname)
         with open(fname,'r') as f:
             if self.verbose:
@@ -61,14 +63,25 @@ class FASToutput(object):
             assert(self.Noutputs == len(self.units))
             for iline,_ in enumerate(f): pass
         self.N = iline + 1
-        # read data
+        # then open file again to read the data
         if self.verbose: print('Reading data...')
-        data = np.loadtxt(fname,skiprows=Nheaderlines+2)
+        return np.loadtxt(fname,skiprows=Nheaderlines+2)
+
+    def _readBinary(self,fname):
+        # not implemented
+
+    def _readFASToutput(self,fname,Nheaderlines=6):
+        # read data
+        if self.binary:
+            data = self._readBinary(fname)
+        else:
+            data = self._readASCII(fname)
+        # set data columns as attributes
         for i,output in enumerate(self.outputs):
             setattr(self,output,data[:,i])
             self.output_units[output] = self.units[i]
         assert(len(self.Time) == self.N)
-        # default aliases
+        # setup default aliases for convenience
         if self.default_aliases:
             self._setAlias('t','Time')
             self._setAlias('P','RotPwr')
