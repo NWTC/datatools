@@ -81,7 +81,9 @@ class TimeSeries(Series):
 
     Sample usage:
         from datatools.series import TimeSeries
-        ts = TimeSeries('/path/to/data',prefix='foo',suffix='.bar')
+        #ts = TimeSeries('/path/to/data',prefix='foo',suffix='.bar')
+        ts = TimeSeries('/path/to/data',prefix='foo',suffix='.bar',
+                        tstart=21200,tend=21800)
         for fname in ts:
             do_something(fname)
         for t,fname in ts.itertimes():
@@ -93,6 +95,7 @@ class TimeSeries(Series):
                  prefix='', suffix='',
                  dt=1.0, t0=0.0,
                  dirs=False,
+                 tstart=None, tend=None,
                  **kwargs):
         """Collect data from specified directory, for files with a
         given prefix and optional suffix. For series with integer time
@@ -137,8 +140,6 @@ class TimeSeries(Series):
         self.times = [self.times[i] for i in iorder]
 
         # select time range
-        tstart = kwargs.get('tstart',None)
-        tend = kwargs.get('tend',None)
         self.trimtimes(tstart,tend)
 
 
