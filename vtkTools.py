@@ -64,7 +64,7 @@ def _read_vtkStructured_oneFile(vtkPath,verbose=False):
     
     x1d = [xo] if dx==0 else [ xo+i*dx for i in range(int(nx)) ]
     y1d = [yo] if dy==0 else [ yo+i*dy for i in range(int(ny)) ]
-    z1d = np.arange(zo,zo+dz*nz,dz)           
+    z1d = [ zo+i*dz for i in range(int(nz)) ] # np.arange(zo,zo+dz*nz,dz)           
     
     [Y,X,Z] = np.meshgrid(y1d,x1d,z1d)
     
@@ -84,7 +84,7 @@ def _read_vtkStructured_oneFile(vtkPath,verbose=False):
                 break
         except:
             1
-    
+            
     # recall that x varies first so this loop must be z->y->x            
     for iz,z in enumerate(z1d):
         for iy,y in enumerate(y1d):
@@ -225,30 +225,28 @@ def write_vtkStructured(data,meta,fileOutPath,descStr="PLACEHOLDER",verbose=Fals
     descStr : str,
         some header string describing what these data are
     """      
-    f = open("top.txt", 'w')
-    f.write('# vtk DataFile Version 3.0\n')  
-    f.write('{0}\n'.format(descStr))  
-    f.write('ASCII\n')  
-    f.write('DATASET STRUCTURED_POINTS\n')  
-    f.write('DIMENSIONS {0:d} {1:d} {2:d}\n'.format(int(meta['nx']),
-            int(meta['ny']),int(meta['nz'])))  
-    f.write('ORIGIN {0:.1f} {1:.1f} {2:.1f}\n'.format(meta['xOrigin'],meta['yOrigin'],meta['zOrigin']))  
-    f.write('SPACING {0:.1f} {1:.1f} {2:.1f}\n'.format(meta['dx'],meta['dy'],meta['dz']))  
-    f.write('POINT_DATA {0:d}\n'.format(meta['nPts']))  
-    f.write('VECTORS vAmb float\n')  
-    f.close()    
-    
-    [X,Y,Z,U,V,W]   = data    
-    U = np.ravel(U, order='F') ; V = np.ravel(V, order='F') ; W = np.ravel(W, order='F')        
-    data = np.zeros((len(U),3))
-    data[:,0] = U ; data[:,1] = V ; data[:,2] = W     
-    np.savetxt("bot.txt",data)
-    os.system("cat top.txt bot.txt > {0}".format(fileOutPath))
-    os.remove("top.txt")
-    os.remove("bot.txt")    
 
-    if verbose:
-        print("Saved data to {0}".format(fileOutPath))
+    with open(fileOutPath, 'w') as f:      
+        f.write('# vtk DataFile Version 3.0\n')  
+        f.write('{0}\n'.format(descStr))  
+        f.write('ASCII\n')  
+        f.write('DATASET STRUCTURED_POINTS\n')  
+        f.write('DIMENSIONS {0:d} {1:d} {2:d}\n'.format(int(meta['nx']),
+                int(meta['ny']),int(meta['nz'])))  
+        f.write('ORIGIN {0:.1f} {1:.1f} {2:.1f}\n'.format(meta['xOrigin'],meta['yOrigin'],meta['zOrigin']))  
+        f.write('SPACING {0:.1f} {1:.1f} {2:.1f}\n'.format(meta['dx'],meta['dy'],meta['dz']))  
+        f.write('POINT_DATA {0:d}\n'.format(meta['nPts']))  
+        f.write('VECTORS vAmb float\n')  
+    
+        [X,Y,Z,U,V,W]   = data    
+        U = np.ravel(U, order='F') ; V = np.ravel(V, order='F') ; W = np.ravel(W, order='F')        
+        data = np.zeros((len(U),3))
+        data[:,0] = U ; data[:,1] = V ; data[:,2] = W     
+        np.savetxt(f,data)
+
+        if verbose:
+            print("Saved data to {0}".format(fileOutPath))
+            
     return
 #==============================================================================
 # 
