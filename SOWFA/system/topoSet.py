@@ -74,11 +74,11 @@ def plot(fpath,plane='xy',verbose=False,IDs=None,**plot_kwargs):
                 plot_info['label'] = name
             funcname = 'plot_' + inputs['source']
             try:
-                plot = getattr(sys.modules[__name__],funcname)
+                plotfun = getattr(sys.modules[__name__],funcname)
             except AttributeError:
                 print(funcname,'not available')
             else:
-                plot(plane,plot_kwargs=plot_info,**inputs)
+                plotfun(plane,plot_kwargs=plot_info,**inputs)
 
 def _plot_poly(*args,**kwargs):
     args = list(args)
