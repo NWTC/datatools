@@ -528,7 +528,7 @@ class TopoSetDict(object):
             loc = locations[iturb]
             plt.plot(loc[0],loc[1], 'ko', markersize=5, markerfacecolor='k')
             plt.plot(xrotor[iturb],yrotor[iturb], 'k-')
-            plt.text(loc[0],loc[1], '{:d}'.format(iturb+1), fontsize='xx-large')
+            plt.text(loc[0],loc[1], 'WT{:d}'.format(iturb+1), fontsize='xx-large')
 
 
     def write(self,prefix='topoSetDict.local'):
