@@ -16,18 +16,18 @@ else:
 
 outputs = td.readRotorOutputs()
 
-fig,ax = plt.subplots(nrows=3,sharex=True,figsize=(6,4))
+fig,ax = plt.subplots(nrows=4,sharex=True,figsize=(6,4))
 for iturb in turbineList:
     turb = outputs[iturb]
-    P = turb['rotorPower'] / 1000.
-    P.plot(ax=ax[0],label='Turbine'+str(iturb))
+    (turb['rotorPower']/1000).plot(ax=ax[0],label='WT'+str(iturb))
     turb['rotorSpeed'].plot(ax=ax[1])
-    turb['bladePitch'].plot(ax=ax[2])
-
-ax[0].set_ylabel('Rotor Power [kW]')
-ax[1].set_ylabel('Rotor Speed [rpm]')
-ax[2].set_ylabel('Blade Pitch [deg]')
-ax[1].set_xlabel('Time [s]')
+    (turb['rotorTorque']/1000).plot(ax=ax[2])
+    turb['bladePitch'].plot(ax=ax[3])
+ax[0].set_ylabel('Rotor\nPower\n[kW]')
+ax[1].set_ylabel('Rotor\nSpeed\n[rpm]')
+ax[2].set_ylabel('Rotor\nTorque\n[kN-m]')
+ax[3].set_ylabel('Blade\nPitch\n[deg]')
+ax[-1].set_xlabel('Time [s]')
 leg = ax[0].legend(fontsize='small',loc='upper left',bbox_to_anchor=(1,1))
 
 plt.tight_layout()
