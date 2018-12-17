@@ -4,7 +4,9 @@
 #
 # USAGE:
 #   tdata = TurbineOutput()
-#   tdata.
+#   print(tdata.names) # list outputs in turbineOutput/<timeName>/*
+#   rotor = tdata.readRotorOutput()
+#   blade1 = tdata.readBladeOutput()
 #
 from __future__ import print_function
 import os
