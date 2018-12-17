@@ -1379,10 +1379,8 @@ class PlanarAverageFunctionObject(object):
                     for i,name in enumerate(['xx','xy','xz','yy','yz','zz']):
                         data[field+name] = F[:,iprobe,i]
             df = pd.DataFrame(data=data)
-            #df['id'] = iprobe
-            df['z'] = self.pos[iprobe,2]
+            df['z'] = self.hLevelsCell[iprobe]
             dflist.append(df)
-        #return pd.concat(dflist).set_index(['t','id'])
         return pd.concat(dflist).set_index(['t','z'])
 
     def to_csv(self,fname):
