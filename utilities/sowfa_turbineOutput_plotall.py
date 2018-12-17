@@ -23,14 +23,22 @@ for iturb in turbineList:
     turb['rotorSpeed'].plot(ax=ax[1])
     (turb['rotorTorque']/1000).plot(ax=ax[2])
     turb['bladePitch'].plot(ax=ax[3])
-ax[0].set_ylabel('Rotor\nPower\n[kW]')
-ax[1].set_ylabel('Rotor\nSpeed\n[rpm]')
-ax[2].set_ylabel('Rotor\nTorque\n[kN-m]')
-ax[3].set_ylabel('Blade\nPitch\n[deg]')
+ax[0].set_ylabel('Rotor Power\n[kW]',fontsize='small')
+ax[1].set_ylabel('Rotor Speed\n[rpm]',fontsize='small')
+ax[2].set_ylabel('Rotor Torque\n[kN-m]',fontsize='small')
+ax[3].set_ylabel('Blade Pitch\n[deg]',fontsize='small')
 ax[-1].set_xlabel('Time [s]')
-leg = ax[0].legend(fontsize='small',loc='upper left',bbox_to_anchor=(1,1))
+ax[0].tick_params(axis='y',labelsize='small')
+ax[1].tick_params(axis='y',labelsize='small')
+ax[2].tick_params(axis='y',labelsize='small')
+ax[3].tick_params(axis='y',labelsize='small')
+leg = ax[0].legend(fontsize='small',loc='upper left',bbox_to_anchor=(1.,1.),borderpad=0.1)
 
 plt.tight_layout()
-fig.savefig('turbine_outputs.png',bbox_extra_artists=(leg,),bbox_inches='tight')
+fig.canvas.draw() # needed to get correct legend width
+legend_width = leg.get_window_extent().inverse_transformed(fig.transFigure).width
+plt.subplots_adjust(right=1.0-legend_width)
+fig.savefig('turbine_outputs.png',bbox_inches='tight')
 
 plt.show()
+
