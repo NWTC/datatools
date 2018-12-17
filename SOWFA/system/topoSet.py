@@ -7,11 +7,15 @@ import os,sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot(fpath,plane='xy',verbose=False,IDs=None,**plot_kwargs):
+def plot(fpath,plane='xy',verbose=False,IDs=None,offset=None,**plot_kwargs):
     """Plot an existing topoSetDict (only tested for topoSetDict files
-    generated using the TopoSetDict class. One-index list of IDs may be
-    provided to plot only specific turbine refinement regions.
+    generated using the TopoSetDict class. One-indexed list of IDs may
+    be provided to plot only specific turbine refinement regions.
+    
+    Plot offset can be specified with the 'offset' keyword.
     """
+    if offset is not None:
+        offset = np.array(offset)
     with open(fpath,'r') as f:
         while not f.readline().strip() == 'actions': continue
         f.readline()
@@ -74,11 +78,11 @@ def plot(fpath,plane='xy',verbose=False,IDs=None,**plot_kwargs):
                 plot_info['label'] = name
             funcname = 'plot_' + inputs['source']
             try:
-                plot = getattr(sys.modules[__name__],funcname)
+                plotfun = getattr(sys.modules[__name__],funcname)
             except AttributeError:
                 print(funcname,'not available')
             else:
-                plot(plane,plot_kwargs=plot_info,**inputs)
+                plotfun(plane,plot_offset=offset,plot_kwargs=plot_info,**inputs)
 
 def _plot_poly(*args,**kwargs):
     args = list(args)
@@ -87,19 +91,21 @@ def _plot_poly(*args,**kwargs):
     plt.plot(pts[:,0],pts[:,1],**kwargs)
     plt.axis('equal')
 
-def plot_rotatedBoxToCell(plane,plot_kwargs={},**kwargs):
-    origin = np.array(kwargs['origin'])
+def plot_rotatedBoxToCell(plane,plot_kwargs={},plot_offset=None,**inputs):
+    origin = np.array(inputs['origin'])
+    if plot_offset is not None:
+        origin += plot_offset
     if plane=='xy':
         # horizontal slice
         origin = origin[[0,1]]
-        r1 = np.array(kwargs['i'])[[0,1]]
-        r2 = np.array(kwargs['j'])[[0,1]]
+        r1 = np.array(inputs['i'])[[0,1]]
+        r2 = np.array(inputs['j'])[[0,1]]
     elif plane=='xz':
         # vertical slice
-        origin += np.array(kwargs['j'])/2 # slice through centroid of box
+        origin += np.array(inputs['j'])/2 # slice through centroid of box
         origin = origin[[0,2]]
-        r1 = np.array(kwargs['i'])[[0,2]]
-        r2 = np.array(kwargs['k'])[[0,2]]
+        r1 = np.array(inputs['i'])[[0,2]]
+        r2 = np.array(inputs['k'])[[0,2]]
     else:
         print('unknown plane orientation:',plane)
     LL = origin
@@ -108,10 +114,13 @@ def plot_rotatedBoxToCell(plane,plot_kwargs={},**kwargs):
     UL = origin + r2
     _plot_poly(LL,LR,UR,UL,**plot_kwargs)
 
-def plot_cylinderToCell(plane,plot_kwargs={},**kwargs):
-    p1 = np.array(kwargs['p1'])
-    p2 = np.array(kwargs['p2'])
-    R = kwargs['radius']
+def plot_cylinderToCell(plane,plot_kwargs={},plot_offset=None,**inputs):
+    p1 = np.array(inputs['p1'])
+    p2 = np.array(inputs['p2'])
+    if plot_offset is not None:
+        p1 += plot_offset
+        p2 += plot_offset
+    R = inputs['radius']
     if plane=='xy':
         # horizontal slice
         p1 = p1[[0,1]]
@@ -484,7 +493,7 @@ class TopoSetDict(object):
             ds /= 2
 
 
-    def plot(self,plane='xy',turbines=None):
+    def plot(self,plane='xy',turbines=None,offset=(0,0,0)):
         """Visualize locations of turbines. If 'turbines' is None, all
         are plotted, otherwise a list of one-indexed IDs should be
         specified.
@@ -492,8 +501,10 @@ class TopoSetDict(object):
         TODO: call plot_* functions here too
         """
         R = np.array(self.diameter) / 2
+        offset = np.array(offset)
         if plane=='xy':
-            locations = np.array([ loc[[0,1]] for loc in self.base_location ])
+            locations = np.array([ loc[[0,1]] for loc in
+                                   self.base_location + offset ])
             ang = np.deg2rad(self.rotation)
             xoff = R * np.sin(ang)
             yoff = R * np.cos(ang)
@@ -501,7 +512,8 @@ class TopoSetDict(object):
             yrotor = [ [yval-yoff,yval+yoff]
                        for iturb,yval in enumerate(locations[:,1]) ]
         elif plane=='xz':
-            locations = np.array([ loc[[0,2]] for loc in self.base_location ])
+            locations = np.array([ loc[[0,2]] for loc in
+                                   self.base_location + offset ])
             locations[:,1] += self.zhub
             xrotor = [ [xval,xval] for xval in locations[:,0] ]
             yrotor = [ [zval-R[iturb],zval+R[iturb]]
@@ -516,7 +528,7 @@ class TopoSetDict(object):
             loc = locations[iturb]
             plt.plot(loc[0],loc[1], 'ko', markersize=5, markerfacecolor='k')
             plt.plot(xrotor[iturb],yrotor[iturb], 'k-')
-            plt.text(loc[0],loc[1], '{:d}'.format(iturb+1), fontsize='xx-large')
+            plt.text(loc[0],loc[1], 'WT{:d}'.format(iturb+1), fontsize='xx-large')
 
 
     def write(self,prefix='topoSetDict.local'):
