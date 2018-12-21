@@ -60,7 +60,7 @@ def _read_vtkStructured_oneFile(vtkPath,verbose=False):
     nx, ny, nz = [ float(x) for x in lines[4].lstrip().split()[1:] ]
     xo, yo, zo = [ float(x) for x in lines[5].lstrip().split()[1:] ]
     dx, dy, dz = [ float(x) for x in lines[6].lstrip().split()[1:] ]
-    npts = int(lines[7].split(" ")[1])
+    npts = int(lines[7].split(" ")[-1])
     
     x1d = [xo] if dx==0 else [ xo+i*dx for i in range(int(nx)) ]
     y1d = [yo] if dy==0 else [ yo+i*dy for i in range(int(ny)) ]
