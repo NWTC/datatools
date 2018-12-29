@@ -7,12 +7,14 @@ import os,sys
 import numpy as np
 import matplotlib.pyplot as plt
 
-def plot(fpath,plane='xy',verbose=False,IDs=None,offset=None,**plot_kwargs):
+def plot(fpath,plane='xy',verbose=False,IDs=None,
+         offset=None,norm=1.0,**plot_kwargs):
     """Plot an existing topoSetDict (only tested for topoSetDict files
     generated using the TopoSetDict class. One-indexed list of IDs may
     be provided to plot only specific turbine refinement regions.
     
-    Plot offset can be specified with the 'offset' keyword.
+    Plot offset and normalization can be specified with the
+    'offset' and 'norm' keywords.
     """
     if offset is not None:
         offset = np.array(offset)
@@ -82,16 +84,20 @@ def plot(fpath,plane='xy',verbose=False,IDs=None,offset=None,**plot_kwargs):
             except AttributeError:
                 print(funcname,'not available')
             else:
-                plotfun(plane,plot_offset=offset,plot_kwargs=plot_info,**inputs)
+                plotfun(plane,plot_offset=offset,plot_norm=norm,
+                        plot_kwargs=plot_info,**inputs)
 
 def _plot_poly(*args,**kwargs):
     args = list(args)
     args.append(args[0])
     pts = np.array(args)
+    norm = kwargs.pop('norm',1.0)
+    pts /= norm
     plt.plot(pts[:,0],pts[:,1],**kwargs)
     plt.axis('equal')
 
-def plot_rotatedBoxToCell(plane,plot_kwargs={},plot_offset=None,**inputs):
+def plot_rotatedBoxToCell(plane,plot_kwargs={},plot_offset=None,plot_norm=1.0,
+                          **inputs):
     origin = np.array(inputs['origin'])
     if plot_offset is not None:
         origin += plot_offset
@@ -112,9 +118,10 @@ def plot_rotatedBoxToCell(plane,plot_kwargs={},plot_offset=None,**inputs):
     LR = origin + r1
     UR = origin + r1 + r2
     UL = origin + r2
-    _plot_poly(LL,LR,UR,UL,**plot_kwargs)
+    _plot_poly(LL,LR,UR,UL,norm=plot_norm,**plot_kwargs)
 
-def plot_cylinderToCell(plane,plot_kwargs={},plot_offset=None,**inputs):
+def plot_cylinderToCell(plane,plot_kwargs={},plot_offset=None,plot_norm=1.0,
+                        **inputs):
     p1 = np.array(inputs['p1'])
     p2 = np.array(inputs['p2'])
     if plot_offset is not None:
@@ -140,7 +147,7 @@ def plot_cylinderToCell(plane,plot_kwargs={},plot_offset=None,**inputs):
     UR = p2 + dr*R
     UL = p1 + dr*R
     #plt.plot([p1[0],p2[0]], [p1[1],p2[1]], 'k--')
-    _plot_poly(LL,LR,UR,UL,**plot_kwargs)
+    _plot_poly(LL,LR,UR,UL,norm=plot_norm,**plot_kwargs)
 
 
 topoSetDict_header = """/*--------------------------------*- C++ -*----------------------------------*\\
@@ -493,7 +500,7 @@ class TopoSetDict(object):
             ds /= 2
 
 
-    def plot(self,plane='xy',turbines=None,offset=(0,0,0)):
+    def plot(self,plane='xy',turbines=None,offset=(0,0,0),norm=1.0):
         """Visualize locations of turbines. If 'turbines' is None, all
         are plotted, otherwise a list of one-indexed IDs should be
         specified.
@@ -508,16 +515,18 @@ class TopoSetDict(object):
             ang = np.deg2rad(self.rotation)
             xoff = R * np.sin(ang)
             yoff = R * np.cos(ang)
-            xrotor = [ [xval+xoff,xval-xoff] for xval in locations[:,0] ]
-            yrotor = [ [yval-yoff,yval+yoff]
-                       for iturb,yval in enumerate(locations[:,1]) ]
+            xrotor = [ np.array([xval+xoff,xval-xoff])
+                        for xval in locations[:,0] ]
+            yrotor = [ np.array([yval-yoff,yval+yoff])
+                        for iturb,yval in enumerate(locations[:,1]) ]
         elif plane=='xz':
             locations = np.array([ loc[[0,2]] for loc in
                                    self.base_location + offset ])
             locations[:,1] += self.zhub
-            xrotor = [ [xval,xval] for xval in locations[:,0] ]
-            yrotor = [ [zval-R[iturb],zval+R[iturb]]
-                       for iturb,zval in enumerate(locations[:,1]) ]
+            xrotor = [ np.array([xval,xval])
+                        for xval in locations[:,0] ]
+            yrotor = [ np.array([zval-R[iturb],zval+R[iturb]])
+                        for iturb,zval in enumerate(locations[:,1]) ]
         else:
             print('unknown plane orientation:',plane)
         if turbines is None:
@@ -525,10 +534,10 @@ class TopoSetDict(object):
         else:
             turbines = [iturb-1 for iturb in turbines]
         for iturb in turbines:
-            loc = locations[iturb]
-            plt.plot(loc[0],loc[1], 'ko', markersize=5, markerfacecolor='k')
-            plt.plot(xrotor[iturb],yrotor[iturb], 'k-')
+            loc = locations[iturb] / norm
             plt.text(loc[0],loc[1], 'WT{:d}'.format(iturb+1), fontsize='xx-large')
+            plt.plot(loc[0],loc[1], 'ko', markersize=5, markerfacecolor='k')
+            plt.plot(xrotor[iturb]/norm,yrotor[iturb]/norm, 'k-')
 
 
     def write(self,prefix='topoSetDict.local'):
