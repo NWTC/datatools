@@ -31,6 +31,7 @@ from __future__ import print_function
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+from datatools.SOWFA.postProcessing.reader import Reader
 
 sources = ['UX','UY','UZ','T']
 
@@ -93,6 +94,8 @@ class SourceHistory(object):
             self._processdirs( self.simTimeDirs, **kwargs )
         else:
             print('No averaging time directories found!')
+
+        self._trim_series_if_needed(self._processed)
     
 
     def __repr__(self):
@@ -292,67 +295,10 @@ class SourceHistory(object):
 """end of class SourceHistory"""
 
 
-class SourceHistoryNew(object):
+class SourceHistoryNew(Reader):
 
-    def __init__(self,*args,**kwargs):
-        """Find and process all time directories"""
-        self._processed = []
-        self.hLevelsCell = None
-        self.simTimeDirs = [] # output time names
-        self.simStartTimes = [] # start or restart simulation times
-        self.imax = None # for truncating time series
-        
-        if len(args)==0:
-            args = os.listdir('.')
-            if 'sourceHistory' in args: args = ['sourceHistory']
-
-        # find results
-        for arg in args:
-            if isinstance(arg,str):
-                if not os.path.isdir(arg): continue
-            else: #float or int were given
-                arg = '{:g}'.format(arg)
-                if not os.path.isdir(arg): continue
-
-            if arg[-1] == os.sep: arg = arg[:-1] # strip trailing slash
-
-            listing = os.listdir(arg)
-            if 'SourceTemperatureHistory' in listing:
-                # an output (time) directory was directly specified
-                self.simTimeDirs.append(arg)
-                try:
-                    timeDirName = os.path.split(arg)[1] # final part of path after last slash
-                    dirTime = float(timeDirName)
-
-                except: # specified results dir is not a number
-                    dirTime = -1
-                self.simStartTimes.append(dirTime)
-            elif not arg.startswith('boundaryData'):
-                print('Checking directory:',arg) #,'with',listing
-                # specified a directory containing output (time) subdirectories
-                for dirname in listing:
-                    if not os.path.isdir(arg+os.sep+dirname): continue
-                    #print('  checking subdirectory',dirname)
-                    try:
-                        startTime = float(dirname)
-                        if 'SourceTemperatureHistory' in os.listdir(arg+os.sep+dirname):
-                            self.simTimeDirs.append( arg+os.sep+dirname )
-                            self.simStartTimes.append( startTime )
-                    except ValueError: pass # dirname is not a number
-
-        # sort results
-        self.simTimeDirs = [ x[1] for x in sorted(zip(self.simStartTimes,self.simTimeDirs)) ]
-        self.simStartTimes.sort()
-
-        print('Simulation (re)start times:',self.simStartTimes)
-
-        # process all output dirs
-        if len(self.simTimeDirs) > 0:
-            self._processdirs( self.simTimeDirs, **kwargs )
-        else:
-            print('No averaging time directories found!')
-
-        self._trim_series_if_needed(self._processed)
+    def __init__(self,dpath=None,**kwargs):
+        super().__init__(dpath,includeDt=True,**kwargs)
 
 
     def _processdirs(self,
@@ -360,180 +306,67 @@ class SourceHistoryNew(object):
                      varList=['Momentum','Temperature'],
                      trimOverlap=True
                      ):
-        """Reads all files within an output time directory.
-        An object attribute corresponding to a source term
-        output name is updated, e.g.:
-            ${timeDir}/SourceMomentumHistory is appended to the array self.Momentum
+        #Redefine _processdirs so that default
+        #argument for varList can be specified
+        super()._processdirs(tdirList,varList,trimOverlap)
+        
 
-        Typically, objects have shape (Nt,Nz).
-        """
-        outputs = []
-        if isinstance( varList, (str,) ):
-            if varList.lower()=='all':
-                # special case: read all vars
-                allOutputs = os.listdir(tdirList[0])
-                for field in allOutputs:
-                    outputs.append( field.lstrip('Source').rstrip('History') )
-            else: # specified single var
-                outputs = [varList]
-        else: # specified list
-            outputs = varList
-
-        # Check whether sources depend on height or not
-        with open(tdirList[0]+os.sep+'Source'+outputs[0]+'History','r') as f:
-            line = f.readline().split()
-        if line[0] == 'Time(s)':
-            self.hLevelsCell = np.array([0.0])
-            self._header_lines = 1
-        elif line[0] == 'Heights':
-            self.hLevelsCell = np.array([ float(val) for val in line[2:] ])
-            self._header_lines = 2
-        else:
-            print('Error: Expected first line to start with "Time(s)" or "Heights", but instead read',line[0])
-            return
-
-        self.N = len(self.hLevelsCell)
-#        # check that we have the same amount of data
-#        for tdir in tdirList:
-#            Nlines = []
-#            for field in outputs:
-#                output = tdir + os.sep + 'Source'+field+'History'
-#                if not os.path.isfile(output):
-#                    print('Error:',output,'not found')
-#                    return
-#
-#                with open(output,'r') as f:
-#                    for i,line in enumerate(f): pass
-#                    Nlines.append(i+1)
-#                    line = line.split() # check final line for the right number of values
-#                    if not len(line) == len(self.hLevelsCell)+2: # t,dt,f_1,f_2,...,f_N for N heights
-#                        print('line',line)
-#                        print('Error: number of output points inconsistent with hLevelsCell in', output)
-#                        return
-#            if not np.min(Nlines) == np.max(Nlines):
-#                print('Warning: number of output times do not match in all files')
-#        self.N = Nlines[0]
-
-        # process all data
-        selected = []
-        for field in outputs:
-            arrays = [ self._read_source_file( tdir + os.sep + 'Source' + field + 'History' ) for tdir in tdirList ]
-
-            # combine into a single array and trim end of time series
-            # (because simulations that are still running can have different
-            # array lengths)
-            newdata = np.concatenate(arrays)[:self.imax,:]
-
-            # get rid of overlapped data for restarts
-            if trimOverlap:
-                if len(selected) == 0:
-                    # create array mask
-                    tpart = [ array[:,0] for array in arrays ]
-                    for ipart,tcutoff in enumerate(self.simStartTimes[1:]):
-                        selectedpart = np.ones(len(tpart[ipart]),dtype=bool)
-                        try:
-                            iend = np.nonzero(tpart[ipart] > tcutoff)[0][0]
-                        except IndexError:
-                            # clean restart
-                            pass
-                        else:
-                            # previous simulation didn't finish; overlapped data
-                            selectedpart[iend:] = False 
-                        selected.append(selectedpart)
-                    # last / currently running part
-                    selected.append(np.ones(len(tpart[-1]),dtype=bool))
-                    selected = np.concatenate(selected)[:self.imax]
-                    assert(len(selected) == len(newdata[:,0]))
-                elif not (len(newdata[:,0]) == len(selected)):
-                    # if simulation is still running, subsequent newdata may
-                    # be longer
-                    self.imax = min(len(selected), len(newdata[:,0]))
-                    selected = selected[:self.imax]
-                    newdata = newdata[:self.imax,:]
-                # select only unique data
-                newdata = newdata[selected,:]
-
-            # reshape field into (Nt,Nz[,Nd]) and set as attribute
-            # - note: first column of 'newdata' is time
-            # - note: old behavior was to return (Nz,Nt,Nd) for Nd >= 1
-            if newdata.shape[1] == self.N+2:
-                # scalar
-                setattr( self, field, newdata[:,2:] )
-            elif newdata.shape[1] == 3*self.N+2:
-                # vector
-                setattr( self, field, newdata[:,2:].reshape((newdata.shape[0],self.N,3),order='C') )
-            elif newdata.shape[1] == 6*self.N+2:
-                # symmetric tensor
-                setattr( self, field, newdata[:,2:].reshape((newdata.shape[0],self.N,6),order='C') )
-            else:
-                raise IndexError('Unrecognized number of values')
-            self._processed.append(field)
-            print('  read',field)        # set time arrays
-            
-        self.t = newdata[:,0]
-        self.dt = newdata[:,1]
-        self.Nt = len(self.t)
-
-
-    def _read_source_file(self,fpath):
+    def _read_data(self,dpath,fname):
+        fpath = dpath + os.sep + 'Source' + fname + 'History'
         with open(fpath) as f:
-            for i in range(self._header_lines):
-                line = f.readline()
-            out = []
-            for line in f:
-                line = [ float(val) for val in
-                        line.replace('(','').replace(')','').split() ]
-                out.append(line)
+            try:
+                self._read_source_heights(f)
+            except IOError:
+                print('unable to read '+fpath)
+            else:
+                array = self._read_source_data(f)
+        return array
+
+    def _read_source_heights(self,f):
+        line = f.readline().split()
+        assert (line[0] in ['Time(s)','Heights']), \
+                'Error: Expected first line to start with "Time(s)" or "Heights", but instead read'+line[0]
+
+        if line[0] == 'Time(s)':
+            self.hLevelsCell = [0.0]
+        else:
+            self.hLevelsCell = [ float(val) for val in line[2:] ]
+            f.readline()
+
+        if (len(self._processed) > 0): # assert that all fields have same number of heights
+            assert (self.N == len(self.hLevelsCell)), \
+                    'Error: Various source fields do not have the same number of heights'
+        else: # first field: set number of heights in self.N
+            self.N = len(self.hLevelsCell)
+        self.hLevelsCell = np.array(self.hLevelsCell)
+
+        
+    def _read_source_data(self,f):
+        out = []
+        for line in f:
+            line = [ float(val) for val in
+                    line.replace('(','').replace(')','').split() ]
+            out.append(line)
         return np.array(out)
 
 
-    def _trim_series_if_needed(self,fields_to_check=None):
-        """check for inconsistent array lengths and trim if needed"""
-        if fields_to_check is None:
-            fields_to_check = self._processed
-        for field in fields_to_check:
-            try:
-                getattr(self,field)
-            except AttributeError:
-                print('Skipping time series length check for unknown field: ',
-                      field)
-                fields_to_check.remove(field)
-        field_lengths = [ getattr(self,field).shape[0] for field in fields_to_check ]
-        if np.min(field_lengths) < np.max(field_lengths):
-            self.imax = np.min(field_lengths)
-            # need to prune arrays
-            print('Inconsistent averaging field lengths... is simulation still running?')
-            print('  truncated field histories from',np.max(field_lengths),'to',self.imax)
-            self.t = self.t[:self.imax]
-            self.Nt = len(self.t)
-            for field in fields_to_check:
-                Ndim = len(getattr(self,field).shape)
-                if Ndim == 2:
-                    # scalar
-                    setattr(self, field, getattr(self,field)[:self.imax,:])
-                elif Ndim == 3:
-                    # vector/tensor
-                    setattr(self, field, getattr(self,field)[:self.imax,:,:])
-                else:
-                    print('Unknown field type ',field)
+    #============================================================================
+    #
+    # DATA I/O
+    #
+    #============================================================================
 
-
-    def __repr__(self):
-        s = 'Times read: {:d} {:s}\n'.format(self.Nt,str(self.t))
-        s+= 'Fields read:\n'
-        for field in self._processed:
-            s+= '  {:s} : {:s}\n'.format(field,
-                                         str(getattr(self,field).shape))
-        return s
-    
-
-#    def __repr__(self):
-#        s = 'SOWFA postProcessing: driving force data'
-#        for t,d in zip(self.simStartTimes,self.simTimeDirs):
-#            fullpath = os.path.realpath(os.curdir) + os.sep + d
-#            s += '\n  {:f}\t{:s}'.format(t,fullpath)
-#        s += '\ntimes: {:d} [{:f},{:f}]'.format(len(self.t),self.t[0],self.t[-1])
-#        s += '\nheights: {:d} [{:f},{:f}]'.format(len(self.hLevelsCell),self.hLevelsCell[0],self.hLevelsCell[-1])
-#        return s
+    def to_netcdf(self,fname):
+        fieldDescriptions = {'T': 'Potential temperature',
+                      'Ux': 'U velocity component',
+                      'Uy': 'V velocity component',
+                      'Uz': 'W velocity component',
+                      }
+        fieldUnits = {'T': 'K',
+                 'Ux': 'm s-1',
+                 'Uy': 'm s-1',
+                 'Uz': 'm s-1',
+                }
+        super().to_netcdf(fname,fieldDescriptions,fieldUnits)
 
 """end of class SourceHistoryNew"""

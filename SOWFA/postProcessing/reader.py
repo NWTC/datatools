@@ -1,142 +1,45 @@
 """
-Class for reading in 'probes' type OpenFOAM sampling
+General class for processing SOWFA data
 
-written by Eliot Quon (eliot.quon@nrel.gov)
+written by Dries Allaerts (dries.allaerts@nrel.gov)
 
 """
 from __future__ import print_function
 import os
 import numpy as np
-from datatools.SOWFA.postProcessing.reader import Reader
 
-class ProbeNew(Reader):
+class Reader(object):
     """Stores a time array (t), and field arrays as attributes. The
     fields have shape:
-        (Nt, N[, Nd])
-    where N is the number of probes and Nt is the number of samples.
+        (Nt, N [, Nd])
+    Nt is the number of time samples, and N is the number of probes/vertical levels/ ...
     Vectors have an additional dimension to denote vector components.
     Symmetric tensors have an additional dimension to denote tensor components (xx, xy, xz, yy, yz, zz).
 
     Sample usage:
 
-        from SOWFA.postProcessing.probes import ProbeNew
+        from SOWFA.postProcessing.reader import Reader
 
-        # read all probes
-        probe = ProbeNew('postProcessing/probe1/')
+        # read all data
+        data = Reader('postProcessing/<postProcessingTypeName>/')
 
-        # read specified probes only
-        probe = ProbeNew('postProcessing/probe1/',fields=['U','T'])
+        # read specified fields only
+        data = Reader('postProcessing/<postProcessingTypeName>/',fields=['U','T'])
 
-        probe.to_csv('probe1.csv')
-
-    """
-    def __init__(self,dpath=None,**kwargs):
-        super().__init__(dpath,**kwargs)
-
-    def _processdirs(self,
-                     tdirList,
-                     varList=['U','T'],
-                     trimOverlap=True
-                    ):
-        #Redefine _processdirs so that default
-        #argument for varList can be specified
-        super()._processdirs(tdirList,varList,trimOverlap)
-
-    def _read_data(self,dpath,fname):
-        fpath = dpath + os.sep + fname
-        with open(fpath) as f:
-            try:
-                self._read_probe_positions(f)
-            except IOError:
-                print('unable to read '+fpath)
-            else:
-                array = self._read_probe_data(f)
-        return array
-
-
-    def _read_probe_positions(self,f):
-        self.pos = []
-        line = f.readline()
-        while '(' in line and ')' in line:
-            line = line.strip()
-            assert(line[0]=='#')
-            assert(line[-1]==')')
-            iprobe = int(line.split()[2])
-            i = line.find('(')
-            pt = [ float(val) for val in line[i+1:-1].split() ]
-            self.pos.append( np.array(pt) )
-            line = f.readline()
-        if len(self._processed) > 0: # assert that all fields have same number of probes
-            assert(self.N == len(self.pos))
-        else: # first field: set number of probes in self.N
-            self.N = len(self.pos)
-            assert(self.N == iprobe+1)
-        self.pos = np.array(self.pos)
-
-
-    def _read_probe_data(self,f):
-        line = f.readline()
-        assert(line.split()[1] == 'Time')
-        out = []
-        for line in f:
-            line = [ float(val) for val in
-                    line.replace('(','').replace(')','').split() ]
-            out.append(line)
-        return np.array(out)
-
-
-    #============================================================================
-    #
-    # DATA I/O
-    #
-    #============================================================================
-
-    def to_pandas(self,itime=None,fields=None,dtype=None):
-        self.hLevelsCell = self.pos[:,2]
-        return super().to_pandas(itime,fields,dtype)
-
-    def to_netcdf(self,fname):
-        fieldDescriptions = {'T': 'Potential temperature',
-                      'Ux': 'U velocity component',
-                      'Uy': 'V velocity component',
-                      'Uz': 'W velocity component',
-                      }
-        fieldUnits = {'T': 'K',
-                 'Ux': 'm s-1',
-                 'Uy': 'm s-1',
-                 'Uz': 'm s-1',
-                }
-        self.hLevelsCell = self.pos[:,2]
-        super().to_netcdf(fname,fieldDescriptions,fieldUnits)
-
-
-class Probe(object):
-    """Stores a time array (t), and field arrays as attributes. The
-    fields have shape:
-        (N, Nt[, Nd])
-    where N is the number of probes and Nt is the number of samples.
-    Vectors have an additional dimension to denote vector components.
-    Symmetric tensors have an additional dimension to denote tensor components (xx, xy, xz, yy, yz, zz).
-
-    Sample usage:
-
-        from SOWFA.postProcessing.probes import Probe
-
-        # read all probes
-        probe = Probe('postProcessing/probe1/')
-
-        # read specified probes only
-        probe = Probe('postProcessing/probe1/',fields=['U','T'])
-
-        probe.to_csv('probe1.csv')
+        data.to_csv('data.csv')
 
     """
-    def __init__(self,dpath=None,**kwargs):
-        """'Find and process all time directories of a particular probe with path dpath"""
+    def __init__(self,dpath=None,includeDt=False,**kwargs):
+        """'Find and process all time directories in path dpath"""
         self._processed = []
         self.simTimeDirs = [] #output time names
         self.simStartTimes = [] # start or restart simulation times
         self.imax = None # for truncating time series
+        self.Nt = 0 #Number of time samples
+        self.N  = 0 #Number of probes/vertical levels
+        self.t = None
+        self.dt = None
+        self.includeDt = includeDt #Time step is part of output
 
         if not dpath:
             dpath = '.'
@@ -165,18 +68,18 @@ class Probe(object):
         if len(self.simTimeDirs) > 0:
             self._processdirs( self.simTimeDirs, **kwargs )
         else:
-            print('No probe time directories found!')
+            print('No time directories found!')
             
-        self._trim_series_if_needed(self._processed)
+        self._trim_series_if_needed()
 
 
     def _processdirs(self,
                      tdirList,
-                     varList=['U','T'],
+                     varList=[],
                      trimOverlap=True
                     ):
-        """Reads all files within a probe output time directory.
-        An object attribute corresponding to the probe output name
+        """Reads all files within an output time directory.
+        An object attribute corresponding to the output name
         is updated, e.g.:
             ${timeDir}/U is appended to the array self.U
         """
@@ -193,7 +96,7 @@ class Probe(object):
         # process all data
         selected = []
         for field in outputs:
-            arrays = [ self._read_probe_file( tdir + os.sep + field ) for tdir in tdirList ]
+            arrays = [ self._read_data( tdir,field ) for tdir in tdirList ]
 
             # combine into a single array and trim end of time series
             # (because simulations that are still running can have different
@@ -228,19 +131,22 @@ class Probe(object):
                     newdata = newdata[:self.imax,:]
                 # select only unique data
                 newdata = newdata[selected,:]
-
+            
+            if self.includeDt:
+                offset = 2
+            else:
+                offset = 1
             # reshape field into (Nt,Nz[,Nd]) and set as attribute
             # - note: first column of 'newdata' is time
-            # - note: old behavior was to return (Nz,Nt,Nd) for Nd >= 1
-            if newdata.shape[1] == self.N+1:
+            if newdata.shape[1] == self.N+offset:
                 # scalar
-                setattr( self, field, newdata[:,1:] )
-            elif newdata.shape[1] == 3*self.N+1:
+                setattr( self, field, newdata[:,offset:] )
+            elif newdata.shape[1] == 3*self.N+offset:
                 # vector
-                setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,3),order='C') )
-            elif newdata.shape[1] == 6*self.N+1:
+                setattr( self, field, newdata[:,offset:].reshape((newdata.shape[0],self.N,3),order='C') )
+            elif newdata.shape[1] == 6*self.N+offset:
                 # symmetric tensor
-                setattr( self, field, newdata[:,1:].reshape((newdata.shape[0],self.N,6),order='C') )
+                setattr( self, field, newdata[:,offset:].reshape((newdata.shape[0],self.N,6),order='C') )
             else:
                 raise IndexError('Unrecognized number of values')
             self._processed.append(field)
@@ -248,49 +154,11 @@ class Probe(object):
             
         self.t = newdata[:,0]
         self.Nt = len(self.t)
+        if self.includeDt:
+            self.dt = newdata[:,1]
 
-
-    def _read_probe_file(self,fpath):
-        with open(fpath) as f:
-            try:
-                self._read_probe_positions(f)
-            except IOError:
-                print('unable to read '+fpath)
-            else:
-                array = self._read_data(f)
-        return array
-
-
-    def _read_probe_positions(self,f):
-        self.pos = []
-        line = f.readline()
-        while '(' in line and ')' in line:
-            line = line.strip()
-            assert(line[0]=='#')
-            assert(line[-1]==')')
-            iprobe = int(line.split()[2])
-            i = line.find('(')
-            pt = [ float(val) for val in line[i+1:-1].split() ]
-            self.pos.append( np.array(pt) )
-            line = f.readline()
-        if len(self._processed) > 0: # assert that all fields have same number of probes
-            assert(self.N == len(self.pos))
-        else: # first field: set number of probes in self.N
-            self.N = len(self.pos)
-            assert(self.N == iprobe+1)
-        self.pos = np.array(self.pos)
-
-
-    def _read_data(self,f):
-        line = f.readline()
-        assert(line.split()[1] == 'Time')
-        out = []
-        for line in f:
-            line = [ float(val) for val in
-                    line.replace('(','').replace(')','').split() ]
-            out.append(line)
-        return np.array(out)
-
+    def _read_data(self,fpath):
+        return None
 
     def _trim_series_if_needed(self,fields_to_check=None):
         """check for inconsistent array lengths and trim if needed"""
@@ -310,6 +178,8 @@ class Probe(object):
             print('Inconsistent averaging field lengths... is simulation still running?')
             print('  truncated field histories from',np.max(field_lengths),'to',self.imax)
             self.t = self.t[:self.imax]
+            if self.dt is not None:
+                self.dt = self.dt[:self.imax]
             self.Nt = len(self.t)
             for field in fields_to_check:
                 Ndim = len(getattr(self,field).shape)
@@ -338,51 +208,81 @@ class Probe(object):
     #
     #============================================================================
 
-    def to_pandas(self):
+    def to_csv(self,fname,**kwargs):
+        """Write out specified range of times in a pandas dataframe
+
+        kwargs: see Reader.to_pandas()
+        """
+        df = self.to_pandas(**kwargs)
+        print('Dumping dataframe to',fname)
+        df.to_csv(fname)
+
+
+    def to_pandas(self,itime=None,fields=None,dtype=None):
+        """Create pandas dataframe for the specified range of times
+
+        Inputs
+        ------
+        itime: integer, list
+            Time indice(s) to write out; if None, all times are output
+        fields: list
+            Name of field variables to write out; if None, all variables
+            that have been processed are written out
+        dtype: type
+            Single datatype to which to cast all fields
+        """
         import pandas as pd
+        # output all vars
+        if fields is None:
+            fields = self._processed
+        # select time range
+        if itime is None:
+            tindices = range(len(self.t))
+        else:
+            try:
+                iter(itime)
+            except TypeError:
+                # specified single time index
+                tindices = [itime]
+            else:
+                # specified list of indices
+                tindices = itime
+
+        # create dataframes for each height (with time as secondary index)
+        # - note: old behavior was to loop over time
+        # - note: loop over height is much faster when Nt >> Nz
+        print('Creating dataframe for',self.t[tindices])
         dflist = []
-        for iprobe in range(self.N):
-            data = dict(t=self.t)
-            for field in self._processed:
-                F = getattr(self,field)
+        for i in range(self.N):
+            data = {}
+            for var in fields:
+                F = getattr(self,var)
                 if len(F.shape)==2:
                     # scalar
-                    data[field] = F[:,iprobe]
+                    data[var] = F[tindices,i]
                 elif F.shape[2]==3:
                     # vector
-                    for i,name in enumerate(['x','y','z']):
-                        data[field+name] = F[:,iprobe,i]
+                    for j,name in enumerate(['x','y','z']):
+                        data[var+name] = F[tindices,i,j]
                 elif F.shape[2]==6:
                     # symmetric tensor
-                    for i,name in enumerate(['xx','xy','xz','yy','yz','zz']):
-                        data[field+name] = F[:,iprobe,i]
-            df = pd.DataFrame(data=data)
-            #df['id'] = iprobe
-            df['z'] = self.pos[iprobe,2]
+                    for j,name in enumerate(['xx','xy','xz','yy','yz','zz']):
+                        data[var+name] = F[tindices,i,j]
+            data['t'] = self.t[tindices]
+            df = pd.DataFrame(data=data,dtype=dtype)
+            df['z'] = self.hLevelsCell[i]
             dflist.append(df)
-        #return pd.concat(dflist).set_index(['t','id'])
-        return pd.concat(dflist).set_index(['t','z'])
+        df = pd.concat(dflist)
+        df = df.set_index(['t','z'])
+        return df
 
-    def to_csv(self,fname):
-        self.to_pandas().to_csv(fname)
 
-    def to_netcdf(self,fname):
-        long_names = {'T': 'Potential temperature',
-                      'Ux': 'U velocity component',
-                      'Uy': 'V velocity component',
-                      'Uz': 'W velocity component',
-                      }
-        units = {'T': 'K',
-                 'Ux': 'm s-1',
-                 'Uy': 'm s-1',
-                 'Uz': 'm s-1',
-                }
-
+    def to_netcdf(self,fname,fieldDescriptions={},fieldUnits={}):
         print('Dumping data to',fname)
         import netCDF4
         f = netCDF4.Dataset(fname,'w')
         f.createDimension('time',len(self.t))
-        f.createDimension('z',self.pos.shape[1])
+        f.createDimension('z',len(self.hLevelsCell))
 
         times = f.createVariable('time', 'float', ('time',))
         times.long_name = 'Time'
@@ -392,7 +292,7 @@ class Probe(object):
         heights = f.createVariable('z', 'float', ('z',))
         heights.long_name = 'Height above ground level'
         heights.units = 'm'
-        heights[:] = self.pos[:,2]
+        heights[:] = self.hLevelsCell
 
         for var in self._processed:
             F = getattr(self,var)
@@ -410,12 +310,12 @@ class Probe(object):
             for i, varname in enumerate(varnames):
                 field = f.createVariable(varname, 'float', ('time','z'))
                 try:
-                    field.long_name = long_names[varname]
+                    field.long_name = fieldDescriptions[varname]
                 except KeyError:
                     # Use var name as description
                     field.long_name = varname
                 try:
-                    field.units = units[varname]
+                    field.units = fieldUnits[varname]
                 except KeyError:
                     # Units unknown
                     pass

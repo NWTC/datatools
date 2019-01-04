@@ -27,6 +27,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from datatools.SOWFA.postProcessing.reader import Reader
 
 all_vars = [
         'U_mean','V_mean','W_mean','T_mean',
@@ -1443,6 +1444,79 @@ class PlanarAverageFunctionObject(object):
         f.close()
 
 """end of class PlanarAverageFunctionObject"""
+
+class PlanarAverageNew(Reader):
+
+    def __init__(self,dpath=None,**kwargs):
+        super().__init__(dpath,includeDt=True,**kwargs)
+
+
+    def _processdirs(self,
+                     tdirList,
+                     varList=['U','T'],
+                     trimOverlap=True
+                     ):
+        #Redefine _processdirs so that default
+        #argument for varList can be specified
+        super()._processdirs(tdirList,varList,trimOverlap)
+        
+
+    def _read_data(self,dpath,fname):
+        fpath = dpath + os.sep + fname
+        with open(fpath) as f:
+            try:
+                self._read_heights(f)
+            except IOError:
+                print('unable to read '+fpath)
+            else:
+                array = self._read_field_data(f)
+        return array
+
+    def _read_heights(self,f):
+        line = f.readline().split()
+        assert (line[0] == 'Heights'), \
+                'Error: Expected first line to start with "Heights", but instead read'+line[0]
+
+        self.hLevelsCell = [ float(val) for val in line[2:] ]
+        f.readline()
+
+        if (len(self._processed) > 0): # assert that all fields have same number of heights
+            assert (self.N == len(self.hLevelsCell)), \
+                    'Error: Various fields do not have the same number of heights'
+        else: # first field: set number of heights in self.N
+            self.N = len(self.hLevelsCell)
+        self.hLevelsCell = np.array(self.hLevelsCell)
+
+        
+    def _read_field_data(self,f):
+        out = []
+        for line in f:
+            line = [ float(val) for val in
+                    line.replace('(','').replace(')','').split() ]
+            out.append(line)
+        return np.array(out)
+
+
+    #============================================================================
+    #
+    # DATA I/O
+    #
+    #============================================================================
+
+    def to_netcdf(self,fname):
+        fieldDescriptions = {'T': 'Potential temperature',
+                      'Ux': 'U velocity component',
+                      'Uy': 'V velocity component',
+                      'Uz': 'W velocity component',
+                      }
+        fieldUnits = {'T': 'K',
+                 'Ux': 'm s-1',
+                 'Uy': 'm s-1',
+                 'Uz': 'm s-1',
+                }
+        super().to_netcdf(fname,fieldDescriptions,fieldUnits)
+
+"""end of class PlanarAverageNew"""
 
 def rotate_tensor_z(S,angle):
     """Rotate tensor S about z axis by angle [rad]"""
