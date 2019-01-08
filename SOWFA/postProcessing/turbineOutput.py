@@ -87,9 +87,10 @@ class TurbineOutput(object):
         headerNames.append(' '.join(line[i+1:]))
         return headerNames
 
-    def readRotorOutputs(self,prefix='rotor'):
+    def readRotorOutputs(self,prefix='rotor',
+            extra_channels=['generatorPower','bladePitch']):
         """Returns a dictionary of pandas dataframes for each turbine"""
-        dataNames = self.dataseries.outputs(prefix) + ['bladePitch']
+        dataNames = self.dataseries.outputs(prefix) + extra_channels
         turbinedata = dict()
 
         for dataname in dataNames:
