@@ -90,7 +90,7 @@ def read_date_dirs(dpath='.',
     Additional keyword arguments are passed to the data reader.
     """
     dataframes = []
-    for dname in os.listdir(dpath):
+    for dname in sorted(os.listdir(dpath)):
         Nfiles = 0
         fullpath = os.path.join(dpath,dname)
         if os.path.isdir(fullpath):
