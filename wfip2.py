@@ -106,7 +106,7 @@ def read_date_dirs(dpath='.',
                 if verbose: print('Skipping '+dname)
             else:
                 print('Processing '+fullpath)
-                for fname in os.listdir(fullpath):
+                for fname in sorted(os.listdir(fullpath)):
                     fpath = os.path.join(fullpath,fname)
                     if not fname.endswith(ext): continue
                     if verbose: print('  reading '+fname)
