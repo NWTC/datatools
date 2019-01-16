@@ -44,7 +44,7 @@ except AttributeError:
 # Wrappers for data loading
 #
 
-reader_exceptions = (IOError, UnicodeDecodeError)
+reader_exceptions = (IOError, UnicodeDecodeError, AssertionError)
 
 def read_dir(dpath='.',
              reader=pd.read_csv,
