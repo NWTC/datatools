@@ -44,6 +44,8 @@ except AttributeError:
 # Wrappers for data loading
 #
 
+reader_exceptions = (IOError, UnicodeDecodeError)
+
 def read_dir(dpath='.',
              reader=pd.read_csv,
              file_filter='*',
@@ -70,7 +72,10 @@ def read_dir(dpath='.',
         #fname = os.path.split(fpath)[-1]
         #if verbose: print('Reading '+fname)
         if verbose: print('Reading '+fpath)
-        df = reader(fpath,**kwargs)
+        try:
+            df = reader(fpath,**kwargs)
+        except reader_exceptions as err:
+            print(err,'while reading',fpath)
         dataframes.append(df)
     return pd.concat(dataframes)
 
@@ -105,7 +110,11 @@ def read_date_dirs(dpath='.',
                     fpath = os.path.join(fullpath,fname)
                     if not fname.endswith(ext): continue
                     if verbose: print('  reading '+fname)
-                    df = reader(fpath,**kwargs)
+                    try:
+                        df = reader(fpath,**kwargs)
+                    except reader_exceptions as err:
+                        print('Reader error {:s}: {:s} while reading {:s}'.format(
+                                str(type(err)),str(err),fname))
                     dataframes.append(df)
                     Nfiles += 1
             print('  {} dataframes added'.format(Nfiles))
