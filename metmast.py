@@ -197,13 +197,15 @@ def RMYoung05106_sonic(*args):
 
 def EddyPro_full_output(*args,**kwargs):
     """read EddyPro "full output" csv files"""
-    columns = kwargs.get('columns',
-            ['datetime','wind_speed','wind_dir','sonic_temperature','TKE'])
-    #index = kwargs.get('index')
-    if 'datetime' not in columns:
+    columns = kwargs.get('columns',None)
+    rename = kwargs.get('rename',False)
+    verbose = kwargs.get('verbose',False)
+    if (columns is not None) and ('datetime' not in columns):
         columns = ['datetime'] + columns
     dflist = []
     for fname in args:
+        if verbose:
+            print('reading',fname)
         with open(fname,'r') as f:
             f.readline()
             header = f.readline().strip().split(',')
@@ -211,8 +213,17 @@ def EddyPro_full_output(*args,**kwargs):
             df = pd.read_csv(f,names=header,parse_dates={'datetime':['date','time']},na_values=-9999)
             if columns is not None:
                 df = df[columns]
-                df = df.rename({'wind_speed':'speed', 'wind_dir':'direction', 'sonic_temperature':'temperature'}, axis='columns')
-            dflist.append( df )
+            if rename is not False:
+                if rename is True:
+                    renamedict = {
+                        'wind_speed':'windspeed',
+                        'wind_dir':'winddir',
+                        'sonic_temperature':'temperature',
+                    }
+                else:
+                    renamedict = rename
+                df = df.rename(columns=renamedict)
+            dflist.append(df)
     return pd.concat(dflist).set_index('datetime')
 
 
