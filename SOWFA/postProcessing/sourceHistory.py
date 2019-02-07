@@ -313,6 +313,10 @@ class SourceHistoryNew(Reader):
 
     def _read_data(self,dpath,fname):
         fpath = dpath + os.sep + 'Source' + fname + 'History'
+        if fname.startswith('Error'):
+            fpath = dpath + os.sep + fname + 'History'
+
+
         with open(fpath) as f:
             try:
                 self._read_source_heights(f)
