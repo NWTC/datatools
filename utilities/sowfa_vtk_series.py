@@ -15,7 +15,7 @@ verbose = False
 dirlist = []
 timesteps = []
 
-if sys.argv > 1:
+if len(sys.argv) > 1:
     srcdir = sys.argv[1]
 else:
     srcdir = '.'
