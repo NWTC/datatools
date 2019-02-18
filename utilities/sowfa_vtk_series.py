@@ -14,6 +14,15 @@
 from __future__ import print_function
 import os
 import sys
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('srcdir',nargs='?',default=os.getcwd(),help='alternate source directory')
+parser.add_argument('--nameFirst',action='store_false',
+                    help='parse output files assuming the sampleName preceeds the variable name(s)')
+parser.add_argument('-v','--verbose',action='store_false',
+                    help='verbose output (for debugging)')
+args = parser.parse_args()
 
 #verbose = False
 verbose = True # for debug
@@ -69,8 +78,8 @@ for timestep_dir in dirlist:
         origname = None
         for uname in underscoreNames:
             if uname in basename:
-                origname = exception
-                basename = basename.replace(exception,'TEMP')
+                origname = uname
+                basename = basename.replace(uname,'TEMP')
         basesplit = basename.split('_')
         var = basesplit[0]
         if origname is not None:
