@@ -16,25 +16,25 @@ import os
 import sys
 import argparse
 
+# workarounds:
+extMapping = dict(xy='xyz')
+underscoreNames = ['p_rgh']
+
+# parse command-line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('srcdir',nargs='?',default=os.getcwd(),help='alternate source directory')
-parser.add_argument('--nameFirst',action='store_false',
+parser.add_argument('--nameFirst',action='store_true',
                     help='parse output files assuming the sampleName preceeds the variable name(s)')
-parser.add_argument('-v','--verbose',action='store_false',
+parser.add_argument('-v','--verbose',action='store_true',
                     help='verbose output (for debugging)')
 args = parser.parse_args()
 
-#verbose = False
-verbose = True # for debug
+verbose = args.verbose
+srcdir = args.srcdir
 
+# find time subdirectories
 dirlist = []
 timesteps = []
-
-if len(sys.argv) > 1:
-    srcdir = sys.argv[1]
-else:
-    srcdir = '.'
-
 dirs = os.walk(srcdir).next()[1]
 for d in dirs:
     try: 
@@ -47,20 +47,11 @@ for d in dirs:
 if len(dirlist) == 0:
     sys.exit('No time subdirectories found in '+str(dirs))
 
-extMapping = dict(xy='xyz')
-
-underscoreNames = ['p_rgh']
-
-def tname(tval):
-    # note: paraview doesn't seem to handle floats well...
-    #return '%d' % (tval*10)
-    #return '%d' % (tval*1000)
-    return '%d' % (tval)
-
 #-----------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------------------
 
+# now, find sample and variable name(s)
 sampleNames = []
 varNames = []
 extNames = []
@@ -105,6 +96,7 @@ if ext in extMapping:
 else:
     extNew = ext
 
+# create symlinks
 indices = sorted(range(len(timesteps)), key=lambda k: timesteps[k])
 for sample in sampleNames:
     for var in varNames:
