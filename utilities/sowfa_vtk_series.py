@@ -1,16 +1,22 @@
 #!/usr/bin/env python
 #
-# for creating symlinks to output from the OpenFOAM sample utility
-# expected directory structure:
-#   postProcessing/surfaces/<time>/<var>_<setName>.vtk
-# result:
-#   postProcessing/surfaces/<setName>/<var>_<time>.vtk
+# For creating symlinks to output from the OpenFOAM sample utility
 #
+# Expected directory structure:
+#   postProcessing/surfaces/<time>/<var>_<sampleName>.vtk
+# Result:
+#   postProcessing/surfaces/<sampleName>/<var>_<time>.vtk
+#
+# If the -nameFirst argument is passed, then the expected output files
+# should be named <sampleName>_<var>.vtk
+#
+
 from __future__ import print_function
 import os
 import sys
 
-verbose = False
+#verbose = False
+verbose = True # for debug
 
 dirlist = []
 timesteps = []
@@ -20,8 +26,6 @@ if len(sys.argv) > 1:
 else:
     srcdir = '.'
 
-#dirs=*.*
-#curdir=`pwd`
 dirs = os.walk(srcdir).next()[1]
 for d in dirs:
     try: 
@@ -31,6 +35,8 @@ for d in dirs:
     else:
         dirlist.append(os.path.join(srcdir,d))
         timesteps.append(step)
+if len(dirlist) == 0:
+    sys.exit('No time subdirectories found in '+str(dirs))
 
 extMapping = dict(xy='xyz')
 
@@ -49,6 +55,7 @@ def tname(tval):
 sampleNames = []
 varNames = []
 extNames = []
+ext = None
 for timestep_dir in dirlist:
     if verbose:
         print('Processing', timestep_dir)
@@ -57,18 +64,18 @@ for timestep_dir in dirlist:
     for f in filelist:
         if f.startswith('.'):
             continue
-        fbasename,ext = os.path.splitext(f)
-        ext = ext[1:]
+        basename,ext = os.path.splitext(f)
+        ext = ext[1:] # drop leading '.' from extension
         origname = None
-        for exception in underscoreNames:
-            if exception in fbasename:
+        for uname in underscoreNames:
+            if uname in basename:
                 origname = exception
-                fbasename = fbasename.replace(exception,'TEMP')
-        fbasesplit = fbasename.split('_')
-        var = fbasesplit[0]
+                basename = basename.replace(exception,'TEMP')
+        basesplit = basename.split('_')
+        var = basesplit[0]
         if origname is not None:
             var = var.replace('TEMP',origname)
-        name = '_'.join(fbasesplit[1:])
+        name = '_'.join(basesplit[1:])
         if verbose:
             print('  {:s}\t(name={:s}, var={:s}, ext={:s})'.format(f,name,var,ext))
         if name=='':
@@ -80,12 +87,14 @@ for timestep_dir in dirlist:
             varNames.append(var)
         if not ext in extNames:
             extNames.append(ext)
-
+if ext is None:
+    sys.exit('No vtk files found in '+str(dirlist))
 if not len(extNames)==1:
-    print('Don''t know how to handle different extensions',extNames)
+    sys.exit('Don''t know how to handle different extensions',extNames)
 if ext in extMapping:
     extNew = extMapping[ext]
-else: extNew = ext
+else:
+    extNew = ext
 
 indices = sorted(range(len(timesteps)), key=lambda k: timesteps[k])
 for sample in sampleNames:
