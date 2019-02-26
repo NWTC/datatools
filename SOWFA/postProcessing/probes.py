@@ -106,7 +106,7 @@ class Probe(object):
                     for ipart,tcutoff in enumerate(self.simStartTimes[1:]):
                         selectedpart = np.ones(len(tpart[ipart]),dtype=bool)
                         try:
-                            iend = np.nonzero(tpart[ipart] > tcutoff)[0][0]
+                            iend = np.nonzero(tpart[ipart] >= tcutoff)[0][0]
                         except IndexError:
                             # clean restart
                             pass
