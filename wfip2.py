@@ -264,7 +264,6 @@ def plot_timeheight(df, column, ax=None,
     elif isinstance(df.index, pd.DatetimeIndex):
         # single datetime index
         height = df[height_name].unique()
-        df = df.reset_index()
     else:
         # default range index
         height = df[height_name].unique()
