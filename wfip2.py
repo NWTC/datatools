@@ -271,7 +271,6 @@ def plot_timeheight(df, column, ax=None,
 
     # trim rows outside of range
     df = _trim_datetime(df,datetime_range)
-    print(df.head())
     time = df.index.unique().to_pydatetime()
 
     # create arrays for plotting
