@@ -15,6 +15,6 @@ patch.write_points()
 # TODO: generate U,T arrays with shape==(time, height[, direction])
 T = 300.0 * np.ones((len(times),len(z)))
 U = np.zeros((len(times),len(z),3))
-U[0,:,:] = 8.0  # uniform westerly flow
+U[:,:,0] = 8.0  # uniform westerly flow
 patch.write_profiles(times,z,U=U,T=T)
 
