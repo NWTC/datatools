@@ -57,22 +57,24 @@ FoamFile
 ("""
 
 
-def write_points(fname,x,y,z,patchName='patch'):
+def write_points(fname,x,y,z,patchName='patch',
+                 fmt='%f',order='C'):
     """Write out a points file which should be stored in
         constant/boundaryData/patchName/points
     """
     N = len(x)
     assert(N == len(y) == len(z))
     if len(x.shape) > 1:
-        x = x.ravel()
-        y = y.ravel()
-        z = z.ravel()
+        x = x.ravel(order=order)
+        y = y.ravel(order=order)
+        z = z.ravel(order=order)
         N = len(x)
     dpath = os.path.split(fname)[0]
     if not os.path.isdir(dpath):
         os.makedirs(dpath)
+    fmtstr = '({:s} {:s} {:s})'.format(fmt,fmt,fmt)
     np.savetxt(fname,
-               np.stack((x,y,z)).T, fmt='(%f %f %f)',
+               np.stack((x,y,z)).T, fmt=fmtstr,
                header=pointsheader.format(patchName=patchName,N=N,fmt='ascii'),
                footer=')',
                comments='')
