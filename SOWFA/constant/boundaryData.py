@@ -9,10 +9,6 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-from ipywidgets import interactive, fixed  #interact, interactive, fixed, interact_manual
-import ipywidgets as widgets
-from IPython.display import display
-
 from datatools.series import TimeSeries
 import datatools.openfoam_util as of
 
@@ -389,6 +385,9 @@ class BoundaryData(object):
             self.vrange.min = fieldmin
 
     def iplot(self,name):
+        from ipywidgets import interactive, fixed  #interact, interactive, fixed, interact_manual
+        import ipywidgets as widgets
+        from IPython.display import display
 #        allfields = list(self.field.keys())
         F = self.field[name]
         fieldmin = np.min(F)
