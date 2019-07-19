@@ -127,14 +127,14 @@ class SourceHistory(object):
         # Check whether sources depend on height or not
         with open(tdirList[0]+os.sep+'Source'+outputs[0]+'History','r') as f:
             line = f.readline().split()
-        if line[0] == 'Time(s)':
+        if line[0].startswith('Time'):
             self.hLevelsCell = np.array([0.0])
             header_lines = 1
-        elif line[0] == 'Heights':
+        elif line[0].startswith('Heights'):
             self.hLevelsCell = np.array([ float(val) for val in line[2:] ])
             header_lines = 2
         else:
-            print('Error: Expected first line to start with "Time(s)" or "Heights", but instead read',line[0])
+            print('Error: Expected first line to start with "Time" or "Heights", but instead read',line[0])
             return
 
         # check that we have the same amount of data
@@ -382,14 +382,14 @@ class SourceHistoryNew(object):
         # Check whether sources depend on height or not
         with open(tdirList[0]+os.sep+'Source'+outputs[0]+'History','r') as f:
             line = f.readline().split()
-        if line[0] == 'Time(s)':
+        if line[0].startswith('Time'):
             self.hLevelsCell = np.array([0.0])
             self._header_lines = 1
-        elif line[0] == 'Heights':
+        elif line[0].startswith('Heights'):
             self.hLevelsCell = np.array([ float(val) for val in line[2:] ])
             self._header_lines = 2
         else:
-            print('Error: Expected first line to start with "Time(s)" or "Heights", but instead read',line[0])
+            print('Error: Expected first line to start with "Time" or "Heights", but instead read',line[0])
             return
 
         self.N = len(self.hLevelsCell)
