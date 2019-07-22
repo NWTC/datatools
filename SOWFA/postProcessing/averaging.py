@@ -1055,19 +1055,19 @@ class PlanarAverages(object):
         # create dataframes for each time (with height as secondary index)
         print('Creating dataframe for',self.t[tindices])
         dflist = []
-        for i in tindices:
+        for k in range(self.N):
             if isinstance(fields, dict):
                 # write out specified fields with custom column names
-                data = { col: getattr(self,var)[i,:] for col,var in fields.items() }
+                data = { col: getattr(self,var)[:,k] for col,var in fields.items() }
             elif hasattr(fields, '__iter__') and  not isinstance(fields, str):
                 # have an iterable object, write out specified fields
-                data = { var: getattr(self,var)[i,:] for var in fields }
+                data = { var: getattr(self,var)[:,k] for var in fields }
             else:
                 # write out all fields that have been processed
-                data = { var: getattr(self,var)[i,:] for var in self._processed }
-            data['z'] = self.hLevelsCell
+                data = { var: getattr(self,var)[:,k] for var in self._processed }
+            data['z'] = self.hLevelsCell[k]
             df = pd.DataFrame(data=data,dtype=dtype)
-            df['t'] = self.t[i]
+            df['t'] = self.t[tindices]
             dflist.append(df)
         df = pd.concat(dflist)
         df = df.set_index(['t','z'])
