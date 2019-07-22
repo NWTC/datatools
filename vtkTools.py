@@ -210,7 +210,8 @@ def read_vtkStructured(vtkPath,verbose=False):
 #==============================================================================
 # 
 #==============================================================================
-def write_vtkStructured(data,meta,fileOutPath,descStr="PLACEHOLDER",verbose=False):
+def write_vtkStructured(data,meta,fileOutPath,descStr="PLACEHOLDER",
+        fieldName='vAmb',verbose=False,**kwargs):
     """
     Writes data in vtk structured format.
     
@@ -224,6 +225,8 @@ def write_vtkStructured(data,meta,fileOutPath,descStr="PLACEHOLDER",verbose=Fals
         absolute path to vtk file you want to write      
     descStr : str,
         some header string describing what these data are
+    **kwargs : optional
+        keyword arguments for np.savetxt
     """      
 
     with open(fileOutPath, 'w') as f:      
@@ -236,13 +239,13 @@ def write_vtkStructured(data,meta,fileOutPath,descStr="PLACEHOLDER",verbose=Fals
         f.write('ORIGIN {0:.1f} {1:.1f} {2:.1f}\n'.format(meta['xOrigin'],meta['yOrigin'],meta['zOrigin']))  
         f.write('SPACING {0:.1f} {1:.1f} {2:.1f}\n'.format(meta['dx'],meta['dy'],meta['dz']))  
         f.write('POINT_DATA {0:d}\n'.format(meta['nPts']))  
-        f.write('VECTORS vAmb float\n')  
+        f.write('VECTORS {:s} float\n'.format(fieldName))
     
         [X,Y,Z,U,V,W]   = data    
         U = np.ravel(U, order='F') ; V = np.ravel(V, order='F') ; W = np.ravel(W, order='F')        
         data = np.zeros((len(U),3))
         data[:,0] = U ; data[:,1] = V ; data[:,2] = W     
-        np.savetxt(f,data)
+        np.savetxt(f,data,**kwargs)
 
         if verbose:
             print("Saved data to {0}".format(fileOutPath))
@@ -268,7 +271,11 @@ def vtk_write_structured_points( f, nx,ny,nz, data,
     Inputs are written with x increasing fastest, then y, then z.
 
     Example: Writing out two vector fields in one VTK file.
-        vtk_write_structured_points(f,nx,ny,nz,[U,V,W,up,vp,wp],ds=1.0,dataname=['mean','fluctuation'])
+        with open('some_data.vtk','wb') as f:
+            vtk_write_structured_points(f,nx,ny,nz,
+                                        [U,V,W,up,vp,wp],ds=1.0,
+                                        dataname=['mean','fluctuation'],
+                                        indexorder='ijk')
 
     Parameters
     ----------
@@ -379,9 +386,10 @@ def vtk_write_structured_points( f, nx,ny,nz, data,
         except IndexError:
             name = outputtype+str(idata)
 
+        mapping = { 'i': range(nx), 'j': range(ny), 'k': range(nz) }
+        ijkranges = [ mapping[ijk] for ijk in indexorder ]
+
         if outputtype=='vector':
-            mapping = { 'i': range(nx), 'j': range(ny), 'k': range(nz) }
-            ijkranges = [ mapping[ijk] for ijk in indexorder ]
             if binary:
                 f.write(b('{:s}S {:s} {:s}\n'.format(outputtype.upper(),name,vtk_datatype)))
                 for k in ijkranges[2]:
@@ -398,18 +406,19 @@ def vtk_write_structured_points( f, nx,ny,nz, data,
             if binary:
                 f.write(b('{:s}S {:s} {:s}\n'.format(outputtype.upper(),name,vtk_datatype)))
                 f.write(b('LOOKUP_TABLE default\n'))
-                for k in range(nz):
-                    for j in range(ny):
-                        for i in range(nx):
+                for k in ijkranges[2]:
+                    for j in ijkranges[1]:
+                        for i in ijkranges[0]:
                             #f.write(struct.pack('f',u[j,i,k])) # native endianness
-                            f.write(struct.pack('>f',u[j,i,k])) # big endian
+                            #f.write(struct.pack('>f',u[j,i,k])) # big endian
+                            f.write(struct.pack('>f',u[i,j,k])) # big endian
             else:
                 f.write('{:s}S {:s} {:s}\n'.format(outputtype.upper(),name,vtk_datatype))
                 f.write('LOOKUP_TABLE default\n')
-                for k in range(nz):
-                    for j in range(ny):
-                        for i in range(nx):
-                            f.write(' {:f}\n'.format(u[j,i,k]))
+                for k in ijkranges[2]:
+                    for j in ijkranges[1]:
+                        for i in ijkranges[0]:
+                            f.write(' {:f}\n'.format(u[i,j,k]))
 
 
 def vtk_read_binary_structured_points(fname,dtype=np.float32,verbose=True):
