@@ -12,9 +12,12 @@ def readVarDefinition(line):
     else:
         comment = ''
         part1 = line.strip()
-    assert( part1[-1]==';' )
+    if not part1.endswith(';'):
+        return None
 
     nameval = part1[:-1].split()
+    if not len(nameval) == 2:
+        return None
     name = nameval[0]
     val = ' '.join(nameval[1:])
     try: 
@@ -28,22 +31,25 @@ def read(fname='setUp',verbose=False):
     params = dict()
     comments = dict()
     if not os.path.isfile(fname):
-        print 'File not found:',fname
+        print('File not found:',fname)
         return params
 
     with open(fname,'r') as f:
         processLine = True
         for line in f:
             if line.startswith('//') or line.startswith('#') or line.strip()=='':
+                #print('SKIP '+line.rstrip())
                 continue
             elif line.startswith('/*'):
+                #print('SKIP '+line.rstrip())
                 processLine = False
             elif not processLine and '*/' in line:
+                #print('SKIP '+line.rstrip())
                 processLine = True
             elif processLine:
                 p = readVarDefinition(line)
                 if not p is None:
-                    if verbose: print p
+                    if verbose: print(p)
                     params[p[0]] = p[1]
                     comments[p[0]] = p[2]
 
