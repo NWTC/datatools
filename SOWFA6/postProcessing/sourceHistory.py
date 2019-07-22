@@ -63,14 +63,15 @@ class SourceHistory(Reader):
 
     def _read_source_heights(self,f):
         line = f.readline().split()
-        assert (line[0] in ['Time(s)','Heights']), \
-                'Error: Expected first line to start with "Time(s)" or "Heights", but instead read'+line[0]
 
-        if line[0] == 'Time(s)':
+        if line[0].startswith('Time'):
             self.hLevelsCell = [0.0]
-        else:
+        elif line[0].startswith('Heights'):
             self.hLevelsCell = [ float(val) for val in line[2:] ]
             f.readline()
+        else:
+            print('Error: Expected first line to start with "Time" or "Heights", but instead read',line[0])
+            return
 
         if (len(self._processed) > 0): # assert that all fields have same number of heights
             assert (self.N == len(self.hLevelsCell)), \
@@ -78,6 +79,7 @@ class SourceHistory(Reader):
         else: # first field: set number of heights in self.N
             self.N = len(self.hLevelsCell)
         self.hLevelsCell = np.array(self.hLevelsCell)
+        return
 
         
     def _read_source_data(self,f):
