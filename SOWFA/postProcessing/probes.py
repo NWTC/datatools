@@ -259,7 +259,7 @@ class Probe(object):
             df['z'] = self.pos[iprobe,2]
             dflist.append(df)
         #return pd.concat(dflist).set_index(['t','id'])
-        return pd.concat(dflist).set_index(['t','z'])
+        return pd.concat(dflist).sort_values(['t','z']).set_index(['t','z'])
 
     def to_csv(self,fname):
         self.to_pandas().to_csv(fname)
