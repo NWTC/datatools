@@ -7,7 +7,7 @@ written by Eliot Quon (eliot.quon@nrel.gov)
 from __future__ import print_function
 import os
 import numpy as np
-from datatools.SOWFA.postProcessing.reader import Reader
+from datatools.SOWFA6.postProcessing.reader import Reader
 
 class Probe(Reader):
     """Stores a time array (t), and field arrays as attributes. The
@@ -19,13 +19,13 @@ class Probe(Reader):
 
     Sample usage:
 
-        from SOWFA.postProcessing.probes import ProbeNew
+        from SOWFA6.postProcessing.probes import Probe
 
         # read all probes
-        probe = ProbeNew('postProcessing/probe1/')
+        probe = Probe('postProcessing/probe1/')
 
         # read specified probes only
-        probe = ProbeNew('postProcessing/probe1/',fields=['U','T'])
+        probe = Probe('postProcessing/probe1/',fields=['U','T'])
 
         probe.to_csv('probe1.csv')
 

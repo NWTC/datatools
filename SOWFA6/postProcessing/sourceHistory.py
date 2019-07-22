@@ -8,7 +8,7 @@ The class can handle both height-dependent and constant source files
 
 Sample usage:
 
-    from datatools.SOWFA.postProcessing.sourceHistory import SourceHistory
+    from datatools.SOWFA6.postProcessing.sourceHistory import SourceHistory
 
     # read all time directories in current working directory or in subdirectory called 'SourceHistory'
     srcData = SourceHistory()
@@ -27,7 +27,7 @@ from __future__ import print_function
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from datatools.SOWFA.postProcessing.reader import Reader
+from datatools.SOWFA6.postProcessing.reader import Reader
 
 
 class SourceHistory(Reader):
