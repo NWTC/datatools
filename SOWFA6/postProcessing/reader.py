@@ -272,9 +272,7 @@ class Reader(object):
             df = pd.DataFrame(data=data,dtype=dtype)
             df['z'] = self.hLevelsCell[i]
             dflist.append(df)
-        df = pd.concat(dflist)
-        df = df.set_index(['t','z'])
-        return df
+        return pd.concat(dflist).sort_values(['t','z']).set_index(['t','z'])
 
 
     def to_netcdf(self,fname,fieldDescriptions={},fieldUnits={}):
