@@ -29,7 +29,7 @@ class Reader(object):
         data.to_csv('data.csv')
 
     """
-    def __init__(self,dpath=None,includeDt=False,**kwargs):
+    def __init__(self,dpath=None,includeDt=False,verbose=True,**kwargs):
         """'Find and process all time directories in path dpath"""
         self._processed = []
         self.simTimeDirs = [] #output time names
@@ -40,6 +40,7 @@ class Reader(object):
         self.t = None
         self.dt = None
         self.includeDt = includeDt #Time step is part of output
+        self.verbose = verbose
 
         if not dpath:
             dpath = '.'
@@ -62,7 +63,8 @@ class Reader(object):
         self.simTimeDirs = [ x[1] for x in sorted(zip(self.simStartTimes,self.simTimeDirs)) ]
         self.simStartTimes.sort()
 
-        print('Simulation (re)start times:',self.simStartTimes)
+        if self.verbose:
+            print('Simulation (re)start times:',self.simStartTimes)
 
         # process all output dirs
         if len(self.simTimeDirs) > 0:
@@ -150,7 +152,8 @@ class Reader(object):
             else:
                 raise IndexError('Unrecognized number of values')
             self._processed.append(field)
-            print('  read',field)        # set time arrays
+            if self.verbose:
+                print('  read',field)        # set time arrays
             
         self.t = newdata[:,0]
         self.Nt = len(self.t)
@@ -251,7 +254,8 @@ class Reader(object):
         # create dataframes for each height (with time as secondary index)
         # - note: old behavior was to loop over time
         # - note: loop over height is much faster when Nt >> Nz
-        print('Creating dataframe for',self.t[tindices])
+        if self.verbose:
+            print('Creating dataframe for',self.t[tindices])
         dflist = []
         for i in range(self.N):
             data = {}
