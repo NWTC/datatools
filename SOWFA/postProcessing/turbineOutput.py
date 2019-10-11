@@ -3,10 +3,10 @@
 #   postProcessing/turbineOutput
 #
 # USAGE:
-#   tdata = TurbineOutput()
+#   tdata = TurbineOutput('/path/to/casedir/postProcessing/turbineOutput')
 #   print(tdata.names) # list outputs in turbineOutput/<timeName>/*
-#   rotor = tdata.readRotorOutput()
-#   blade1 = tdata.readBladeOutput()
+#   rotor = tdata.readRotorOutputs()
+#   blade0 = tdata.readBladeOutputs(bladeNum=0)
 #
 from __future__ import print_function
 import os
