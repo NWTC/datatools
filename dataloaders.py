@@ -59,7 +59,7 @@ else:
         return dataSetName, dims, origin, spacing, x, y, z, nFields, fieldName, fieldDim, field
 
 
-class sampled_data(object):
+class SampledData(object):
     """Generic regularly sampled data object"""
 
     def __init__(self,
@@ -274,10 +274,10 @@ class sampled_data(object):
         else:
             raise AttributeError('Need to specify x, y, or z location')
 
-class _template_sampled_data_format(sampled_data):
+class _template_sampled_data_format(SampledData):
     """TEMPLATE for other data readers
     
-    Inherits superclass sampled_data.
+    Inherits superclass SampledData.
     """
     def __init__(self,*args,**kwargs):
         """DESCRIPTION HERE
@@ -305,10 +305,10 @@ class _template_sampled_data_format(sampled_data):
         self.data_read_from = None
 
 
-class rawdata(sampled_data):
+class rawdata(SampledData):
     """Raw data, e.g., in csv format.
 
-    See superclass sampled_data for more information.
+    See superclass SampledData for more information.
     """
     def __init__(self,fname,NY,NZ=None,
                  skiprows=1,delimiter=','):
@@ -355,15 +355,15 @@ class rawdata(sampled_data):
         self.data = u[order].reshape((1,1,NY,NZ,1))  # shape == (Ntimes,NX,NY,NZ,datasize)
         self.data_read_from = None
 
-class planar_data(sampled_data):
+class planar_data(SampledData):
     """Pre-processed data, in 2D arrays.
 
-    See superclass sampled_data for more information.
+    See superclass SampledData for more information.
     """
     def __init__(self,datadict,center_x=False,center_y=True):
         """Takes data stored in a dictionary with keys:
             'x', 'y', 'z', 'u', 'v', 'w'
-        and returns a sampled_data object. 'x', 'v', and 'w' are
+        and returns a SampledData object. 'x', 'v', and 'w' are
         optional.
 
         Parameters
@@ -405,10 +405,10 @@ class planar_data(sampled_data):
         if center_y:
             self.y -= np.mean(self.y)
 
-class pandas_dataframe(sampled_data):
+class pandas_dataframe(SampledData):
     """Raw data from pandas dataframe(s)
     
-    See superclass sampled_data for more information.
+    See superclass SampledData for more information.
     """
 
     def __init__(self,frames,NY=None,NZ=None,xr=None,refineFactor=None):
@@ -562,10 +562,10 @@ def interp_holes_2d(y,z,verbose=True):
 
 #------------------------------------------------------------------------------
 
-class foam_structuredVTK_array(sampled_data):
+class foam_structuredVTK_array(SampledData):
     """OpenFOAM array sampling data in structuredVTK format
     
-    See superclass sampled_data for more information.
+    See superclass SampledData for more information.
     """
 
     def __init__(self,datadir,prefix=None,**kwargs):
@@ -683,10 +683,10 @@ class foam_structuredVTK_array(sampled_data):
 
 #------------------------------------------------------------------------------
 
-class foam_ensight_array(sampled_data):
+class foam_ensight_array(SampledData):
     """OpenFOAM array sampling data in Ensight format
     
-    See superclass sampled_data for more information.
+    See superclass SampledData for more information.
     """
 
     def __init__(self,datadir,prefix=None,Nt=None,**kwargs):
@@ -788,9 +788,9 @@ class foam_ensight_array(sampled_data):
         self.z = self.z.reshape((NX,NY,NZ),order='F')
 
         # read data
-	if Nt is None:
-	    Nt = len(self.ts)
-	data = np.zeros((Nt,NX,NY,NZ,self.datasize))
+        if Nt is None:
+            Nt = len(self.ts)
+        data = np.zeros((Nt,NX,NY,NZ,self.datasize))
         for itime,fname in enumerate(self.ts):
             sys.stderr.write('\rProcessing frame {:d}'.format(itime))
             #sys.stderr.flush()
@@ -843,7 +843,7 @@ class foam_ensight_array(sampled_data):
             for i in range(self.datasize):
                 data[itime,:,:,:,i] = u[i,:].reshape((NX,NY,NZ),order='F')
 
-	    if itime>=Nt-1:
+            if itime>=Nt-1:
                 break
 
         sys.stderr.write('\n')
@@ -867,13 +867,13 @@ class foam_ensight_array(sampled_data):
                     print('  (see https://github.com/numpy/numpy/issues/5336)')
 
 
-class foam_ensight_array_series(sampled_data):
+class foam_ensight_array_series(SampledData):
     """OpenFOAM array sampling data in Ensight format.
 
     New output format has a single output directory containing a series of .U
     files with a single associated .case and .mesh file.
     
-    See superclass sampled_data for more information.
+    See superclass SampledData for more information.
     """
 
     def __init__(self,*args,**kwargs):
