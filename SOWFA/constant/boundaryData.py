@@ -145,7 +145,7 @@ def write_data(fname,
                    comments='')
 
 
-def read_points(fname,tol=1e-6,**kwargs):
+def read_points(fname,tol=1e-6,return_const=False,**kwargs):
     """Returns a 2D set of points if one of the coordinates is constant
     otherwise returns a 3D set of points. Assumes that the points are on a
     structured grid.
@@ -181,12 +181,15 @@ def read_points(fname,tol=1e-6,**kwargs):
         print('Warning: boundary is not constant in X or Y?')
 
     if constX:
+        x0 = np.mean(points[:,0])
         ylist = points[:,1]
         zlist = points[:,2]
     elif constY:
+        x0 = np.mean(points[:,1])
         ylist = points[:,0]
         zlist = points[:,2]
     elif constZ:
+        x0 = np.mean(points[:,2])
         ylist = points[:,0]
         zlist = points[:,1]
     else:
@@ -195,7 +198,10 @@ def read_points(fname,tol=1e-6,**kwargs):
 
     y,z,is_structured = of._get_unique_points_from_list(ylist,zlist,**kwargs)
     assert(is_structured)
-    return y,z
+    if return_const:
+        return x0,y,z
+    else:
+        return y,z
 
 
 def read_vector_data(fname,Ny=None,Nz=None,order='C',verbose=False):
