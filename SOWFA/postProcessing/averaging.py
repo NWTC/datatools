@@ -1055,7 +1055,7 @@ class PlanarAverages(object):
         # create dataframes for each time (with height as secondary index)
         print('Creating dataframe for',self.t[tindices])
         dflist = []
-        for k in range(self.N):
+        for k,z in enumerate(self.hLevelsCell):
             if isinstance(fields, dict):
                 # write out specified fields with custom column names
                 data = { col: getattr(self,var)[:,k] for col,var in fields.items() }
@@ -1065,7 +1065,7 @@ class PlanarAverages(object):
             else:
                 # write out all fields that have been processed
                 data = { var: getattr(self,var)[:,k] for var in self._processed }
-            data['z'] = self.hLevelsCell[k]
+            data['z'] = z
             df = pd.DataFrame(data=data,dtype=dtype)
             df['t'] = self.t[tindices]
             dflist.append(df)
