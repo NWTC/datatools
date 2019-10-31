@@ -21,7 +21,7 @@ import numpy as np
 
 from datatools.dataloaders import foam_ensight_array
 from datatools.FAST.InflowWind import input_template
-from datatools.binario import binaryfile
+from datatools.binario import BinaryFile
 
 
 def generate_inflow(datadir,prefix,
@@ -60,7 +60,7 @@ def generate_inflow(datadir,prefix,
     dz = z[1] - z[0]
 
     U[:,:,:,0] -= uref # InflowWind will add this back to the x-component
-    with binaryfile(ufile,'w') as f:
+    with BinaryFile(ufile,'w') as f:
         # last plane of turbulence box enters rotor first, and corresponds to
         # the first time snapshot
         for i in range(nt): # indexing goes nx, nx-1, ... 1
@@ -68,7 +68,7 @@ def generate_inflow(datadir,prefix,
                 f.write_float(U[i,j,:,0]) # indexing goes 1, 2, ... nz
     print('Wrote binary',ufile)
 
-    with binaryfile(vfile,'w') as f:
+    with BinaryFile(vfile,'w') as f:
         # last plane of turbulence box enters rotor first, and corresponds to
         # the first time snapshot
         for i in range(nt): # indexing goes nx, nx-1, ... 1
@@ -76,7 +76,7 @@ def generate_inflow(datadir,prefix,
                 f.write_float(U[i,j,:,1]) # indexing goes 1, 2, ... nz
     print('Wrote binary',vfile)
 
-    with binaryfile(wfile,'w') as f:
+    with BinaryFile(wfile,'w') as f:
         # last plane of turbulence box enters rotor first, and corresponds to
         # the first time snapshot
         for i in range(nt): # indexing goes nx, nx-1, ... 1
